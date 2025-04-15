@@ -6,11 +6,11 @@ from chipmunk.triton import csp_mlp_mm2
 def chipmunk_op_matmul_1_fake(
     a: torch.Tensor, 
     b_colmajor: torch.Tensor, 
+    sparse_act_packed_out: torch.Tensor,
     fc1b: torch.Tensor, 
     sp_inds: torch.Tensor, 
     sp_counts: torch.Tensor, 
     sparse_act_colmajor_in: torch.Tensor, 
-    sparse_act_packed_out: torch.Tensor
 ) -> None:
     pass
 
@@ -26,7 +26,7 @@ def chipmunk_op_scatter_add_fake(
     pass
 
 @torch.library.register_fake("chipmunk::copy_indices")
-def copy_indices_fake(
+def chipmunk_op_copy_indices_fake(
     bmfc1: torch.Tensor, 
     bm_mid_cache: torch.Tensor, 
     sp_inds: torch.Tensor, 
@@ -35,7 +35,7 @@ def copy_indices_fake(
     pass
 
 @torch.library.register_fake("chipmunk::topk_indices")
-def topk_indices_fake(
+def chipmunk_op_topk_indices_fake(
     activations: torch.Tensor, 
     indices_out: torch.Tensor, 
     counts_out: torch.Tensor, 
@@ -46,7 +46,7 @@ def topk_indices_fake(
     pass
 
 @torch.library.register_fake("chipmunk::csp_mlp_mm2_and_scatter_add")
-def csp_mlp_mm2_and_scatter_add_fake(
+def chipmunk_op_csp_mlp_mm2_and_scatter_add_fake(
     packed: torch.Tensor,
     unpacked_colmajor: torch.Tensor,
     sp_inds: torch.Tensor,
