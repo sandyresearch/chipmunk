@@ -20,7 +20,6 @@ def chipmunk_op_scatter_add_fake(
     unpacked: torch.Tensor, 
     sp_inds: torch.Tensor, 
     sp_counts: torch.Tensor, 
-    completion_progress: torch.Tensor,
     num_sms: int
 ) -> None:
     pass
@@ -51,7 +50,6 @@ def chipmunk_op_csp_mlp_mm2_and_scatter_add_fake(
     unpacked_colmajor: torch.Tensor,
     sp_inds: torch.Tensor,
     sp_counts: torch.Tensor,
-    completion_progress: torch.Tensor,
     mma_a: torch.Tensor,
     mma_b: torch.Tensor,
     mma_c: torch.Tensor,
