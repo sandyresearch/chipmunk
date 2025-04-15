@@ -45,8 +45,8 @@ def topk_indices_fake(
 ) -> None:
     pass
 
-@torch.library.register_fake("chipmunk::graph_scatter_add_matmul_2")
-def graph_scatter_add_matmul_2_fake(
+@torch.library.register_fake("chipmunk::csp_mlp_mm2_and_scatter_add")
+def csp_mlp_mm2_and_scatter_add_fake(
     packed: torch.Tensor,
     unpacked_colmajor: torch.Tensor,
     sp_inds: torch.Tensor,
