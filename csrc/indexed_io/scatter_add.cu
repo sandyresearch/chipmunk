@@ -7,7 +7,7 @@
 #include <c10/cuda/CUDAStream.h>
 #include <curand_kernel.h>
 #include "kittens.cuh"
-#include "../common/sparse_utils.cuh"
+#include "../common/all.cuh"
 #include "scatter_add.cuh"
 
 using namespace kittens;

@@ -6,7 +6,6 @@
 #include <Python.h>
 #include <cuda_runtime.h>
 
-
 extern "C" {
   /* Creates a dummy empty cuda module that can be imported from Python.
      The import from Python will load the .so consisting of this file

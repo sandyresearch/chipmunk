@@ -1,7 +1,7 @@
 #include "kittens.cuh"
 #include <cooperative_groups.h>
 #include <iostream>
-#include "../common/sparse_utils.cuh"
+#include "../common/all.cuh"
 
 
 constexpr int CONSUMER_WARPGROUPS = (3); 
@@ -274,7 +274,7 @@ void cs_attend_ker(const __grid_constant__ cs_globals<D> g) {
 
             col_sum(c_reg, att_block_mma);
             if constexpr (FUSE_REDUCE) {
-                store_add(c_smem[(kv_idx + 1) % COLSUM_STORE_INTERVAL], c_reg);
+                chipmunk::store_add(c_smem[(kv_idx + 1) % COLSUM_STORE_INTERVAL], c_reg);
             }
             else {
                 store(c_smem[(kv_idx%COLSUM_STORE_INTERVAL) * CONSUMER_WARPS + warpid], c_reg);
@@ -316,7 +316,7 @@ void cs_attend_ker(const __grid_constant__ cs_globals<D> g) {
         // store as single constant
         exp2(max_vec_scaled, max_vec_scaled);
         mul(max_vec_scaled, max_vec_scaled, norm_vec);
-        rcp(max_vec_scaled, max_vec_scaled);
+        unary_op<chipmunk::base_ops::rcp>(max_vec_scaled, max_vec_scaled);
         warpgroup::store(l_smem[warpgroupid], max_vec_scaled);
         warpgroup::sync(warpgroupid+4);
 

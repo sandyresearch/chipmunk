@@ -1,9 +1,6 @@
 import triton.language as tl
-from triton.language.extra import libdevice
 import torch
-import torch.nn.functional as F
 import triton
-import torch.nn as nn
 
 BLOCK_SIZE_M = 128
 BLOCK_SIZE_N = 256
@@ -112,7 +109,7 @@ def csp_mlp_mm2_kernel(
         tl.store(c_ptrs, c, mask=c_mask)
 
 
-def csp_mlp_mm2(a, b, sparsity_indices, sparsity_indices_counts, output, num_sms=132):
+def csp_mlp_mm2(a, b, sparsity_indices, sparsity_indices_counts, output, num_sms):
     # Check constraints.
     M, K = a.shape
     K, N = b.shape
@@ -131,4 +128,12 @@ def csp_mlp_mm2(a, b, sparsity_indices, sparsity_indices_counts, output, num_sms
         BLOCK_SIZE_M, BLOCK_SIZE_N, BLOCK_SIZE_K, GROUP_SIZE_M, #
     )
 
-__all__ = ['csp_mlp_mm2']
+csp_mlp_mm2_function_ptr = csp_mlp_mm2(
+    torch.randn((256, 256), dtype=torch.bfloat16, device='cuda'), 
+    torch.randn((256, 256), dtype=torch.bfloat16, device='cuda'), 
+    torch.arange(0, 256, 1, device='cuda', dtype=torch.int32).repeat(2, 1).contiguous(), 
+    torch.full((2,), 256, device='cuda', dtype=torch.int32), 
+    output=torch.empty((256, 256), device='cuda', dtype=torch.bfloat16)
+).function
+
+__all__ = ['csp_mlp_mm2', 'csp_mlp_mm2_function_ptr']

@@ -3,7 +3,7 @@
 #include "kittens.cuh"
 #include <cooperative_groups.h>
 #include <iostream>
-#include "../common/sparse_utils.cuh"
+#include "../common/all.cuh"
 
 
 constexpr int CONSUMER_WARPGROUPS = (3); 
@@ -225,7 +225,7 @@ void fwd_attend_ker(const __grid_constant__ fwd_globals<D> g) {
         // store as single constant
         exp2(max_vec_scaled, max_vec_scaled);
         mul(max_vec_scaled, max_vec_scaled, norm_vec);
-        rcp(max_vec_scaled, max_vec_scaled);
+        unary_op<chipmunk::base_ops::rcp>(max_vec_scaled, max_vec_scaled);
         warpgroup::store(l_smem[warpgroupid], max_vec_scaled);
         warpgroup::sync(warpgroupid+4);
 

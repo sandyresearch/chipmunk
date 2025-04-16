@@ -1,11 +1,7 @@
 #include "kittens.cuh"
 #include "prototype.cuh"
 #include <cuda_pipeline.h>
-#include "../common/sparse_utils.cuh"
-
-#if __CUDACC_VER_MAJOR__ < 12 || (__CUDACC_VER_MAJOR__ == 12 && __CUDACC_VER_MINOR__ < 4)
-    static_assert(false, "CUDA version must be at least 12.4");
-#endif
+#include "../common/all.cuh"
 
 using namespace kittens;
 using namespace kittens::prototype;

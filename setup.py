@@ -65,7 +65,11 @@ kernels = [
 
 target = 'h100'
 
-tk_root = os.getenv('THUNDERKITTENS_ROOT', '/lustre/fsw/portfolios/coreai/users/sgovande/sparse-kittens')
+tk_root = 'submodules/ThunderKittens'
+tk_root = os.path.abspath(tk_root)
+if not os.path.exists(tk_root):
+    raise FileNotFoundError(f'ThunderKittens root directory {tk_root} not found - please be sure to install all submodules to this folder.')
+
 python_include = subprocess.check_output([
     'python', '-c', "import sysconfig; print(sysconfig.get_path('include'))"
 ]).decode().strip()
