@@ -133,7 +133,8 @@ csp_mlp_mm2_function_ptr = csp_mlp_mm2(
     torch.randn((256, 256), dtype=torch.bfloat16, device='cuda'), 
     torch.arange(0, 256, 1, device='cuda', dtype=torch.int32).repeat(2, 1).contiguous(), 
     torch.full((2,), 256, device='cuda', dtype=torch.int32), 
-    output=torch.empty((256, 256), device='cuda', dtype=torch.bfloat16)
+    output=torch.empty((256, 256), device='cuda', dtype=torch.bfloat16),
+    num_sms=1
 ).function
 
 __all__ = ['csp_mlp_mm2', 'csp_mlp_mm2_function_ptr']

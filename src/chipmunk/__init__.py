@@ -1,7 +1,6 @@
 import torch
 from pathlib import Path
-
-from .ops import ops
 from . import cuda, triton
+from . import ops
 
 __all__ = ['cuda', 'ops', 'triton']

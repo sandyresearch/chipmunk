@@ -1,7 +1,7 @@
 import torch
 from typing import List
 
-def copy_indices_fake(
+def copy_indices(
     bm_fc1: torch.Tensor, 
     bm_mid_cache: torch.Tensor, 
     indices: torch.Tensor, 
