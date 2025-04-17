@@ -78,6 +78,10 @@ class SparseDiffAttn:
         inds   = self.storage.get_indices()
         counts = self.storage.get_counts()
         o      = self.storage.get_out_cache()
+
+        if not self.storage.out_cache.is_offload_enabled:
+            # csp_attn will write to o in place, so we need to clone it if it's not offloaded
+            o = o.clone()
         chipmunk.ops.csp_attn(q, k, v, o, inds, counts, 1)
         return o
     
