@@ -50,7 +50,6 @@ template<int D> struct fwd_globals {
     m_gl m;
     o_gl o;
 
-    const int N; 
     const int kN; 
     const int hr;
 };
@@ -354,7 +353,8 @@ dense_attn(at::Tensor q, at::Tensor k, at::Tensor v)
     auto threads  = NUM_WORKERS * kittens::WARP_THREADS;
 
     // TORCH_CHECK(seq_len % (CONSUMER_WARPGROUPS*kittens::TILE_DIM*4) == 0, "sequence length must be divisible by 192");
-    dim3 grid(seq_len/(CONSUMER_WARPGROUPS*kittens::TILE_ROW_DIM<bf16>*4), qo_heads, batch);
+    auto num_tokens_per_block = CONSUMER_WARPGROUPS*kittens::TILE_ROW_DIM<bf16>*4;
+    dim3 grid((seq_len+num_tokens_per_block-1)/num_tokens_per_block, qo_heads, batch);
 
     auto ker_template = fwd_attend_ker<128, false>;
 
