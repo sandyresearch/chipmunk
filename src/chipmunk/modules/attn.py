@@ -29,7 +29,8 @@ class SparseDiffAttn:
         multiple_of = attn_config['counts_multiple_of']
 
         if layer <= 1:
-            return F.scaled_dot_product_attention(q, k, v)
+            o, lse = chipmunk.ops.dense_attn(q, k, v)
+            return o
 
         # ─────────── FULL STEP ───────────
         if do_full_step:
@@ -90,16 +91,19 @@ class SparseDiffAttn:
         do_full_step = self.layer_counter.should_do_full_attn_step()
         bm = GLOBAL_CONFIG['attn']['mbm']
         
-        if q.shape[-2] % bm == 0 or self.layer_num <= 1:
+        if q.shape[-2] % bm == 0:
+            # Our kernels are happy!
             o = self.fast_attention_qpadded(q, k, v, inference_step, do_full_step)
             o = rearrange(o, "B H L D -> B L (H D)")
             return o
-        n = q.shape[-2]
-
-        padded_n = ((n + bm - 1) // bm) * bm
-        qp = torch.zeros(q.shape[:-2] + (padded_n, q.shape[-1]), dtype=q.dtype, device=q.device)
-        qp[..., :n, :] = q
-        o = self.fast_attention_qpadded(qp, k, v, inference_step, do_full_step)
-        o = o[..., :n, :]
-        o = rearrange(o, "B H L D -> B L (H D)")
-        return o
+        else:
+            # Pad queries and outputs to the nearest multiple of bm
+            # Our kernels are not happy with non-192 seqlens for query dim :(
+            n = q.shape[-2]
+            padded_n = ((n + bm - 1) // bm) * bm
+            qp = torch.zeros(q.shape[:-2] + (padded_n, q.shape[-1]), dtype=q.dtype, device=q.device)
+            qp[..., :n, :] = q
+            o = self.fast_attention_qpadded(qp, k, v, inference_step, do_full_step)
+            o = o[..., :n, :]
+            o = rearrange(o, "B H L D -> B L (H D)")
+            return o
