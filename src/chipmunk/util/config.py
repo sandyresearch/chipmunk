@@ -4,6 +4,7 @@ GLOBAL_CONFIG = {
         'random_keys': 0.05,
         'full_step_every': 10,
         'block_mask_cache': 1,
+        'first_n_dense_layers': 2,
 
         # do not change below this line
         'counts_multiple_of': 256,
@@ -13,6 +14,7 @@ GLOBAL_CONFIG = {
     'attn': {
         'top_keys': 0.165,
         'full_step_every': 10,
+        'first_n_dense_layers': 2,
 
         # do not change below this line
         'counts_multiple_of': 192,

@@ -30,7 +30,7 @@ class SparseDiffMlp:
         inference_step, layer, _ = self.layer_counter.increment()
         assert x.ndim == 3 and x.shape[0] == 1, "x must be (1, N, C)"
 
-        if layer <= 1:
+        if layer < GLOBAL_CONFIG['mlp']['first_n_dense_layers']:
             return fc2(self.activation(fc1(x)))
 
         mlp_cfg     = GLOBAL_CONFIG['mlp']
