@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import torch
 from torch import Tensor, nn
-
+from chipmunk.ops import patchify_rope, patchify, unpatchify
 from flux.modules.layers import (
     DoubleStreamBlock,
     EmbedND,
@@ -89,6 +89,8 @@ class Flux(nn.Module):
         txt_ids: Tensor,
         timesteps: Tensor,
         y: Tensor,
+        width: int,
+        height: int,
         guidance: Tensor | None = None,
     ) -> Tensor:
         if img.ndim != 3 or txt.ndim != 3:
@@ -96,6 +98,7 @@ class Flux(nn.Module):
 
         # running on sequences img
         img = self.img_in(img)
+        img_og_shape = img.shape
         vec = self.time_in(timestep_embedding(timesteps, 256))
         if self.params.guidance_embed:
             if guidance is None:
@@ -106,6 +109,10 @@ class Flux(nn.Module):
 
         ids = torch.cat((txt_ids, img_ids), dim=1)
         pe = self.pe_embedder(ids)
+        if not hasattr(self, 'pe_patchified'):
+            self.pe_patchified = patchify_rope(img, pe, width // 16, height // 16)
+        pe = self.pe_patchified
+        img = patchify(img)
 
         for block in self.double_blocks:
             img, txt = block(img=img, txt=txt, vec=vec, pe=pe)
@@ -115,6 +122,7 @@ class Flux(nn.Module):
             img = block(img, vec=vec, pe=pe)
         img = img[:, txt.shape[1] :, ...]
 
+        img = unpatchify(img, img_og_shape)
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
         return img
 

@@ -64,6 +64,8 @@ def prepare(t5: HFEmbedder, clip: HFEmbedder, img: Tensor, prompt: str | list[st
         "txt": txt.to(img.device),
         "txt_ids": txt_ids.to(img.device),
         "vec": vec.to(img.device),
+        "height": h,
+        "width": w,
     }
 
 
@@ -204,6 +206,8 @@ def prepare_redux(
         "txt": txt.to(img.device),
         "txt_ids": txt_ids.to(img.device),
         "vec": vec.to(img.device),
+        "height": h,
+        "width": w,
     }
 
 
@@ -248,6 +252,8 @@ def denoise(
     vec: Tensor,
     # sampling parameters
     timesteps: list[float],
+    height: int,
+    width: int,
     guidance: float = 4.0,
     # extra img tokens
     img_cond: Tensor | None = None,
@@ -264,6 +270,8 @@ def denoise(
             y=vec,
             timesteps=t_vec,
             guidance=guidance_vec,
+            height=height,
+            width=width,
         )
 
         img = img + (t_prev - t_curr) * pred
