@@ -6,6 +6,7 @@ GLOBAL_CONFIG = {
         'block_mask_cache': 1,
 
         # do not change below this line
+        'counts_multiple_of': 256,
         'mbm': 128,
         'bm': 128,
     },
@@ -14,6 +15,7 @@ GLOBAL_CONFIG = {
         'full_step_every': 10,
 
         # do not change below this line
+        'counts_multiple_of': 192,
         'mbm': 192,
     },
     "offloading": {

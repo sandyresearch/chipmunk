@@ -11,9 +11,9 @@ def mm1(
     fc1b: torch.Tensor, 
     indices: torch.Tensor, 
     counts: torch.Tensor, 
-    sparse_act_unpacked_T: torch.Tensor,
+    sparse_act_T: torch.Tensor,
 ) -> None:
-    torch.ops.chipmunk.csp_mlp_mm1(a, fc1w, sparse_act_packed, fc1b, indices, counts, sparse_act_unpacked_T)
+    torch.ops.chipmunk.csp_mlp_mm1(a, fc1w, sparse_act_packed, fc1b, indices, counts, sparse_act_T)
 
 def mm2_fused(
     packed: torch.Tensor,
@@ -46,7 +46,7 @@ def run_e2e(
     fc2w_T: torch.Tensor, 
     indices: torch.Tensor, 
     counts: torch.Tensor, 
-    sparse_act_unpacked_T: torch.Tensor, 
+    sparse_act_T: torch.Tensor, 
     cached_out: torch.Tensor, 
     num_sms_scatter_add: int
 ) -> None:
@@ -60,11 +60,11 @@ def run_e2e(
     # Packed intermediate activations matrix
     sparse_act_packed = torch.empty((M, K2), device=a.device, dtype=a.dtype)
     
-    mm1(a, fc1w, sparse_act_packed, fc1b, indices, counts, sparse_act_unpacked_T)
+    mm1(a, fc1w, sparse_act_packed, fc1b, indices, counts, sparse_act_T)
 
     # Fused implementation uses CUDAGraphs under the hood to allocate a certain # of SMs to communication kernel
     # and then uses the rest of the SMs for the actual matmul.
     mm2 = mm2_fused if USE_FUSED_MLP_MATMUL_2 else mm2_unfused
-    mm2(sparse_act_packed, sparse_act_unpacked_T, indices, counts, sparse_act_packed, fc2w_T, cached_out, num_sms_scatter_add)
+    mm2(sparse_act_packed, sparse_act_T, indices, counts, sparse_act_packed, fc2w_T, cached_out, num_sms_scatter_add)
 
 __all__ = ['mm1', 'mm2_fused', 'mm2_unfused', 'run_e2e']
