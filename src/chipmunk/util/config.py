@@ -16,4 +16,19 @@ GLOBAL_CONFIG = {
         # do not change below this line
         'mbm': 192,
     },
+    "offloading": {
+        'global_disable_offloading': False,
+
+        'mlp.out_cache': True,
+        'mlp.indices': False,
+        'mlp.counts': False,
+        'mlp.sparse_act_T': False,
+        'mlp.blockmean_mid_cache': False,
+
+        'attn.out_cache': False,
+        'attn.indices': False,
+        'attn.counts': False,
+        'attn.lse_constants': False,
+    },
+
 }
