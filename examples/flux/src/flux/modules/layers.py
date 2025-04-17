@@ -7,7 +7,7 @@ from torch import Tensor, nn
 
 from flux.math import attention, rope
 from chipmunk.modules import SparseDiffMlp, SparseDiffAttn
-
+from chipmunk.util.layer_counter import LayerCounter
 class EmbedND(nn.Module):
     def __init__(self, dim: int, theta: int, axes_dim: list[int]):
         super().__init__()
@@ -155,6 +155,12 @@ class DoubleStreamBlock(nn.Module):
             nn.Linear(mlp_hidden_dim, hidden_size, bias=True),
         )
 
+    def sparsify(self) -> None:
+        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=True, is_attn_sparse=True)
+        # Skip text inputs - it's only 512 tokens so quite fast already!
+        self.img_mlp = SparseDiffMlp(layer_num, layer_counter, self.img_mlp[0], self.img_mlp[1], self.img_mlp[2])
+        self.attn = SparseDiffAttn(layer_num, layer_counter)
+
     def forward(self, img: Tensor, txt: Tensor, vec: Tensor, pe: Tensor) -> tuple[Tensor, Tensor]:
         img_mod1, img_mod2 = self.img_mod(vec)
         txt_mod1, txt_mod2 = self.txt_mod(vec)
@@ -178,7 +184,7 @@ class DoubleStreamBlock(nn.Module):
         k = torch.cat((txt_k, img_k), dim=2)
         v = torch.cat((txt_v, img_v), dim=2)
 
-        attn = attention(q, k, v, pe=pe)
+        attn = attention(q, k, v, pe=pe, attn_func=self.attn)
         txt_attn, img_attn = attn[:, : txt.shape[1]], attn[:, txt.shape[1] :]
 
         # calculate the img bloks
@@ -224,21 +230,74 @@ class SingleStreamBlock(nn.Module):
 
         self.mlp_act = nn.GELU(approximate="tanh")
         self.modulation = Modulation(hidden_size, double=False)
-        self.sparse_attn = SparseDiffAttn(layer_num)
 
+    def sparsify(self) -> None:
+        """
+        Break the two fused Linear layers (``linear1`` and ``linear2``) into the
+        four logical sub‑layers used by the block.  
+
+        NOTE: These changes are not specific to Chipmunk! They just make it easier to understand the forward
+        pass code.
+        """
+
+        h = self.hidden_size           # for brevity
+        m = self.mlp_hidden_dim
+
+        # ------------------------------------------------------------------
+        # 1) Split linear1  ->  qkv  +  fc1
+        # ------------------------------------------------------------------
+        # --- attention Q K V projection -----------------------------------
+        self.qkv = nn.Linear(h, 3 * h, bias=True)
+        self.qkv.weight = nn.Parameter(self.linear1.weight[: 3 * h].detach(),
+                                    requires_grad=False)
+        self.qkv.bias   = nn.Parameter(self.linear1.bias  [: 3 * h].detach(),
+                                    requires_grad=False)
+
+        # --- MLP first projection -----------------------------------------
+        self.fc1 = nn.Linear(h, m, bias=True)
+        self.fc1.weight = nn.Parameter(self.linear1.weight[3 * h :].detach(),
+                                    requires_grad=False)
+        self.fc1.bias   = nn.Parameter(self.linear1.bias  [3 * h :].detach(),
+                                    requires_grad=False)
+
+        # ------------------------------------------------------------------
+        # 2) Split linear2  ->  o  +  fc2
+        # ------------------------------------------------------------------
+        # --- attention output projection ----------------------------------
+        self.o = nn.Linear(h, h, bias=True)
+        self.o.weight = nn.Parameter(self.linear2.weight[:, : h].detach(),
+                                    requires_grad=False)
+        self.o.bias   = nn.Parameter(self.linear2.bias.detach(),
+                                    requires_grad=False)
+
+        # --- MLP second projection ----------------------------------------
+        self.fc2 = nn.Linear(m, h, bias=True)
+        self.fc2.weight = nn.Parameter(self.linear2.weight[:, h :].detach(),
+                                    requires_grad=False)
+        self.fc2.bias   = nn.Parameter(self.linear2.bias.detach(),
+                                    requires_grad=False)
+
+        # Deallocate the original tensors
+        del self.linear1, self.linear2
+
+        # Initialize the sparse layers based on these weights
+        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=True, is_attn_sparse=True)
+        self.attn = SparseDiffAttn(layer_num, layer_counter)
+        self.mlp = SparseDiffMlp(layer_num, layer_counter, self.fc1, self.mlp_act, self.fc2)
+
+    
     def forward(self, x: Tensor, vec: Tensor, pe: Tensor) -> Tensor:
         mod, _ = self.modulation(vec)
         x_mod = (1 + mod.scale) * self.pre_norm(x) + mod.shift
-        qkv, mlp = torch.split(self.linear1(x_mod), [3 * self.hidden_size, self.mlp_hidden_dim], dim=-1)
-
+        qkv = self.qkv(x_mod)
         q, k, v = rearrange(qkv, "B L (K H D) -> K B H L D", K=3, H=self.num_heads)
         q, k = self.norm(q, k, v)
 
         # compute attention
-        attn = attention(q, k, v, pe=pe, attn_func=self.sparse_attn)
+        attn = self.o(attention(q, k, v, pe=pe, attn_func=self.sparse_attn))
         # compute activation in mlp stream, cat again and run second linear layer
-        output = self.linear2(torch.cat((attn, self.mlp_act(mlp)), 2))
-        return x + mod.gate * output
+        mlp = self.sparse_mlp(x_mod)
+        return x + mod.gate * (attn + mlp)
 
 
 class LastLayer(nn.Module):
