@@ -8,8 +8,13 @@ GLOBAL_CONFIG = {
 
         # do not change below this line
         'counts_multiple_of': 256,
-        'mbm': 128,
         'bm': 128,
+        'mbm': 16,
+    },
+     "patchify": {
+        # To disable patching at any level, set that level's patch size to 1. To disable patching entirely, set all patch sizes to 1.
+        "chunk_size_1": 8,
+        "chunk_size_2": 4,
     },
     'attn': {
         'top_keys': 0.165,
@@ -17,7 +22,7 @@ GLOBAL_CONFIG = {
         'first_n_dense_layers': 2,
 
         # do not change below this line
-        'counts_multiple_of': 192,
+        'counts_multiple_of': 256,
         'mbm': 192,
     },
     "offloading": {

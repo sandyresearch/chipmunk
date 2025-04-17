@@ -1,12 +1,10 @@
 import torch
 from torch import Tensor
 from torch.nn import functional as F
-from ..util.config import GLOBAL_CONFIG
 import chipmunk.ops
-from chipmunk.util.storage import AttnStorage
+from chipmunk.util import AttnStorage, LayerCounter, GLOBAL_CONFIG
 from einops import rearrange
 import triton
-from ..util.layer_counter import LayerCounter
 
 class SparseDiffAttn:
     def __init__(self, layer_num: int, layer_counter: LayerCounter):

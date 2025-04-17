@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from glob import iglob
 
 import torch
-from cuda import cudart
 from fire import Fire
 from transformers import pipeline
 
@@ -107,7 +106,6 @@ def main(
     num_steps: int | None = None,
     loop: bool = False,
     guidance: float = 3.5,
-    offload: bool = False,
     output_dir: str = "output",
     add_sampling_metadata: bool = True,
     trt: bool = False,
@@ -158,8 +156,8 @@ def main(
         num_steps = 4 if name == "flux-schnell" else 50
 
     # allow for packing and conversion to latent space
-    height = 16 * (height // 16)
-    width = 16 * (width // 16)
+    height = 128 * (height // 128)
+    width = 128 * (width // 128)
 
     output_name = os.path.join(output_dir, "img_{idx}.jpg")
     if not os.path.exists(output_dir):
@@ -175,60 +173,11 @@ def main(
     # init all components
     t5 = load_t5(torch_device, max_length=256 if name == "flux-schnell" else 512)
     clip = load_clip(torch_device)
-    model = load_flow_model(name, device="cpu" if offload else torch_device)
-    ae = load_ae(name, device="cpu" if offload else torch_device)
+    model = load_flow_model(name, device=torch_device)
+    ae = load_ae(name, device=torch_device)
 
     if trt:
-        # offload to CPU to save memory
-        ae = ae.cpu()
-        model = model.cpu()
-        clip = clip.cpu()
-        t5 = t5.cpu()
-
-        torch.cuda.empty_cache()
-
-        trt_ctx_manager = TRTManager(
-            bf16=True,
-            device=torch_device,
-            static_batch=kwargs.get("static_batch", True),
-            static_shape=kwargs.get("static_shape", True),
-        )
-        ae.decoder.params = ae.params
-        engines = trt_ctx_manager.load_engines(
-            models={
-                "clip": clip,
-                "transformer": model,
-                "t5": t5,
-                "vae": ae.decoder,
-            },
-            engine_dir=os.environ.get("TRT_ENGINE_DIR", "./engines"),
-            onnx_dir=os.environ.get("ONNX_DIR", "./onnx"),
-            opt_image_height=height,
-            opt_image_width=width,
-            transformer_precision=trt_transformer_precision,
-        )
-
-        torch.cuda.synchronize()
-
-        trt_ctx_manager.init_runtime()
-        # TODO: refactor. stream should be part of engine constructor maybe !!
-        for _, engine in engines.items():
-            engine.set_stream(stream=trt_ctx_manager.stream)
-
-        if not offload:
-            for _, engine in engines.items():
-                engine.load()
-
-            calculate_max_device_memory = trt_ctx_manager.calculate_max_device_memory(engines)
-            _, shared_device_memory = cudart.cudaMalloc(calculate_max_device_memory)
-
-            for _, engine in engines.items():
-                engine.activate(device=torch_device, device_memory=shared_device_memory)
-
-        ae = engines["vae"]
-        model = engines["transformer"]
-        clip = engines["clip"]
-        t5 = engines["t5"]
+        raise ValueError("TensorRT is not supported yet in Chipmunk")
 
     rng = torch.Generator(device="cpu")
     opts = SamplingOptions(
@@ -259,27 +208,16 @@ def main(
             seed=opts.seed,
         )
         opts.seed = None
-        if offload:
-            ae = ae.cpu()
-            torch.cuda.empty_cache()
-            t5, clip = t5.to(torch_device), clip.to(torch_device)
+
         inp = prepare(t5, clip, x, prompt=opts.prompt)
         timesteps = get_schedule(opts.num_steps, inp["img"].shape[1], shift=(name != "flux-schnell"))
 
-        # offload TEs to CPU, load model to gpu
-        if offload:
-            t5, clip = t5.cpu(), clip.cpu()
-            torch.cuda.empty_cache()
-            model = model.to(torch_device)
+
 
         # denoise initial noise
         x = denoise(model, **inp, timesteps=timesteps, guidance=opts.guidance)
 
-        # offload model, load autoencoder to gpu
-        if offload:
-            model.cpu()
-            torch.cuda.empty_cache()
-            ae.decoder.to(x.device)
+
 
         # decode latents to pixel space
         x = unpack(x.float(), opts.height, opts.width)

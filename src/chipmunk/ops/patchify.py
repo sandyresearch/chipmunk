@@ -1,7 +1,6 @@
 from einops import rearrange
-from chipmunk.util.config import GLOBAL_CONFIG
+from chipmunk.util import GLOBAL_CONFIG
 
-is_patchify_enabled = GLOBAL_CONFIG['patchify']['is_enabled']
 chunk_size_1 = GLOBAL_CONFIG['patchify']['chunk_size_1']
 chunk_size_2 = GLOBAL_CONFIG['patchify']['chunk_size_2']
 

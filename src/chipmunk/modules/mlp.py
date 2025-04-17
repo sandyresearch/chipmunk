@@ -3,7 +3,7 @@ from ..util.layer_counter import LayerCounter
 from ..util.config import GLOBAL_CONFIG
 from einops import rearrange
 import chipmunk.ops
-from chipmunk.util.storage import MlpStorage
+from chipmunk.util import MlpStorage
 
 def block_mean(x: torch.Tensor, mbm: int):
     return rearrange(x, 'b (mb mbm) c -> b mb mbm c', mbm=mbm).mean(dim=2)

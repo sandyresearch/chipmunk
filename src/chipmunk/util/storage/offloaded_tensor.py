@@ -1,5 +1,5 @@
 import torch
-from chipmunk.util.config import GLOBAL_CONFIG
+from chipmunk.util import GLOBAL_CONFIG
 
 # Global config for whether offloading is enabled
 is_offload_enabled = GLOBAL_CONFIG['offloading']

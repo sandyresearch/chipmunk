@@ -7,7 +7,7 @@ from torch import Tensor, nn
 
 from flux.math import attention, rope
 from chipmunk.modules import SparseDiffMlp, SparseDiffAttn
-from chipmunk.util.layer_counter import LayerCounter
+from chipmunk.util import LayerCounter
 class EmbedND(nn.Module):
     def __init__(self, dim: int, theta: int, axes_dim: list[int]):
         super().__init__()
