@@ -61,3 +61,21 @@ def unpatchify(x_chunk_flat, original_shape):
     )
     
     return x_unpatched
+
+
+def patchify_rope(x, pe, width_rope, height_rope):
+    img_tokens = x.shape[1]
+    rope_cos = pe[:, :, -img_tokens:, :, :, 0]
+    rope_sin = pe[:, :, -img_tokens:, :, :, 1]
+    r0, r1, r2, r3, r4 = rope_cos.shape
+    rope_cos = rearrange(rope_cos, 'a b (h w) d e -> (a b d e) h w', h=height_rope, w=width_rope)
+    rope_cos = patchify(rope_cos)
+    rope_cos = rearrange(rope_cos, "(a b d e) c -> a b c d e", a=r0, b=r1, d=r3, e=r4)
+    
+    rope_sin = rearrange(rope_sin, 'a b (h w) d e -> (a b d e) h w', h=height_rope, w=width_rope)
+    rope_sin = patchify(rope_sin)
+    rope_sin = rearrange(rope_sin, "(a b d e) c -> a b c d e", a=r0, b=r1, d=r3, e=r4)        
+    pe[:, :, -img_tokens:, :, :, 0] = rope_cos
+    pe[:, :, -img_tokens:, :, :, 1] = rope_sin
+
+    return pe
