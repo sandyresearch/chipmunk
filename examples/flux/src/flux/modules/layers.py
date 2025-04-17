@@ -6,7 +6,7 @@ from einops import rearrange
 from torch import Tensor, nn
 
 from flux.math import attention, rope
-
+from chipmunk.modules import SparseDiffMlp, SparseDiffAttn
 
 class EmbedND(nn.Module):
     def __init__(self, dim: int, theta: int, axes_dim: list[int]):
@@ -203,6 +203,7 @@ class SingleStreamBlock(nn.Module):
         num_heads: int,
         mlp_ratio: float = 4.0,
         qk_scale: float | None = None,
+        layer_num: int = 0,
     ):
         super().__init__()
         self.hidden_dim = hidden_size
@@ -223,6 +224,7 @@ class SingleStreamBlock(nn.Module):
 
         self.mlp_act = nn.GELU(approximate="tanh")
         self.modulation = Modulation(hidden_size, double=False)
+        self.sparse_attn = SparseDiffAttn(layer_num)
 
     def forward(self, x: Tensor, vec: Tensor, pe: Tensor) -> Tensor:
         mod, _ = self.modulation(vec)
@@ -233,7 +235,7 @@ class SingleStreamBlock(nn.Module):
         q, k = self.norm(q, k, v)
 
         # compute attention
-        attn = attention(q, k, v, pe=pe)
+        attn = attention(q, k, v, pe=pe, attn_func=self.sparse_attn)
         # compute activation in mlp stream, cat again and run second linear layer
         output = self.linear2(torch.cat((attn, self.mlp_act(mlp)), 2))
         return x + mod.gate * output
