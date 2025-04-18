@@ -9,6 +9,7 @@ from loguru import logger
 
 import torch
 import torch.distributed as dist
+from einops import rearrange
 from hyvideo.constants import PROMPT_TEMPLATE, NEGATIVE_PROMPT, PRECISION_TO_TYPE
 from hyvideo.vae import load_vae
 from hyvideo.modules import load_model
@@ -16,25 +17,13 @@ from hyvideo.text_encoder import TextEncoder
 from hyvideo.utils.data_utils import align_to
 from hyvideo.modules.posemb_layers import get_nd_rotary_pos_embed
 from hyvideo.modules.fp8_optimization import convert_fp8_linear
+from hyvideo.modules.head_parallel import setup_dist
 from hyvideo.diffusion.schedulers import FlowMatchDiscreteScheduler
 from hyvideo.diffusion.pipelines import HunyuanVideoPipeline
-
-try:
-    import xfuser
-    from xfuser.core.distributed import (
-        get_sequence_parallel_world_size,
-        get_sequence_parallel_rank,
-        get_sp_group,
-        initialize_model_parallel,
-        init_distributed_environment
-    )
-except:
-    xfuser = None
-    get_sequence_parallel_world_size = None
-    get_sequence_parallel_rank = None
-    get_sp_group = None
-    initialize_model_parallel = None
-    init_distributed_environment = None
+from hyvideo.modules.chipmunk.chipmunk import voxel_chunk_no_padding
+from hyvideo.modules.chipmunk.config import GLOBAL_CONFIG
+from hyvideo.modules.chipmunk.util import offload
+from hyvideo.modules.head_parallel import get_dist
 
 
 def parallelize_transformer(pipe):
@@ -53,35 +42,44 @@ def parallelize_transformer(pipe):
         freqs_sin: Optional[torch.Tensor] = None,
         guidance: torch.Tensor = None,  # Guidance for modulation, should be cfg_scale x 1000.
         return_dict: bool = True,
+        inference_step: int = None,
     ):
-        if x.shape[-2] // 2 % get_sequence_parallel_world_size() == 0:
+        dist_group, dist_rank, dist_world_size = get_dist()
+
+        if x.shape[-2] // 2 % dist_world_size == 0:
             # try to split x by height
             split_dim = -2
-        elif x.shape[-1] // 2 % get_sequence_parallel_world_size() == 0:
+        elif x.shape[-1] // 2 % dist_world_size == 0:
             # try to split x by width
             split_dim = -1
         else:
-            raise ValueError(f"Cannot split video sequence into ulysses_degree x ring_degree ({get_sequence_parallel_world_size()}) parts evenly")
+            raise ValueError(f"Cannot split video sequence into ulysses_degree x ring_degree ({dist_world_size}) parts evenly")
 
         # patch sizes for the temporal, height, and width dimensions are 1, 2, and 2.
         temporal_size, h, w = x.shape[2], x.shape[3] // 2, x.shape[4] // 2
 
-        x = torch.chunk(x, get_sequence_parallel_world_size(),dim=split_dim)[get_sequence_parallel_rank()]
+        shard_img = lambda img, dim: torch.chunk(img, dist_world_size,dim=dim)[dist_rank]
+        def gather_img(img, dim):
+            gathered_list = [torch.empty_like(img) for _ in range(dist_world_size)]
+            dist.all_gather(gathered_list, img, group=dist_group)
+            return torch.cat(gathered_list, dim=dim)
 
-        dim_thw = freqs_cos.shape[-1]
-        freqs_cos = freqs_cos.reshape(temporal_size, h, w, dim_thw)
-        freqs_cos = torch.chunk(freqs_cos, get_sequence_parallel_world_size(),dim=split_dim - 1)[get_sequence_parallel_rank()]
-        freqs_cos = freqs_cos.reshape(-1, dim_thw)
-        dim_thw = freqs_sin.shape[-1]
-        freqs_sin = freqs_sin.reshape(temporal_size, h, w, dim_thw)
-        freqs_sin = torch.chunk(freqs_sin, get_sequence_parallel_world_size(),dim=split_dim - 1)[get_sequence_parallel_rank()]
-        freqs_sin = freqs_sin.reshape(-1, dim_thw)
-        
-        from xfuser.core.long_ctx_attention import xFuserLongContextAttention
-        
-        for block in transformer.double_blocks + transformer.single_blocks:
-            block.hybrid_seq_parallel_attn = xFuserLongContextAttention()
+        if not GLOBAL_CONFIG['voxel_order']:
+            x = shard_img(x, split_dim)
 
+        if GLOBAL_CONFIG['voxel_order']:
+            freqs_cos = shard_img(freqs_cos, dim=0)
+            freqs_sin = shard_img(freqs_sin, dim=0)
+        else:
+            dim_thw = freqs_cos.shape[-1]
+            freqs_cos = freqs_cos.reshape(temporal_size, h, w, dim_thw)
+            freqs_cos = torch.chunk(freqs_cos, dist_world_size,dim=split_dim - 1)[dist_rank]
+            freqs_cos = freqs_cos.reshape(-1, dim_thw)
+            dim_thw = freqs_sin.shape[-1]
+            freqs_sin = freqs_sin.reshape(temporal_size, h, w, dim_thw)
+            freqs_sin = torch.chunk(freqs_sin, dist_world_size,dim=split_dim - 1)[dist_rank]
+            freqs_sin = freqs_sin.reshape(-1, dim_thw)
+        
         output = original_forward(
             x,
             t,
@@ -92,11 +90,15 @@ def parallelize_transformer(pipe):
             freqs_sin,
             guidance,
             return_dict,
+            inference_step=inference_step,
+            shard_img=shard_img,
+            gather_img=gather_img,
         )
 
         return_dict = not isinstance(output, tuple)
         sample = output["x"]
-        sample = get_sp_group().all_gather(sample, dim=split_dim)
+        if not GLOBAL_CONFIG['voxel_order']:
+            sample = gather_img(sample, split_dim)
         output["x"] = sample
         return output
 
@@ -153,31 +155,6 @@ class Inference(object):
         # ========================================================================
         logger.info(f"Got text-to-video model root path: {pretrained_model_path}")
         
-        # ==================== Initialize Distributed Environment ================
-        if args.ulysses_degree > 1 or args.ring_degree > 1:
-            assert xfuser is not None, \
-                "Ulysses Attention and Ring Attention requires xfuser package."
-
-            assert args.use_cpu_offload is False, \
-                "Cannot enable use_cpu_offload in the distributed environment."
-
-            dist.init_process_group("nccl")
-
-            assert dist.get_world_size() == args.ring_degree * args.ulysses_degree, \
-                "number of GPUs should be equal to ring_degree * ulysses_degree."
-
-            init_distributed_environment(rank=dist.get_rank(), world_size=dist.get_world_size())
-            
-            initialize_model_parallel(
-                sequence_parallel_degree=dist.get_world_size(),
-                ring_degree=args.ring_degree,
-                ulysses_degree=args.ulysses_degree,
-            )
-            device = torch.device(f"cuda:{os.environ['LOCAL_RANK']}")
-        else:
-            if device is None:
-                device = "cuda" if torch.cuda.is_available() else "cpu"
-
         parallel_args = {"ulysses_degree": args.ulysses_degree, "ring_degree": args.ring_degree}
 
         # ======================== Get the args path =============================
@@ -251,6 +228,9 @@ class Inference(object):
             logger=logger,
             device=device if not args.use_cpu_offload else "cpu",
         )
+        if 'offload' in GLOBAL_CONFIG and GLOBAL_CONFIG['offload']:
+            text_encoder.model = offload(text_encoder.model)
+
         text_encoder_2 = None
         if args.text_encoder_2 is not None:
             text_encoder_2 = TextEncoder(
@@ -262,6 +242,8 @@ class Inference(object):
                 logger=logger,
                 device=device if not args.use_cpu_offload else "cpu",
             )
+            if 'offload' in GLOBAL_CONFIG and GLOBAL_CONFIG['offload']:
+                text_encoder_2.model = offload(text_encoder_2.model)
 
         return cls(
             args=args,
@@ -492,7 +474,7 @@ class HunyuanVideoSampler(Inference):
             use_real=True,
             theta_rescale_factor=1,
         )
-        return freqs_cos, freqs_sin
+        return freqs_cos, freqs_sin, rope_sizes
 
     @torch.no_grad()
     def predict(
@@ -504,7 +486,7 @@ class HunyuanVideoSampler(Inference):
         seed=None,
         negative_prompt=None,
         infer_steps=50,
-        guidance_scale=6.0,
+        guidance_scale=6,
         flow_shift=5.0,
         embedded_guidance_scale=None,
         batch_size=1,
@@ -597,8 +579,6 @@ class HunyuanVideoSampler(Inference):
         # negative prompt
         if negative_prompt is None or negative_prompt == "":
             negative_prompt = self.default_negative_prompt
-        if guidance_scale == 1.0:
-            negative_prompt = ""
         if not isinstance(negative_prompt, str):
             raise TypeError(
                 f"`negative_prompt` must be a string, but got {type(negative_prompt)}"
@@ -618,10 +598,22 @@ class HunyuanVideoSampler(Inference):
         # ========================================================================
         # Build Rope freqs
         # ========================================================================
-        freqs_cos, freqs_sin = self.get_rotary_pos_embed(
+        freqs_cos, freqs_sin, rope_sizes = self.get_rotary_pos_embed(
             target_video_length, target_height, target_width
         )
         n_tokens = freqs_cos.shape[0]
+        # === Chipmunk ===========================================================
+        # Reorder Rope embeddings into voxel chunk order
+        # ========================================================================
+        if GLOBAL_CONFIG['voxel_order']:
+            original_shape = freqs_cos.shape
+            t, h, w = rope_sizes
+            freqs_cos = rearrange(freqs_cos, '(t h w) d -> t h w d', t=t, h=h, w=w)[None, None, :, :, :, :]
+            freqs_sin = rearrange(freqs_sin, '(t h w) d -> t h w d', t=t, h=h, w=w)[None, None, :, :, :, :]
+            freqs_cos = voxel_chunk_no_padding(freqs_cos, voxel_shape=(4, 6, 8))[0, 0, :, :]
+            freqs_sin = voxel_chunk_no_padding(freqs_sin, voxel_shape=(4, 6, 8))[0, 0, :, :]
+            assert freqs_cos.shape == original_shape
+            assert freqs_sin.shape == original_shape
 
         # ========================================================================
         # Print infer args

@@ -137,6 +137,7 @@ def rotate_half(x):
     return torch.stack([-x_imag, x_real], dim=-1).flatten(3)
 
 
+@torch.compile(dynamic=False)
 def apply_rotary_emb(
     xq: torch.Tensor,
     xk: torch.Tensor,

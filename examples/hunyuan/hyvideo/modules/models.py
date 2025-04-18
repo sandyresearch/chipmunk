@@ -1,9 +1,10 @@
-from typing import Any, List, Tuple, Optional, Union, Dict
+from typing import Any, List, Tuple, Optional, Union, Dict, Callable
 from einops import rearrange
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.distributed as dist
 
 from diffusers.models import ModelMixin
 from diffusers.configuration_utils import ConfigMixin, register_to_config
@@ -11,11 +12,31 @@ from diffusers.configuration_utils import ConfigMixin, register_to_config
 from .activation_layers import get_activation_layer
 from .norm_layers import get_norm_layer
 from .embed_layers import TimestepEmbedder, PatchEmbed, TextProjection
-from .attenion import attention, parallel_attention, get_cu_seqlens
+from .attenion import (
+    attention,
+    parallel_attention,
+    get_cu_seqlens,
+    head_parallel_attention,
+)
 from .posemb_layers import apply_rotary_emb
 from .mlp_layers import MLP, MLPEmbedder, FinalLayer
 from .modulate_layers import ModulateDiT, modulate, apply_gate
 from .token_refiner import SingleTokenRefiner
+from .chipmunk.chipmunk import (
+    get_local_indices_with_text,
+    reverse_voxel_chunk_no_padding,
+    voxel_chunk_no_padding,
+    bitpack,
+)
+from .chipmunk.attention import (
+    tk_attn,
+    tk_attn_forward,
+    TKAttention,
+    SparseAttention,
+    SparseDiffAttention,
+    test_tk_attn
+)
+from .chipmunk.config import GLOBAL_CONFIG
 
 
 class MMDoubleStreamBlock(nn.Module):
@@ -34,6 +55,10 @@ class MMDoubleStreamBlock(nn.Module):
         qk_norm: bool = True,
         qk_norm_type: str = "rms",
         qkv_bias: bool = False,
+        layer_num: int = 0,
+        o_cache_stream: Optional[torch.cuda.Stream] = None,
+        o_cache_gpu_to_cpu_event: Optional[torch.cuda.Event] = None,
+        o_cache_cpu_to_gpu_event: Optional[torch.cuda.Event] = None,
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
     ):
@@ -122,6 +147,29 @@ class MMDoubleStreamBlock(nn.Module):
             **factory_kwargs,
         )
         self.hybrid_seq_parallel_attn = None
+        self.attention = F.scaled_dot_product_attention
+        if 'tk-sparse' in GLOBAL_CONFIG:
+            self.attention = SparseAttention(
+                layer_num=layer_num,
+                start_step=GLOBAL_CONFIG['start_step'] if 'start_step' in GLOBAL_CONFIG else 0,
+                full_every=GLOBAL_CONFIG['full_every'] if 'full_every' in GLOBAL_CONFIG else 100,
+                start_layer=GLOBAL_CONFIG['start_layer'] if 'start_layer' in GLOBAL_CONFIG else 0,
+            )
+        elif 'tk-sparse-diff' in GLOBAL_CONFIG:
+            max_seqlen = 119056
+            self.attention = SparseDiffAttention(
+                layer_num=layer_num,
+                o_cache_stream=o_cache_stream,
+                o_cache_gpu_to_cpu_event=o_cache_gpu_to_cpu_event,
+                o_cache_cpu_to_gpu_event=o_cache_cpu_to_gpu_event,
+                # max seqlen in first dim so we can preallocate and do a contiguous copy with variable seqlen
+                o_cache_shape=(max_seqlen, 1, heads_num, hidden_size // heads_num),
+                start_step=GLOBAL_CONFIG['start_step'] if 'start_step' in GLOBAL_CONFIG else 0,
+                full_every=GLOBAL_CONFIG['full_every'] if 'full_every' in GLOBAL_CONFIG else 100,
+                start_layer=GLOBAL_CONFIG['start_layer'] if 'start_layer' in GLOBAL_CONFIG else 0,
+            )
+        elif 'tk-dense' in GLOBAL_CONFIG:
+            self.attention = tk_attn_forward
 
     def enable_deterministic(self):
         self.deterministic = True
@@ -129,6 +177,7 @@ class MMDoubleStreamBlock(nn.Module):
     def disable_deterministic(self):
         self.deterministic = False
 
+    @torch.compile
     def forward(
         self,
         img: torch.Tensor,
@@ -139,6 +188,7 @@ class MMDoubleStreamBlock(nn.Module):
         max_seqlen_q: Optional[int] = None,
         max_seqlen_kv: Optional[int] = None,
         freqs_cis: tuple = None,
+        inference_step: Optional[int] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         (
             img_mod1_shift,
@@ -200,7 +250,19 @@ class MMDoubleStreamBlock(nn.Module):
         ), f"cu_seqlens_q.shape:{cu_seqlens_q.shape}, img.shape[0]:{img.shape[0]}"
         
         # attention computation start
-        if not self.hybrid_seq_parallel_attn:
+        if GLOBAL_CONFIG['head_parallel'] and GLOBAL_CONFIG['world_size'] > 1:
+            attn = head_parallel_attention(
+                self.attention,
+                q,
+                k,
+                v,
+                img_q_len=img_q.shape[1],
+                img_kv_len=img_k.shape[1],
+                cu_seqlens_q=cu_seqlens_q,
+                cu_seqlens_kv=cu_seqlens_kv,
+                inference_step=inference_step,
+            )
+        elif not self.hybrid_seq_parallel_attn:
             attn = attention(
                 q,
                 k,
@@ -210,6 +272,8 @@ class MMDoubleStreamBlock(nn.Module):
                 max_seqlen_q=max_seqlen_q,
                 max_seqlen_kv=max_seqlen_kv,
                 batch_size=img_k.shape[0],
+                attn=self.attention,
+                inference_step=inference_step,
             )
         else:
             attn = parallel_attention(
@@ -269,6 +333,10 @@ class MMSingleStreamBlock(nn.Module):
         qk_norm: bool = True,
         qk_norm_type: str = "rms",
         qk_scale: float = None,
+        layer_num: int = 0,
+        o_cache_stream: Optional[torch.cuda.Stream] = None,
+        o_cache_gpu_to_cpu_event: Optional[torch.cuda.Event] = None,
+        o_cache_cpu_to_gpu_event: Optional[torch.cuda.Event] = None,
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
     ):
@@ -316,6 +384,35 @@ class MMSingleStreamBlock(nn.Module):
             **factory_kwargs,
         )
         self.hybrid_seq_parallel_attn = None
+        self.attention = F.scaled_dot_product_attention
+        if 'tk-sparse' in GLOBAL_CONFIG:
+            print('SparseAttention')
+            self.attention = SparseAttention(
+                layer_num=layer_num,
+                start_step=GLOBAL_CONFIG['start_step'] if 'start_step' in GLOBAL_CONFIG else 0,
+                full_every=GLOBAL_CONFIG['full_every'] if 'full_every' in GLOBAL_CONFIG else 100,
+                start_layer=GLOBAL_CONFIG['start_layer'] if 'start_layer' in GLOBAL_CONFIG else 0,
+            )
+        elif 'tk-sparse-diff' in GLOBAL_CONFIG:
+            print('SparseDiffAttention')
+            max_seqlen = 119056
+            self.attention = SparseDiffAttention(
+                layer_num=layer_num,
+                o_cache_stream=o_cache_stream,
+                o_cache_gpu_to_cpu_event=o_cache_gpu_to_cpu_event,
+                o_cache_cpu_to_gpu_event=o_cache_cpu_to_gpu_event,
+                # max seqlen in first dim so we can preallocate and do a contiguous copy with variable seqlen
+                o_cache_shape=(max_seqlen, 1, heads_num, hidden_size // heads_num),
+                start_step=GLOBAL_CONFIG['start_step'] if 'start_step' in GLOBAL_CONFIG else 0,
+                full_every=GLOBAL_CONFIG['full_every'] if 'full_every' in GLOBAL_CONFIG else 100,
+                start_layer=GLOBAL_CONFIG['start_layer'] if 'start_layer' in GLOBAL_CONFIG else 0,
+            )
+        elif 'tk-dense' in GLOBAL_CONFIG:
+            print('TKAttention')
+            # self.attention = TKAttention()
+            self.attention = tk_attn_forward
+        else:
+            print('F.scaled_dot_product_attention')
 
     def enable_deterministic(self):
         self.deterministic = True
@@ -323,6 +420,7 @@ class MMSingleStreamBlock(nn.Module):
     def disable_deterministic(self):
         self.deterministic = False
 
+    @torch.compile
     def forward(
         self,
         x: torch.Tensor,
@@ -333,6 +431,7 @@ class MMSingleStreamBlock(nn.Module):
         max_seqlen_q: Optional[int] = None,
         max_seqlen_kv: Optional[int] = None,
         freqs_cis: Tuple[torch.Tensor, torch.Tensor] = None,
+        inference_step: Optional[int] = None,
     ) -> torch.Tensor:
         mod_shift, mod_scale, mod_gate = self.modulation(vec).chunk(3, dim=-1)
         x_mod = modulate(self.pre_norm(x), shift=mod_shift, scale=mod_scale)
@@ -364,7 +463,20 @@ class MMSingleStreamBlock(nn.Module):
         ), f"cu_seqlens_q.shape:{cu_seqlens_q.shape}, x.shape[0]:{x.shape[0]}"
         
         # attention computation start
-        if not self.hybrid_seq_parallel_attn:
+        if GLOBAL_CONFIG['head_parallel'] and GLOBAL_CONFIG['world_size'] > 1:
+            attn = head_parallel_attention(
+                self.attention,
+                q,
+                k,
+                v,
+                img_q_len=img_q.shape[1],
+                img_kv_len=img_k.shape[1],
+                cu_seqlens_q=cu_seqlens_q,
+                cu_seqlens_kv=cu_seqlens_kv,
+                inference_step=inference_step,
+            )
+        elif not self.hybrid_seq_parallel_attn:
+            # print(f'no hybrid seq parallel attn')
             attn = attention(
                 q,
                 k,
@@ -374,6 +486,8 @@ class MMSingleStreamBlock(nn.Module):
                 max_seqlen_q=max_seqlen_q,
                 max_seqlen_kv=max_seqlen_kv,
                 batch_size=x.shape[0],
+                attn=self.attention,
+                inference_step=inference_step,
             )
         else:
             attn = parallel_attention(
@@ -499,8 +613,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         self.heads_num = heads_num
 
         # image projection
+        flatten = not GLOBAL_CONFIG['voxel_order']
         self.img_in = PatchEmbed(
-            self.patch_size, self.in_channels, self.hidden_size, **factory_kwargs
+            self.patch_size, self.in_channels, self.hidden_size, flatten=flatten, **factory_kwargs
         )
 
         # text projection
@@ -539,6 +654,14 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             else None
         )
 
+        should_offload_o_cache = GLOBAL_CONFIG['world_size'] == 1
+        self.o_cache_stream = torch.cuda.Stream(device=device) if should_offload_o_cache else None
+        self.o_cache_gpu_to_cpu_event = torch.cuda.Event(enable_timing=False)
+        self.o_cache_cpu_to_gpu_event = torch.cuda.Event(enable_timing=False)
+        # set when we know seqlen
+        self.o_cache_gpu_nmaj = None
+        self.o_cache_gpu_bmaj = None
+
         # double blocks
         self.double_blocks = nn.ModuleList(
             [
@@ -550,11 +673,16 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                     qk_norm=qk_norm,
                     qk_norm_type=qk_norm_type,
                     qkv_bias=qkv_bias,
+                    layer_num=i,
+                    o_cache_stream=self.o_cache_stream,
+                    o_cache_gpu_to_cpu_event=self.o_cache_gpu_to_cpu_event,
+                    o_cache_cpu_to_gpu_event=self.o_cache_cpu_to_gpu_event,
                     **factory_kwargs,
                 )
-                for _ in range(mm_double_blocks_depth)
+                for i in range(mm_double_blocks_depth)
             ]
         )
+
 
         # single blocks
         self.single_blocks = nn.ModuleList(
@@ -566,11 +694,17 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                     mlp_act_type=mlp_act_type,
                     qk_norm=qk_norm,
                     qk_norm_type=qk_norm_type,
+                    layer_num=i + len(self.double_blocks),
+                    o_cache_stream=self.o_cache_stream,
+                    o_cache_gpu_to_cpu_event=self.o_cache_gpu_to_cpu_event,
+                    o_cache_cpu_to_gpu_event=self.o_cache_cpu_to_gpu_event,
                     **factory_kwargs,
                 )
-                for _ in range(mm_single_blocks_depth)
+                for i in range(mm_single_blocks_depth)
             ]
         )
+        # set this to double_blocks + single_blocks after init
+        self.all_blocks = None
 
         self.final_layer = FinalLayer(
             self.hidden_size,
@@ -579,6 +713,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             get_activation_layer("silu"),
             **factory_kwargs,
         )
+
+        self.attn_indices = None
+        self.attn_counts = None
 
     def enable_deterministic(self):
         for block in self.double_blocks:
@@ -603,7 +740,13 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         freqs_sin: Optional[torch.Tensor] = None,
         guidance: torch.Tensor = None,  # Guidance for modulation, should be cfg_scale x 1000.
         return_dict: bool = True,
+        inference_step: int = None,
+        shard_img: Optional[Callable] = None,
+        gather_img: Optional[Callable] = None,
     ) -> Union[torch.Tensor, Dict[str, torch.Tensor]]:
+        if self.all_blocks is None:
+            self.all_blocks = self.double_blocks + self.single_blocks
+            
         out = {}
         img = x
         txt = text_states
@@ -613,7 +756,69 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             oh // self.patch_size[1],
             ow // self.patch_size[2],
         )
+        if self.o_cache_stream is not None and inference_step == 0:
+            b = 1
+            h = self.heads_num
+            seqlen = tt * th * tw + text_mask.sum(dim=-1)[0].item()
+            d = self.hidden_size // self.heads_num
+            self.o_cache_gpu_nmaj = [torch.empty((seqlen, b, h, d), device=x.device, dtype=x.dtype) for _ in range(2)]
+            self.o_cache_gpu_bmaj = [torch.empty((b, h, seqlen, d), device=x.device, dtype=x.dtype) for _ in range(2)]
+            for block in self.all_blocks:
+                block.attention.o_cache_gpu_nmaj = self.o_cache_gpu_nmaj
+                block.attention.o_cache_gpu_bmaj = self.o_cache_gpu_bmaj
 
+        if GLOBAL_CONFIG['voxel_order'] and inference_step == 0:
+            full_tail_from_attn = True if 'full_tail_from_attn' in GLOBAL_CONFIG else False
+            full_tail_to_attn = True if 'full_tail_to_attn' in GLOBAL_CONFIG else False
+            rk = GLOBAL_CONFIG['rk'] if 'rk' in GLOBAL_CONFIG else 0
+            topk = GLOBAL_CONFIG['topk'] if 'topk' in GLOBAL_CONFIG else 0
+            lv = GLOBAL_CONFIG['lv'] if 'lv' in GLOBAL_CONFIG else 5
+            topk = int(topk * (tt * th * tw))
+
+            # per layer indices
+            assert 'pli' in GLOBAL_CONFIG
+
+            txt_len = text_mask.sum(dim=-1)[0].item()
+            def indices_fn():
+                mask, _, _ = get_local_indices_with_text(
+                    vid_shape=(tt, th, tw),
+                    txt_len=txt_len,
+                    voxel_shape=(4, 6, 8),
+                    local_shape=(lv, lv, lv),
+                    full_tail_from_attn=full_tail_from_attn,
+                    full_tail_to_attn=full_tail_to_attn,
+                    rk=rk,
+                    device=x.device
+                )
+                local_heads = self.heads_num // GLOBAL_CONFIG['world_size']
+                mask = mask[None, None, :, :].expand(1, local_heads, -1, -1).contiguous()
+                return mask
+
+            mask = indices_fn()
+            sparse_attn_query_groups = ((mask.sum(dim=-1, keepdim=True) + topk) < (tt * th * tw + txt_len))
+            packed_mask, mask_shape = bitpack(mask)
+            del mask
+
+            for block in self.double_blocks:
+                if isinstance(block.attention, nn.Module):
+                    # block.attention.indices_fn = indices_fn
+                    block.attention.topk = topk
+                    # block.attention.lr_mask = mask
+                    # block.attention.mask = mask
+                    block.attention.packed_lr_mask = packed_mask
+                    block.attention.packed_mask = packed_mask
+                    block.attention.mask_shape = mask_shape
+                    block.attention.sparse_attn_query_groups = sparse_attn_query_groups
+            for block in self.single_blocks:
+                if isinstance(block.attention, nn.Module):
+                    # block.attention.indices_fn = indices_fn
+                    block.attention.topk = topk
+                    # block.attention.lr_mask = mask
+                    # block.attention.mask = mask
+                    block.attention.packed_lr_mask = packed_mask
+                    block.attention.packed_mask = packed_mask
+                    block.attention.mask_shape = mask_shape
+                    block.attention.sparse_attn_query_groups = sparse_attn_query_groups
         # Prepare modulation vectors.
         vec = self.time_in(t)
 
@@ -632,6 +837,13 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
 
         # Embed image and text.
         img = self.img_in(img)
+        # Voxel order and shard after 3D convolution patch embedding since it requires the 3D shape.
+        if GLOBAL_CONFIG['voxel_order']:
+            img = rearrange(img, 'b c t h w -> b t h w c')[:, None, :, :, :, :]
+            img = voxel_chunk_no_padding(img, voxel_shape=(4, 6, 8))[:, 0, :, :] # [b, t * h * w, c]
+            if shard_img is not None:
+                img = shard_img(img, dim=-2)
+
         if self.text_projection == "linear":
             txt = self.txt_in(txt)
         elif self.text_projection == "single_refiner":
@@ -652,7 +864,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
 
         freqs_cis = (freqs_cos, freqs_sin) if freqs_cos is not None else None
         # --------------------- Pass through DiT blocks ------------------------
-        for _, block in enumerate(self.double_blocks):
+        for i, block in enumerate(self.double_blocks):
             double_block_args = [
                 img,
                 txt,
@@ -662,14 +874,22 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 max_seqlen_q,
                 max_seqlen_kv,
                 freqs_cis,
+                inference_step,
             ]
+
+            if isinstance(block.attention, nn.Module):
+                # wait for this block's o_cache
+                if self.o_cache_stream is not None and (inference_step > 0 or i > 0):
+                    torch.cuda.current_stream().wait_stream(self.o_cache_stream)
+                # start load for next block
+                self.all_blocks[i + 1].attention.load_o_cache()
 
             img, txt = block(*double_block_args)
 
         # Merge txt and img to pass through single stream blocks.
         x = torch.cat((img, txt), 1)
         if len(self.single_blocks) > 0:
-            for _, block in enumerate(self.single_blocks):
+            for i, block in enumerate(self.single_blocks):
                 single_block_args = [
                     x,
                     vec,
@@ -679,7 +899,17 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                     max_seqlen_q,
                     max_seqlen_kv,
                     (freqs_cos, freqs_sin),
+                    inference_step,
                 ]
+
+                
+                if isinstance(block.attention, nn.Module):
+                    # wait for this block's o_cache
+                    if self.o_cache_stream is not None and (inference_step > 0 or i > 0):
+                        torch.cuda.current_stream().wait_stream(self.o_cache_stream)
+                    # start load for next block
+                    idx = (i + len(self.double_blocks) + 1) % len(self.all_blocks)
+                    self.all_blocks[idx].attention.load_o_cache()
 
                 x = block(*single_block_args)
 
@@ -687,6 +917,21 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
 
         # ---------------------------- Final layer ------------------------------
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
+
+        if GLOBAL_CONFIG['voxel_order']:
+            # if gather_img is not None, then we are in distributed mode
+            if gather_img is not None:
+                img = gather_img(img, dim=-2)
+
+            img = img[:, None, :, :]
+            b, h, n, d = img.shape
+            original_shape = (b, h, tt, th, tw, d)
+            img = reverse_voxel_chunk_no_padding(
+                img,
+                original_shape,
+                voxel_shape=(4, 6, 8)
+            )[:, 0, :, :, :, :]
+            img = rearrange(img, 'b t h w d -> b (t h w) d')
 
         img = self.unpatchify(img, tt, th, tw)
         if return_dict:

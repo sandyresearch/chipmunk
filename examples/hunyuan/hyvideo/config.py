@@ -12,12 +12,24 @@ def parse_args(namespace=None):
     parser = add_denoise_schedule_args(parser)
     parser = add_inference_args(parser)
     parser = add_parallel_args(parser)
+    parser = add_config_args(parser)
 
     args = parser.parse_args(namespace=namespace)
     args = sanity_check_args(args)
 
     return args
 
+def add_config_args(parser: argparse.ArgumentParser):
+    group = parser.add_argument_group(title="HunyuanVideo config args")
+
+    group.add_argument(
+        "--config-path",
+        type=str,
+        default=None,
+        help="Path to the config file.",
+    )
+
+    return parser
 
 def add_network_args(parser: argparse.ArgumentParser):
     group = parser.add_argument_group(title="HunyuanVideo network args")
@@ -223,13 +235,13 @@ def add_inference_args(parser: argparse.ArgumentParser):
     group.add_argument(
         "--model-base",
         type=str,
-        default="ckpts",
+        default="/data/austin/hunyuan/ckpts",
         help="Root path of all the models, including t2v models and extra models.",
     )
     group.add_argument(
         "--dit-weight",
         type=str,
-        default="ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt",
+        default="/data/austin/hunyuan/ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt",
         help="Path to the HunyuanVideo model. If None, search the model in the args.model_root."
         "1. If it is a file, load the model directly."
         "2. If it is a directory, search the model in the directory. Support two types of models: "

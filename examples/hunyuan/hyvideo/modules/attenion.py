@@ -1,9 +1,10 @@
 import importlib.metadata
 import math
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.distributed as dist
+from einops import rearrange
 
 try:
     import flash_attn
@@ -13,6 +14,8 @@ except ImportError:
     flash_attn = None
     flash_attn_varlen_func = None
     _flash_attn_forward = None
+
+from hyvideo.modules.head_parallel import all_to_all_collect_tokens, all_to_all_collect_heads, all_gather
 
 
 MEMORY_LAYOUT = {
@@ -61,7 +64,7 @@ def attention(
     q,
     k,
     v,
-    mode="flash",
+    mode="torch",
     drop_rate=0,
     attn_mask=None,
     causal=False,
@@ -70,6 +73,8 @@ def attention(
     max_seqlen_q=None,
     max_seqlen_kv=None,
     batch_size=1,
+    attn=None,
+    inference_step=None,
 ):
     """
     Perform QKV self attention.
@@ -101,9 +106,21 @@ def attention(
     if mode == "torch":
         if attn_mask is not None and attn_mask.dtype != torch.bool:
             attn_mask = attn_mask.to(q.dtype)
-        x = F.scaled_dot_product_attention(
-            q, k, v, attn_mask=attn_mask, dropout_p=drop_rate, is_causal=causal
-        )
+        # need to not attend to post text
+        if cu_seqlens_kv is not None:
+            qit = q[:, :, :cu_seqlens_q[1], :]
+            kit = k[:, :, :cu_seqlens_kv[1], :]
+            vit = v[:, :, :cu_seqlens_kv[1], :]
+            x = attn(qit, kit, vit, inference_step)
+            # tail is ignored so we can cat anything
+            # print(f'x: {x}')
+            # print(f'q[:, :, cu_seqlens_q[1]:, :]: {q[:, :, cu_seqlens_q[1]:, :]}')
+            # raise Exception('stop here')
+            x = torch.cat([x, q[:, :, cu_seqlens_q[1]:, :]], dim=2)
+        else:
+            x = F.scaled_dot_product_attention(
+                q, k, v, attn_mask=attn_mask, dropout_p=drop_rate, is_causal=causal
+            )
     elif mode == "flash":
         x = flash_attn_varlen_func(
             q,
@@ -210,3 +227,68 @@ def parallel_attention(
     attn = attn.reshape(b, s, -1)
 
     return attn
+
+@torch.compiler.disable
+def head_parallel_attention(
+    attn,
+    q,
+    k,
+    v,
+    img_q_len,
+    img_kv_len,
+    cu_seqlens_q,
+    cu_seqlens_kv,
+    inference_step
+):
+    """
+    q: [b, s, a, d]
+    k: [b, s, a, d]
+    v: [b, s, a, d]
+
+    -> [b, s, ad]
+    """
+    rank, world_size = dist.get_rank(), dist.get_world_size()
+
+    num_local_heads = q.shape[2] // world_size
+    local_head_slice = slice(rank * num_local_heads, (rank + 1) * num_local_heads)
+
+    # [b, s // world_size, a, d] -> [b, a // world_size, s, d]
+    qi = q[:, :img_q_len]
+    ki = k[:, :img_kv_len]
+    vi = v[:, :img_kv_len]
+    qt = q[:, img_q_len:cu_seqlens_q[1], local_head_slice]
+    kt = k[:, img_kv_len:cu_seqlens_kv[1], local_head_slice]
+    vt = v[:, img_kv_len:cu_seqlens_kv[1], local_head_slice]
+    qt = rearrange(qt, 'b s la d -> b la s d')
+    kt = rearrange(kt, 'b s la d -> b la s d')
+    vt = rearrange(vt, 'b s la d -> b la s d')
+    qe = q[:, cu_seqlens_q[1]:]
+    ke = k[:, cu_seqlens_kv[1]:]
+    ve = v[:, cu_seqlens_kv[1]:]
+    qe = rearrange(qe, 'b s la d -> b la s d')
+    ke = rearrange(ke, 'b s la d -> b la s d')
+    ve = rearrange(ve, 'b s la d -> b la s d')
+
+    qi, ki, vi = all_to_all_collect_tokens(torch.stack([qi, ki, vi]))
+
+    qit = torch.cat([qi, qt], dim=2)
+    kit = torch.cat([ki, kt], dim=2)
+    vit = torch.cat([vi, vt], dim=2)
+
+    oit = attn(qit, kit, vit, inference_step)
+
+    oi = oit[:, :, :img_q_len * world_size]
+    ot = oit[:, :, img_q_len * world_size:]
+
+    # [b, a // world_size, s, d] -> [b, s // world_size, a * d]
+    oi = all_to_all_collect_heads(oi)
+
+    ot = all_gather(ot)
+    ot = rearrange(ot, '(G b) la s d -> b s (G la d)', G=world_size)
+
+    oe = F.scaled_dot_product_attention(qe, ke, ve)
+    oe = rearrange(oe, 'b la s d -> b s (la d)')
+
+    o = torch.cat([oi, ot, oe], dim=1).contiguous()
+
+    return o

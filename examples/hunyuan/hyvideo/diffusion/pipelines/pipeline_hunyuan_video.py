@@ -835,7 +835,8 @@ class HunyuanVideoPipeline(DiffusionPipeline):
         else:
             batch_size = prompt_embeds.shape[0]
 
-        device = torch.device(f"cuda:{dist.get_rank()}") if dist.is_initialized() else self._execution_device
+        # Ray initializes each process to only have one visible GPU.
+        device = torch.device(f"cuda")
 
         # 3. Encode input prompt
         lora_scale = (
@@ -998,6 +999,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                         freqs_sin=freqs_cis[1],  # [seqlen, head_dim]
                         guidance=guidance_expand,
                         return_dict=True,
+                        inference_step=i,
                     )[
                         "x"
                     ]
