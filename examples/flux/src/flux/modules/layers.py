@@ -158,7 +158,7 @@ class DoubleStreamBlock(nn.Module):
     def sparsify(self) -> None:
         layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=True, is_attn_sparse=True)
         # Skip text inputs - it's only 512 tokens so quite fast already!
-        self.sparse_mlp = SparseDiffMlp(layer_num, layer_counter, self.img_mlp[0], self.img_mlp[1], self.img_mlp[2])
+        self.sparse_mlp = SparseDiffMlp(layer_num, layer_counter, self.img_mlp[0], self.img_mlp[1], self.img_mlp[2], 12)
         self.sparse_attn = SparseDiffAttn(layer_num, layer_counter)
 
     def forward(self, img: Tensor, txt: Tensor, vec: Tensor, pe: Tensor) -> tuple[Tensor, Tensor]:
@@ -283,7 +283,7 @@ class SingleStreamBlock(nn.Module):
         # Initialize the sparse layers based on these weights
         layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=True, is_attn_sparse=True)
         self.sparse_attn = SparseDiffAttn(layer_num, layer_counter)
-        self.sparse_mlp = SparseDiffMlp(layer_num, layer_counter, self.fc1, self.mlp_act, self.fc2)
+        self.sparse_mlp = SparseDiffMlp(layer_num, layer_counter, self.fc1, self.mlp_act, self.fc2, 6)
 
     
     def forward(self, x: Tensor, vec: Tensor, pe: Tensor) -> Tensor:

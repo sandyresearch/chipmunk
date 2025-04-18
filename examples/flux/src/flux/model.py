@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import torch
 from torch import Tensor, nn
 from chipmunk.ops import patchify_rope, patchify, unpatchify
+from chipmunk.util.storage.offloaded_tensor import PIPELINE_DEPTH
 from flux.modules.layers import (
     DoubleStreamBlock,
     EmbedND,
@@ -78,6 +79,7 @@ class Flux(nn.Module):
                 for _ in range(params.depth_single_blocks)
             ]
         )
+        self.all_blocks = self.double_blocks + self.single_blocks
 
         self.final_layer = LastLayer(self.hidden_size, 1, self.out_channels)
 
@@ -114,11 +116,17 @@ class Flux(nn.Module):
         # pe = self.pe_patchified
         # img = patchify(img)
 
-        for block in self.double_blocks:
+        for i, block in enumerate(self.double_blocks):
+            next_block = self.all_blocks[(i +                          PIPELINE_DEPTH - 1) % len(self.all_blocks)]
+            for storage in [next_block.sparse_mlp.storage, next_block.sparse_attn.storage]: storage.load_async()
+            for storage in [     block.sparse_mlp.storage,      block.sparse_attn.storage]: storage.load_async_wait()
             img, txt = block(img=img, txt=txt, vec=vec, pe=pe)
 
         img = torch.cat((txt, img), 1)
-        for block in self.single_blocks:
+        for i, block in enumerate(self.single_blocks):
+            next_block = self.all_blocks[(i + len(self.double_blocks) + PIPELINE_DEPTH - 1) % len(self.all_blocks)]
+            for storage in [next_block.sparse_mlp.storage, next_block.sparse_attn.storage]: storage.load_async()
+            for storage in [     block.sparse_mlp.storage,      block.sparse_attn.storage]: storage.load_async_wait()
             img = block(img, vec=vec, pe=pe)
         img = img[:, txt.shape[1] :, ...]
 
