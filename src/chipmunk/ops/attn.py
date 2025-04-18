@@ -17,7 +17,9 @@ def dense_attn(
     k: torch.Tensor,
     v: torch.Tensor
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    return torch.ops.chipmunk.dense_attn(q, k, v)
+    return_val = torch.ops.chipmunk.dense_attn(q, k, v)
+    if return_val is None: breakpoint()
+    return return_val
 
 def dense_colsum_attn(
     q: torch.Tensor,

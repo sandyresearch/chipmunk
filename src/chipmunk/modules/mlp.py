@@ -93,6 +93,14 @@ class SparseDiffMlp:
         out_cache    = self.storage.get_out_cache()[0]
         sparse_act_T = self.storage.get_sparse_act_T()[0]
 
+        if fc1.weight.dtype == torch.float8_e4m3fn:
+            x = self.fc1.quantize_input(x)
+            mm1_scale_a = fc1.input_scale_reciprocal
+            mm1_scale_b = fc1.scale_reciprocal
+        else:
+            mm1_scale_a = None
+            mm1_scale_b = None
+
         chipmunk.ops.mlp(
             x=x[0],
             fc1w=fc1.weight.data,
@@ -103,6 +111,8 @@ class SparseDiffMlp:
             sparse_act_T=sparse_act_T,
             cached_out=out_cache,
             num_sms_scatter_add=self.num_sms_scatter_add,
+            mm1_scale_a=mm1_scale_a,
+            mm1_scale_b=mm1_scale_b,
         )
 
         out_cache = out_cache.unsqueeze(0)

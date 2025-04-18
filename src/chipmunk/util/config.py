@@ -18,7 +18,7 @@ GLOBAL_CONFIG = {
         "chunk_size_2": 4,
     },
     'attn': {
-        'is_enabled': True,
+        'is_enabled': False,
         'top_keys': 0.165,
         'full_step_every': 10,
         'first_n_dense_layers': 2,
