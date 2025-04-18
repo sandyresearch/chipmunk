@@ -109,10 +109,10 @@ class Flux(nn.Module):
 
         ids = torch.cat((txt_ids, img_ids), dim=1)
         pe = self.pe_embedder(ids)
-        if not hasattr(self, 'pe_patchified'):
-            self.pe_patchified = patchify_rope(img, pe, width // 16, height // 16)
-        pe = self.pe_patchified
-        img = patchify(img)
+        # if not hasattr(self, 'pe_patchified'):
+        #     self.pe_patchified = patchify_rope(img, pe, width // 16, height // 16)
+        # pe = self.pe_patchified
+        # img = patchify(img)
 
         for block in self.double_blocks:
             img, txt = block(img=img, txt=txt, vec=vec, pe=pe)
@@ -122,7 +122,7 @@ class Flux(nn.Module):
             img = block(img, vec=vec, pe=pe)
         img = img[:, txt.shape[1] :, ...]
 
-        img = unpatchify(img, img_og_shape)
+        # img = unpatchify(img, img_og_shape)
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
         return img
 

@@ -343,6 +343,9 @@ def load_flow_model(
         if verbose:
             print_load_warning(missing, unexpected)
 
+    for layer in model.double_blocks + model.single_blocks:
+        layer.sparsify()
+
     if configs[name].lora_path is not None:
         print("Loading LoRA")
         lora_sd = load_sft(configs[name].lora_path, device=str(device))
