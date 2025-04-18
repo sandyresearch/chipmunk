@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import torch
 from torch import Tensor, nn
 from chipmunk.ops import patchify_rope, patchify, unpatchify
+from chipmunk.util import GLOBAL_CONFIG
 from chipmunk.util.storage.offloaded_tensor import PIPELINE_DEPTH
 from flux.modules.layers import (
     DoubleStreamBlock,
@@ -13,7 +14,7 @@ from flux.modules.layers import (
     timestep_embedding,
 )
 from flux.modules.lora import LinearLora, replace_linear_with_lora
-
+from einops import rearrange
 
 @dataclass
 class FluxParams:
@@ -95,12 +96,12 @@ class Flux(nn.Module):
         height: int,
         guidance: Tensor | None = None,
     ) -> Tensor:
+        latent_height, latent_width = height // 2, width // 2
         if img.ndim != 3 or txt.ndim != 3:
             raise ValueError("Input img and txt tensors must have 3 dimensions.")
 
         # running on sequences img
         img = self.img_in(img)
-        img_og_shape = img.shape
         vec = self.time_in(timestep_embedding(timesteps, 256))
         if self.params.guidance_embed:
             if guidance is None:
@@ -111,10 +112,13 @@ class Flux(nn.Module):
 
         ids = torch.cat((txt_ids, img_ids), dim=1)
         pe = self.pe_embedder(ids)
-        # if not hasattr(self, 'pe_patchified'):
-        #     self.pe_patchified = patchify_rope(img, pe, width // 16, height // 16)
-        # pe = self.pe_patchified
-        # img = patchify(img)
+
+        if not hasattr(self, 'pe_patchified'):
+            self.pe_patchified = patchify_rope(img, pe, latent_width, latent_height)
+        pe = self.pe_patchified
+        img = rearrange(img, "b (h w) c -> (b c) h w", h=latent_height, w=latent_width)
+        img = patchify(img)
+        img = rearrange(img, "(b c) x -> b x c", b=1)
 
         for i, block in enumerate(self.double_blocks):
             next_block = self.all_blocks[(i +                          PIPELINE_DEPTH - 1) % len(self.all_blocks)]
@@ -130,7 +134,10 @@ class Flux(nn.Module):
             img = block(img, vec=vec, pe=pe)
         img = img[:, txt.shape[1] :, ...]
 
-        # img = unpatchify(img, img_og_shape)
+        img = rearrange(img, "b np c -> (b c) np")
+        img = unpatchify(img, (1, latent_height, latent_width))
+        img = rearrange(img, "(b c) h w -> b (h w) c", b=1)
+
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
         return img
 

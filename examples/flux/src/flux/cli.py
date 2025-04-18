@@ -135,7 +135,7 @@ def main(
     device_props = torch.cuda.get_device_properties(torch.device(device))
     sm_major = device_props.major
     if sm_major < 9:
-        raise ValueError("Running Chipmunk requires an H100 GPU (SM90 or higher). Your GPU has compute capability SM{sm_major}0.")
+        raise ValueError("Running Chipmunk requires an H100 GPU (SM90 or higher). Your GPU has compute capability SM{sm_major}X.")
 
     prompt = prompt.split("|")
     if len(prompt) == 1:
@@ -198,7 +198,7 @@ def main(
 
     while opts is not None:
         if opts.seed is None:
-            opts.seed = rng.seed()
+            opts.seed = seed or rng.seed()
         print(f"Generating with seed {opts.seed}:\n{opts.prompt}")
         t0 = time.perf_counter()
 

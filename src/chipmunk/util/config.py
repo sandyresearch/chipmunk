@@ -1,5 +1,6 @@
 GLOBAL_CONFIG = {
     'mlp': {
+        'is_enabled': True,
         'top_keys': 0.3,
         'random_keys': 0.05,
         'full_step_every': 10,
@@ -17,18 +18,19 @@ GLOBAL_CONFIG = {
         "chunk_size_2": 4,
     },
     'attn': {
+        'is_enabled': True,
         'top_keys': 0.165,
         'full_step_every': 10,
         'first_n_dense_layers': 2,
 
         # do not change below this line
-        'counts_multiple_of': 256,
+        'counts_multiple_of': 112, # the # of kv_tile_rows in csrc/attn/csp_attn.cu
         'mbm': 192,
     },
     "offloading": {
         'global_disable_offloading': False,
 
-        'mlp.out_cache': True,
+        'mlp.out_cache': False,
         'mlp.indices': False,
         'mlp.counts': False,
         'mlp.sparse_act_T': False,

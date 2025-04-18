@@ -29,6 +29,10 @@ class SparseDiffMlp:
 
     def forward(self, x: torch.Tensor):
         fc1, fc2 = self.fc1[0], self.fc2[0]
+
+        if not GLOBAL_CONFIG['mlp']['is_enabled']:
+            return fc2(self.activation(fc1(x)))
+
         do_full  = self.layer_counter.should_do_full_mlp_step()
         inference_step, layer, submodule = self.layer_counter.increment()
 
