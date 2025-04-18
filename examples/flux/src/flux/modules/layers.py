@@ -158,8 +158,8 @@ class DoubleStreamBlock(nn.Module):
     def sparsify(self) -> None:
         layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=True, is_attn_sparse=True)
         # Skip text inputs - it's only 512 tokens so quite fast already!
-        self.img_mlp = SparseDiffMlp(layer_num, layer_counter, self.img_mlp[0], self.img_mlp[1], self.img_mlp[2])
-        self.attn = SparseDiffAttn(layer_num, layer_counter)
+        self.sparse_mlp = SparseDiffMlp(layer_num, layer_counter, self.img_mlp[0], self.img_mlp[1], self.img_mlp[2])
+        self.sparse_attn = SparseDiffAttn(layer_num, layer_counter)
 
     def forward(self, img: Tensor, txt: Tensor, vec: Tensor, pe: Tensor) -> tuple[Tensor, Tensor]:
         img_mod1, img_mod2 = self.img_mod(vec)
@@ -184,12 +184,12 @@ class DoubleStreamBlock(nn.Module):
         k = torch.cat((txt_k, img_k), dim=2)
         v = torch.cat((txt_v, img_v), dim=2)
 
-        attn = attention(q, k, v, pe=pe, attn_func=self.attn)
+        attn = attention(q, k, v, pe=pe, attn_func=self.sparse_attn)
         txt_attn, img_attn = attn[:, : txt.shape[1]], attn[:, txt.shape[1] :]
 
         # calculate the img bloks
         img = img + img_mod1.gate * self.img_attn.proj(img_attn)
-        img = img + img_mod2.gate * self.img_mlp((1 + img_mod2.scale) * self.img_norm2(img) + img_mod2.shift)
+        img = img + img_mod2.gate * self.sparse_mlp((1 + img_mod2.scale) * self.img_norm2(img) + img_mod2.shift)
 
         # calculate the txt bloks
         txt = txt + txt_mod1.gate * self.txt_attn.proj(txt_attn)
@@ -282,8 +282,8 @@ class SingleStreamBlock(nn.Module):
 
         # Initialize the sparse layers based on these weights
         layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=True, is_attn_sparse=True)
-        self.attn = SparseDiffAttn(layer_num, layer_counter)
-        self.mlp = SparseDiffMlp(layer_num, layer_counter, self.fc1, self.mlp_act, self.fc2)
+        self.sparse_attn = SparseDiffAttn(layer_num, layer_counter)
+        self.sparse_mlp = SparseDiffMlp(layer_num, layer_counter, self.fc1, self.mlp_act, self.fc2)
 
     
     def forward(self, x: Tensor, vec: Tensor, pe: Tensor) -> Tensor:
