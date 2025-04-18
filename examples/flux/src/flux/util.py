@@ -343,7 +343,7 @@ def load_flow_model(
         if verbose:
             print_load_warning(missing, unexpected)
 
-    for layer in model.double_blocks + model.single_blocks:
+    for layer in model.all_blocks:
         layer.sparsify()
 
     if configs[name].lora_path is not None:

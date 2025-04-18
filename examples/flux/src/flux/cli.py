@@ -132,6 +132,11 @@ def main(
         kwargs: additional arguments for TensorRT support
     """
 
+    device_props = torch.cuda.get_device_properties(torch.device(device))
+    sm_major = device_props.major
+    if sm_major < 9:
+        raise ValueError("Running Chipmunk requires an H100 GPU (SM90 or higher). Your GPU has compute capability SM{sm_major}0.")
+
     prompt = prompt.split("|")
     if len(prompt) == 1:
         prompt = prompt[0]
@@ -228,7 +233,7 @@ def main(
         t1 = time.perf_counter()
 
         fn = output_name.format(idx=idx)
-        print(f"Done in {t1 - t0:.1f}s. Saving {fn}")
+        print(f"Done in {t1 - t0:.3f}s. Saving {fn}")
 
         idx = save_image(nsfw_classifier, name, output_name, idx, x, add_sampling_metadata, prompt)
 
