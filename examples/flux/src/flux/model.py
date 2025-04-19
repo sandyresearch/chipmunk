@@ -110,33 +110,23 @@ class Flux(nn.Module):
         vec = vec + self.vector_in(y)
         txt = self.txt_in(txt)
 
-        ids = torch.cat((txt_ids, img_ids), dim=1)
-        pe = self.pe_embedder(ids)
-
-        if not hasattr(self, 'pe_patchified'):
-            self.pe_patchified = patchify_rope(img, pe, latent_width, latent_height)
         pe = self.pe_patchified
-        img = rearrange(img, "b (h w) c -> (b c) h w", h=latent_height, w=latent_width)
-        img = patchify(img)
-        img = rearrange(img, "(b c) x -> b x c", b=1)
 
         for i, block in enumerate(self.double_blocks):
-            next_block = self.all_blocks[(i +                          PIPELINE_DEPTH - 1) % len(self.all_blocks)]
-            for storage in [next_block.sparse_mlp.storage, next_block.sparse_attn.storage]: storage.load_async()
-            for storage in [     block.sparse_mlp.storage,      block.sparse_attn.storage]: storage.load_async_wait()
+            if not GLOBAL_CONFIG['offloading']['global_disable_offloading']:
+                next_block = self.all_blocks[(i +                          PIPELINE_DEPTH - 1) % len(self.all_blocks)]
+                for storage in [next_block.sparse_mlp.storage, next_block.sparse_attn.storage]: storage.load_async()
+                for storage in [     block.sparse_mlp.storage,      block.sparse_attn.storage]: storage.load_async_wait()
             img, txt = block(img=img, txt=txt, vec=vec, pe=pe)
 
         img = torch.cat((txt, img), 1)
         for i, block in enumerate(self.single_blocks):
-            next_block = self.all_blocks[(i + len(self.double_blocks) + PIPELINE_DEPTH - 1) % len(self.all_blocks)]
-            for storage in [next_block.sparse_mlp.storage, next_block.sparse_attn.storage]: storage.load_async()
-            for storage in [     block.sparse_mlp.storage,      block.sparse_attn.storage]: storage.load_async_wait()
+            if not GLOBAL_CONFIG['offloading']['global_disable_offloading']:
+                next_block = self.all_blocks[(i + len(self.double_blocks) + PIPELINE_DEPTH - 1) % len(self.all_blocks)]
+                for storage in [next_block.sparse_mlp.storage, next_block.sparse_attn.storage]: storage.load_async()
+                for storage in [     block.sparse_mlp.storage,      block.sparse_attn.storage]: storage.load_async_wait()
             img = block(img, vec=vec, pe=pe)
         img = img[:, txt.shape[1] :, ...]
-
-        img = rearrange(img, "b np c -> (b c) np")
-        img = unpatchify(img, (1, latent_height, latent_width))
-        img = rearrange(img, "(b c) h w -> b (h w) c", b=1)
 
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
         return img

@@ -1,16 +1,19 @@
 GLOBAL_CONFIG = {
+    'should_profile': False,
+    'generation_index': 0,
+
     'mlp': {
         'is_enabled': True,
         'top_keys': 0.3,
         'random_keys': 0.05,
         'full_step_every': 10,
-        'block_mask_cache': 1,
+        'block_mask_cache': 2,
         'first_n_dense_layers': 2,
 
         # do not change below this line
         'counts_multiple_of': 256,
         'bm': 128,
-        'mbm': 16,
+        'mbm': 128,
     },
      "patchify": {
         # To disable patching at any level, set that level's patch size to 1. To disable patching entirely, set all patch sizes to 1.

@@ -13,6 +13,9 @@ from flux.util import configs, load_ae, load_clip, load_flow_model, load_t5, sav
 
 NSFW_THRESHOLD = 0.85
 
+import torch
+torch._dynamo.config.cache_size_limit = 1 << 32
+
 
 @dataclass
 class SamplingOptions:
@@ -179,7 +182,8 @@ def main(
     clip = load_clip(torch_device)
     model = load_flow_model(name, device=torch_device)
     ae = load_ae(name, device=torch_device)
-
+    from chipmunk.util.config import GLOBAL_CONFIG
+    GLOBAL_CONFIG['generation_index'] = 0
     if trt:
         raise ValueError("TensorRT is not supported yet in Chipmunk")
 
@@ -236,7 +240,7 @@ def main(
         print(f"Done in {t1 - t0:.3f}s. Saving {fn}")
 
         idx = save_image(nsfw_classifier, name, output_name, idx, x, add_sampling_metadata, prompt)
-
+        GLOBAL_CONFIG['generation_index'] += 1
         if loop:
             print("-" * 80)
             opts = parse_prompt(opts)

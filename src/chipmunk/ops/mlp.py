@@ -56,6 +56,7 @@ def mm2_unfused(
     scatter_add(sparse_act_packed, unpacked_colmajor, indices, counts, num_sms_scatter_add)
     csp_mlp_mm2(sparse_act_packed, fc2wT, indices, counts, cached_out, 132-num_sms_scatter_add)
 
+@torch.compiler.disable
 def run_e2e(
     x: torch.Tensor, 
     fc1w: torch.Tensor, 

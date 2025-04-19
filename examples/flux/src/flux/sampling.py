@@ -12,6 +12,8 @@ from .modules.autoencoder import AutoEncoder
 from .modules.conditioner import HFEmbedder
 from .modules.image_embedders import CannyImageEncoder, DepthImageEncoder, ReduxImageEncoder
 
+from chipmunk.util.config import GLOBAL_CONFIG
+from chipmunk.ops import patchify, unpatchify, patchify_rope
 
 def get_noise(
     num_samples: int,
@@ -242,7 +244,7 @@ def get_schedule(
     return timesteps.tolist()
 
 
-def denoise(
+def _denoise_inner(
     model: Flux,
     # model input
     img: Tensor,
@@ -257,9 +259,21 @@ def denoise(
     guidance: float = 4.0,
     # extra img tokens
     img_cond: Tensor | None = None,
+    step_fn = None
 ):
+    latent_width, latent_height = height // 2, width // 2
+    img = rearrange(img, "b (h w) c -> (b c) h w", h=latent_height, w=latent_width)
+    img = patchify(img)
+    img = rearrange(img, "(b c) x -> b x c", b=1)
+
+    if not hasattr(model, 'pe_patchified'):
+        ids = torch.cat((txt_ids, img_ids), dim=1)
+        pe = model.pe_embedder(ids)
+        model.pe_patchified = patchify_rope(img.shape, pe, latent_width, latent_height)
+
     # this is ignored for schnell
     guidance_vec = torch.full((img.shape[0],), guidance, device=img.device, dtype=img.dtype)
+    inference_step = 0
     for t_curr, t_prev in zip(timesteps[:-1], timesteps[1:]):
         t_vec = torch.full((img.shape[0],), t_curr, dtype=img.dtype, device=img.device)
         pred = model(
@@ -275,8 +289,52 @@ def denoise(
         )
 
         img = img + (t_prev - t_curr) * pred
+        if step_fn is not None:
+            step_fn(inference_step)
+        inference_step += 1
 
+    img = rearrange(img, "b np c -> (b c) np")
+    img = unpatchify(img, (1, latent_height, latent_width))
+    img = rearrange(img, "(b c) h w -> b (h w) c", b=1)
     return img
+
+def denoise(
+    model: Flux,
+    # model input
+    img: Tensor,
+    img_ids: Tensor,
+    txt: Tensor,
+    txt_ids: Tensor,
+    vec: Tensor,
+    # sampling parameters
+    timesteps: list[float],
+    width: int,
+    height: int,
+    guidance: float = 4.0,
+    # extra img tokens
+    img_cond: Tensor | None = None,
+):
+    # allow 5 images to be sampled without profiling to allow torch.compile to warm up
+    if not GLOBAL_CONFIG['should_profile'] or GLOBAL_CONFIG['generation_index'] < 3:
+        return _denoise_inner(model, img, img_ids, txt, txt_ids, vec, timesteps, width, height, guidance, img_cond)
+    else:
+        with torch.profiler.profile(
+            activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA], 
+            record_shapes=True,
+            profile_memory=True,
+            with_stack=True,
+            with_flops=True,
+            with_modules=True,
+            on_trace_ready=torch.profiler.tensorboard_trace_handler('./profiles'),
+            schedule=torch.profiler.schedule(wait=0, warmup=0, active=10),
+        ) as prof:
+            def step_fn(inference_step: int):
+                import os
+                prof.step()
+                if inference_step == 13:
+                    # end process
+                    os._exit(0)
+            return _denoise_inner(model, img, img_ids, txt, txt_ids, vec, timesteps, width, height, guidance, img_cond, step_fn)
 
 
 def unpack(x: Tensor, height: int, width: int) -> Tensor:
