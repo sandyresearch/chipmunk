@@ -25,7 +25,7 @@ class SparseDiffAttn:
         assert bm == 192, "The kernel was written for BM=192. You may need to change the kernel."
         layer = self.layer_num
         multiple_of = attn_config['counts_multiple_of']
-
+        
         if layer < attn_config['first_n_dense_layers']:
             o, lse = chipmunk.ops.dense_attn(q, k, v)
             return o
@@ -85,8 +85,7 @@ class SparseDiffAttn:
         return o
     
     def forward(self, q: Tensor, k: Tensor, v: Tensor) -> Tensor:
-        if not GLOBAL_CONFIG['attn']['is_enabled']:
-            return F.scaled_dot_product_attention(q, k, v)
+        # if True or not GLOBAL_CONFIG['attn']['is_enabled']:
 
         inference_step, layer, submodule = self.layer_counter.increment()
         do_full_step = self.layer_counter.should_do_full_attn_step()

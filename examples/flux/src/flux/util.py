@@ -347,6 +347,8 @@ def load_flow_model(
     for layer in model.all_blocks:
         layer.sparsify()
     model = quantize_fp8(model, device=device)
+    for layer in model.all_blocks:
+        layer.compile()
     
     if configs[name].lora_path is not None:
         print("Loading LoRA")

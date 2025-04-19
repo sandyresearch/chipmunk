@@ -5,7 +5,7 @@ import torch
 from einops import rearrange
 from torch import Tensor, nn
 
-from flux.math import attention, rope
+from flux.math import attention, rope, apply_rope
 from chipmunk.modules import SparseDiffMlp, SparseDiffAttn
 from chipmunk.util import LayerCounter
 class EmbedND(nn.Module):
@@ -184,12 +184,17 @@ class DoubleStreamBlock(nn.Module):
         k = torch.cat((txt_k, img_k), dim=2)
         v = torch.cat((txt_v, img_v), dim=2)
 
-        attn = attention(q, k, v, pe=pe, attn_func=self.sparse_attn)
+        q, k = apply_rope(q, k, pe)
+        attn = self.sparse_attn(q, k, v)
+        # attn = torch.nn.functional.scaled_dot_product_attention(q, k, v)
+        attn = rearrange(attn, "B H L D -> B L (H D)")
+
         txt_attn, img_attn = attn[:, : txt.shape[1]], attn[:, txt.shape[1] :]
 
         # calculate the img bloks
         img = img + img_mod1.gate * self.img_attn.proj(img_attn)
-        img = img + img_mod2.gate * self.sparse_mlp((1 + img_mod2.scale) * self.img_norm2(img) + img_mod2.shift)
+        # img = img + img_mod2.gate * self.sparse_mlp((1 + img_mod2.scale) * self.img_norm2(img) + img_mod2.shift)
+        img = img + img_mod2.gate * self.img_mlp((1 + img_mod2.scale) * self.img_norm2(img) + img_mod2.shift)
 
         # calculate the txt bloks
         txt = txt + txt_mod1.gate * self.txt_attn.proj(txt_attn)
@@ -294,9 +299,14 @@ class SingleStreamBlock(nn.Module):
         q, k = self.norm(q, k, v)
 
         # compute attention
-        attn = self.o(attention(q, k, v, pe=pe, attn_func=self.sparse_attn))
+        q, k = apply_rope(q, k, pe)
+        attn = self.sparse_attn(q, k, v)
+        # attn = torch.nn.functional.scaled_dot_product_attention(q, k, v)
+        attn = rearrange(attn, "B H L D -> B L (H D)")
+        attn = self.o(attn)
         # compute activation in mlp stream, cat again and run second linear layer
         mlp = self.sparse_mlp(x_mod)
+        # mlp = self.fc2(self.mlp_act(self.fc1(x_mod)))
         return x + mod.gate * (attn + mlp)
 
 
