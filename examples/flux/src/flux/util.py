@@ -13,6 +13,7 @@ from flux.modules.autoencoder import AutoEncoder, AutoEncoderParams
 from flux.modules.conditioner import HFEmbedder
 
 from chipmunk.modules import quantize_fp8
+from chipmunk.util import GLOBAL_CONFIG
 
 def save_image(
     nsfw_classifier,
@@ -346,7 +347,8 @@ def load_flow_model(
 
     for layer in model.all_blocks:
         layer.sparsify()
-    # model = quantize_fp8(model, device=device)
+    if GLOBAL_CONFIG['mlp']['is_fp8']:
+        model = quantize_fp8(model, device=device)
     model.compile()
     if configs[name].lora_path is not None:
         print("Loading LoRA")

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import init
 import math
-
+from chipmunk.util import GLOBAL_CONFIG
 
 class F8Linear(nn.Module):
     def __init__(
@@ -320,9 +320,11 @@ def recursive_swap_linears(
             continue
         if 'mod' in name: 
             continue
-        if isinstance(model, nn.Sequential) and str(name) == '2' and isinstance(child, nn.Linear) and parent_name == 'img_mlp':
-            print('skipping fc2 of sparse img mlp')
-            continue
+        if  isinstance(model, nn.Sequential) and str(name) == '2' and isinstance(child, nn.Linear) and parent_name == 'img_mlp':
+            if GLOBAL_CONFIG['mlp']['is_enabled']:
+                # We can't quantize fp8 sparse MLP: see README for explanation
+                print('skipping fc2 of sparse img mlp')
+                continue
         if isinstance(child, nn.Linear) and not isinstance(
             child, (F8Linear)
         ):

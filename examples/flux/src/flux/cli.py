@@ -15,7 +15,7 @@ NSFW_THRESHOLD = 0.85
 
 import torch
 torch._dynamo.config.cache_size_limit = 1 << 32
-
+torch._dynamo.config.accumulated_cache_size_limit = 1 << 32
 
 @dataclass
 class SamplingOptions:
