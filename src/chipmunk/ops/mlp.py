@@ -56,6 +56,10 @@ def mm2_unfused(
     scatter_add(sparse_act_packed, unpacked_colmajor, indices, counts, num_sms_scatter_add)
     csp_mlp_mm2(sparse_act_packed, fc2wT, indices, counts, cached_out, 132-num_sms_scatter_add)
 
+# REASON FOR DISABLING TORCH COMPILE:
+# torch inductor likes to insert a dummy Triton kernel between matmul 1 and 2 that just copies data (`triton_fused_poi_2`) 
+# that eats up 68us per invocation :(
+# uncompiled is still fast because MLPs are very compute-bound and our custom kernels have everything fused in them!
 @torch.compiler.disable
 def run_e2e(
     x: torch.Tensor, 
