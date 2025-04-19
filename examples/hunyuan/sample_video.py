@@ -71,7 +71,8 @@ def main(args=None, local_rank=None, world_size=None):
     args = hunyuan_video_sampler.args
 
     # for prompt in prompts:
-    for prompt in [args.prompt]:
+    # twice for torch compile warmup
+    for prompt in [args.prompt, args.prompt]:
         # torch._dynamo.reset()
         # torch.compiler.reset()
         # torch.cuda.empty_cache()

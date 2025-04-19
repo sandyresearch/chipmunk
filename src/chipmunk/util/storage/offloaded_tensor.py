@@ -42,8 +42,9 @@ class MaybeOffloadedTensor:
     """
 
     # Default buffer sizes for pinned CPU memory, tuned for typical shape sizes
-    LARGE_BUF_SIZE = 1 * 32 * 150000 * 128 * torch.finfo(torch.bfloat16).bits // 8
-    SMALL_BUF_SIZE = 1 * 32 * 15000 * 128 * torch.finfo(torch.bfloat16).bits // 8
+    LARGE_BUF_SIZE  = 1 * 32 * 150000 * 128 * torch.finfo(torch.bfloat16).bits // 8
+    MEDIUM_BUF_SIZE = 1 * 32 * 50000 * 128 * torch.finfo(torch.bfloat16).bits // 8
+    SMALL_BUF_SIZE  = 1 * 32 * 15000 * 128 * torch.finfo(torch.bfloat16).bits // 8
 
     @torch.compiler.disable # torch.compile fails to allocate pinned CPU memory :(
     def __init__(self, name: str, layer_num: int, dtype: torch.dtype,
@@ -130,6 +131,10 @@ class MaybeOffloadedTensor:
 
         :return: The GPU tensor now loaded into the correct slot.
         """
+        # no op if the tensor does not exist yet
+        if not self.real_shape:
+            return None
+
         if not self.is_offload_enabled:
             return self.gpu_tensor
         # Allocate a GPU tensor if the slot is currently None / used by a different shape (happens when switching between double and single stream block)
@@ -158,6 +163,8 @@ class MaybeOffloadedTensor:
             return
 
         torch.cuda.current_stream().wait_stream(self.load_stream)
+        torch.cuda.current_stream().wait_stream(self.offload_stream)
+
         if self.load_completed_event is not None:
             self.load_completed_event.wait()
             self.load_completed_event = None

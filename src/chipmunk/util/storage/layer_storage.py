@@ -1,3 +1,4 @@
+import torch
 from torch import Tensor
 from .offloaded_tensor import MaybeOffloadedTensor
 
@@ -82,13 +83,29 @@ class MlpStorage:
             self.counts.load_async_wait()
 
 class AttnStorage:
-    def __init__(self, layer_num: int):
+    def __init__(self, layer_num: int, init_names: list[str]=[]):
         self.layer_num = layer_num
 
         self.indices = None
         self.counts = None
         self.out_cache = None
         self.lse_constants = None
+
+        # for name in init_names:
+        if 'out_cache' in init_names:
+            self.out_cache = MaybeOffloadedTensor(
+                f'attn.out_cache',
+                self.layer_num, torch.bfloat16,
+                torch.device('cuda'),
+                cpu_buf_size=MaybeOffloadedTensor.LARGE_BUF_SIZE
+            )
+        if 'indices' in init_names:
+            self.indices = MaybeOffloadedTensor(
+                f'attn.indices',
+                self.layer_num, torch.uint8,
+                torch.device('cuda'),
+                cpu_buf_size=MaybeOffloadedTensor.MEDIUM_BUF_SIZE
+            )
 
     def get_indices(self):
         if self.indices is None:

@@ -17,27 +17,27 @@ HF_HOME = '/data/austin/hf_cache'
 #     'savedir': 'chipmunk',
 # }
 
+# BASE_CONFIG = {
+#     "head_parallel": False,
+#     "world_size": 1,
+#     "steps": 4,
+#     "offload": 1,
+
+#     "voxel_order": False,
+#     "tk": 1,
+#     "lk": 0,
+#     "rk": 0,
+
+#     "savedir": "dense",
+
+#     # TODO: delete
+#     "pli": 1,
+#     "eval": "custom-one-seed",
+#     "tk-dense": 1,
+#   }
+
 BASE_CONFIG = {
-    "head_parallel": False,
-    "world_size": 1,
-    "steps": 4,
-    "offload": 1,
-
-    "voxel_order": False,
-    "tk": 1,
-    "lk": 0,
-    "rk": 0,
-
-    "savedir": "dense",
-
-    # TODO: delete
-    "pli": 1,
-    "eval": "custom-one-seed",
-    "tk-dense": 1,
-  }
-
-BASE_CONFIG = {
-    "steps": 4,
+    "steps": 50,
     "world_size": 1,
     "head_parallel": True,
     "compile": True,
@@ -52,8 +52,9 @@ BASE_CONFIG = {
     "full_every": 10,
     "lv": 0,
     "topk": 0.05,
+    "skip_every": 3,
 
-    "savedir": "chipmunk",
+    "savedir": "chipmunk-test",
 
     # TODO: delete
     "eval": "custom-one-seed",
@@ -87,8 +88,9 @@ def run(configs):
                 '--video-size', '720', '1280',
                 '--video-length', '129',
                 '--infer-steps', str(config['steps']),
-                '--prompt', 'A cat walks on the grass, realistic style.',
-	            '--seed', '42',
+                # '--prompt', 'Create a looping video of a cozy café scene in a rainy city. A girl with short hair sits at a wooden table, wearing a warm sweater and sipping a cup of coffee. Soft rain patters against the window, creating a calming ambiance. Around her, shelves filled with books and plants add to the cozy vibe. Warm, dim lighting creates a soothing atmosphere as gentle jazz music plays in the background, inviting viewers to relax and unwind. The scene should be in loop.',
+                '--prompt', 'A person is knitting',
+	            '--seed', '831',
                 '--embedded-cfg-scale', '6.0',
                 '--flow-shift', '7.0',
                 '--flow-reverse',

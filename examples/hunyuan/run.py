@@ -19,7 +19,7 @@ HF_HOME = '/data/austin/hf_cache'
 BASE_CONFIG = {
     "head_parallel": False,
     "world_size": 1,
-    "steps": 4,
+    "steps": 50,
     "offload": 1,
 
     "voxel_order": False,
@@ -62,7 +62,7 @@ def run(configs):
                 '--video-length', '129',
                 '--infer-steps', str(config['steps']),
                 '--prompt', 'A cat walks on the grass, realistic style.',
-	            '--seed', '42',
+	            '--seed', '831',
                 '--embedded-cfg-scale', '6.0',
                 '--flow-shift', '7.0',
                 '--flow-reverse',

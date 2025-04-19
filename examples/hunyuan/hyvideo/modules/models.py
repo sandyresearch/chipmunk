@@ -31,8 +31,6 @@ from .chipmunk.chipmunk import (
 from .chipmunk.attention import (
     tk_attn,
     tk_attn_forward,
-    TKAttention,
-    SparseAttention,
     SparseDiffAttention,
     test_tk_attn
 )
@@ -148,14 +146,7 @@ class MMDoubleStreamBlock(nn.Module):
         )
         self.hybrid_seq_parallel_attn = None
         self.attention = F.scaled_dot_product_attention
-        if 'tk-sparse' in GLOBAL_CONFIG:
-            self.attention = SparseAttention(
-                layer_num=layer_num,
-                start_step=GLOBAL_CONFIG['start_step'] if 'start_step' in GLOBAL_CONFIG else 0,
-                full_every=GLOBAL_CONFIG['full_every'] if 'full_every' in GLOBAL_CONFIG else 100,
-                start_layer=GLOBAL_CONFIG['start_layer'] if 'start_layer' in GLOBAL_CONFIG else 0,
-            )
-        elif 'tk-sparse-diff' in GLOBAL_CONFIG:
+        if 'tk-sparse-diff' in GLOBAL_CONFIG:
             max_seqlen = 119056
             self.attention = SparseDiffAttention(
                 layer_num=layer_num,
@@ -385,16 +376,7 @@ class MMSingleStreamBlock(nn.Module):
         )
         self.hybrid_seq_parallel_attn = None
         self.attention = F.scaled_dot_product_attention
-        if 'tk-sparse' in GLOBAL_CONFIG:
-            print('SparseAttention')
-            self.attention = SparseAttention(
-                layer_num=layer_num,
-                start_step=GLOBAL_CONFIG['start_step'] if 'start_step' in GLOBAL_CONFIG else 0,
-                full_every=GLOBAL_CONFIG['full_every'] if 'full_every' in GLOBAL_CONFIG else 100,
-                start_layer=GLOBAL_CONFIG['start_layer'] if 'start_layer' in GLOBAL_CONFIG else 0,
-            )
-        elif 'tk-sparse-diff' in GLOBAL_CONFIG:
-            print('SparseDiffAttention')
+        if 'tk-sparse-diff' in GLOBAL_CONFIG:
             max_seqlen = 119056
             self.attention = SparseDiffAttention(
                 layer_num=layer_num,
@@ -408,8 +390,6 @@ class MMSingleStreamBlock(nn.Module):
                 start_layer=GLOBAL_CONFIG['start_layer'] if 'start_layer' in GLOBAL_CONFIG else 0,
             )
         elif 'tk-dense' in GLOBAL_CONFIG:
-            print('TKAttention')
-            # self.attention = TKAttention()
             self.attention = tk_attn_forward
         else:
             print('F.scaled_dot_product_attention')
@@ -729,6 +709,35 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         for block in self.single_blocks:
             block.disable_deterministic()
 
+    @torch.compile
+    def voxel_in(self, img, shard_img=None):
+        # Embed image and text.
+        img = self.img_in(img)
+        # Voxel order and shard after 3D convolution patch embedding since it requires the 3D shape.
+        img = rearrange(img, 'b c t h w -> b t h w c')[:, None, :, :, :, :]
+        img = voxel_chunk_no_padding(img, voxel_shape=(4, 6, 8))[:, 0, :, :] # [b, t * h * w, c]
+        if shard_img is not None:
+            img = shard_img(img, dim=-2)
+        return img
+
+    @torch.compile
+    def voxel_out(self, img, tt, th, tw, gather_img=None):
+        # if gather_img is not None, then we are in distributed mode
+        if gather_img is not None:
+            img = gather_img(img, dim=-2)
+
+        img = img[:, None, :, :]
+        b, h, n, d = img.shape
+        original_shape = (b, h, tt, th, tw, d)
+        img = reverse_voxel_chunk_no_padding(
+            img,
+            original_shape,
+            voxel_shape=(4, 6, 8)
+        )[:, 0, :, :, :, :]
+        img = rearrange(img, 'b t h w d -> b (t h w) d')
+
+        return self.unpatchify(img, tt, th, tw)
+
     def forward(
         self,
         x: torch.Tensor,
@@ -756,18 +765,58 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             oh // self.patch_size[1],
             ow // self.patch_size[2],
         )
-        if self.o_cache_stream is not None and inference_step == 0:
-            b = 1
-            h = self.heads_num
-            seqlen = tt * th * tw + text_mask.sum(dim=-1)[0].item()
-            d = self.hidden_size // self.heads_num
-            self.o_cache_gpu_nmaj = [torch.empty((seqlen, b, h, d), device=x.device, dtype=x.dtype) for _ in range(2)]
-            self.o_cache_gpu_bmaj = [torch.empty((b, h, seqlen, d), device=x.device, dtype=x.dtype) for _ in range(2)]
-            for block in self.all_blocks:
-                block.attention.o_cache_gpu_nmaj = self.o_cache_gpu_nmaj
-                block.attention.o_cache_gpu_bmaj = self.o_cache_gpu_bmaj
 
-        if GLOBAL_CONFIG['voxel_order'] and inference_step == 0:
+        if 'skip_every' in GLOBAL_CONFIG and GLOBAL_CONFIG['skip_every'] is not None:
+            # if inference_step > 0 and inference_step % 10 != 0 and inference_step % GLOBAL_CONFIG['skip_every'] == 0:
+            if inference_step in set([7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43]):
+                img = self.step_cache
+
+                # Prepare modulation vectors.
+                vec = self.time_in(t)
+
+                # text modulation
+                vec = vec + self.vector_in(text_states_2)
+
+                # guidance modulation
+                if self.guidance_embed:
+                    if guidance is None:
+                        raise ValueError(
+                            "Didn't get guidance strength for guidance distilled model."
+                        )
+
+                    # our timestep_embedding is merged into guidance_in(TimestepEmbedder)
+                    vec = vec + self.guidance_in(guidance)
+
+                # ---------------------------- Final layer ------------------------------
+                img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
+
+                if GLOBAL_CONFIG['voxel_order']:
+                    # if gather_img is not None, then we are in distributed mode
+                    if gather_img is not None:
+                        img = gather_img(img, dim=-2)
+
+                    img = img[:, None, :, :]
+                    b, h, n, d = img.shape
+                    original_shape = (b, h, tt, th, tw, d)
+                    img = reverse_voxel_chunk_no_padding(
+                        img,
+                        original_shape,
+                        voxel_shape=(4, 6, 8)
+                    )[:, 0, :, :, :, :]
+                    img = rearrange(img, 'b t h w d -> b (t h w) d')
+
+                img = self.unpatchify(img, tt, th, tw)
+                if return_dict:
+                    out["x"] = img
+                    return out
+                return img
+
+        # if self.o_cache_stream is not None and inference_step == 0:
+        #     b = 1
+        #     h = self.heads_num
+        #     d = self.hidden_size // self.heads_num
+
+        if True or GLOBAL_CONFIG['voxel_order'] and inference_step == 0:
             full_tail_from_attn = True if 'full_tail_from_attn' in GLOBAL_CONFIG else False
             full_tail_to_attn = True if 'full_tail_to_attn' in GLOBAL_CONFIG else False
             rk = GLOBAL_CONFIG['rk'] if 'rk' in GLOBAL_CONFIG else 0
@@ -836,13 +885,11 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             vec = vec + self.guidance_in(guidance)
 
         # Embed image and text.
-        img = self.img_in(img)
         # Voxel order and shard after 3D convolution patch embedding since it requires the 3D shape.
         if GLOBAL_CONFIG['voxel_order']:
-            img = rearrange(img, 'b c t h w -> b t h w c')[:, None, :, :, :, :]
-            img = voxel_chunk_no_padding(img, voxel_shape=(4, 6, 8))[:, 0, :, :] # [b, t * h * w, c]
-            if shard_img is not None:
-                img = shard_img(img, dim=-2)
+            img = self.voxel_in(img, shard_img)
+        else: 
+            img = self.img_in(img)
 
         if self.text_projection == "linear":
             txt = self.txt_in(txt)
@@ -880,9 +927,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             if isinstance(block.attention, nn.Module):
                 # wait for this block's o_cache
                 if self.o_cache_stream is not None and (inference_step > 0 or i > 0):
-                    torch.cuda.current_stream().wait_stream(self.o_cache_stream)
+                    self.all_blocks[i].attention.storage.load_async_wait()
                 # start load for next block
-                self.all_blocks[i + 1].attention.load_o_cache()
+                self.all_blocks[i + 1].attention.storage.load_async()
 
             img, txt = block(*double_block_args)
 
@@ -906,34 +953,26 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 if isinstance(block.attention, nn.Module):
                     # wait for this block's o_cache
                     if self.o_cache_stream is not None and (inference_step > 0 or i > 0):
-                        torch.cuda.current_stream().wait_stream(self.o_cache_stream)
+                        self.all_blocks[i].attention.storage.load_async_wait()
                     # start load for next block
                     idx = (i + len(self.double_blocks) + 1) % len(self.all_blocks)
-                    self.all_blocks[idx].attention.load_o_cache()
+                    self.all_blocks[idx].attention.storage.load_async()
 
                 x = block(*single_block_args)
 
         img = x[:, :img_seq_len, ...]
 
+        if 'skip_every' in GLOBAL_CONFIG and GLOBAL_CONFIG['skip_every'] is not None:
+            self.step_cache = img.clone()
+
         # ---------------------------- Final layer ------------------------------
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
 
         if GLOBAL_CONFIG['voxel_order']:
-            # if gather_img is not None, then we are in distributed mode
-            if gather_img is not None:
-                img = gather_img(img, dim=-2)
+            img = self.voxel_out(img, tt, th, tw, gather_img)
+        else:
+            img = self.unpatchify(img, tt, th, tw)
 
-            img = img[:, None, :, :]
-            b, h, n, d = img.shape
-            original_shape = (b, h, tt, th, tw, d)
-            img = reverse_voxel_chunk_no_padding(
-                img,
-                original_shape,
-                voxel_shape=(4, 6, 8)
-            )[:, 0, :, :, :, :]
-            img = rearrange(img, 'b t h w d -> b (t h w) d')
-
-        img = self.unpatchify(img, tt, th, tw)
         if return_dict:
             out["x"] = img
             return out
