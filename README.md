@@ -64,7 +64,9 @@ Because GPUs excel at blockâ€‘sized work, Chipmunk maps these deltas onto blockâ
 
 ## Benchmarks
 
-![][speed]
+<p align="center"><img src="assets/images/speed.png" width="50%"></p>
+
+Baselines: E2E models are `torch.compile`d from reference repositories. Attention layer uses FlashAttention3 as a backend. MLP layer uses torch compiled nn.Sequential (maximal performance with fused activations).
 
 **Quality**
 
