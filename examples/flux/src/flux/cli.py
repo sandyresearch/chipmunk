@@ -14,8 +14,6 @@ from flux.util import configs, load_ae, load_clip, load_flow_model, load_t5, sav
 NSFW_THRESHOLD = 0.85
 
 import torch
-torch._dynamo.config.cache_size_limit = 1 << 32
-torch._dynamo.config.accumulated_cache_size_limit = 1 << 32
 
 @dataclass
 class SamplingOptions:
@@ -178,6 +176,9 @@ def main(
             idx = 0
 
     # init all components
+    torch._dynamo.config.cache_size_limit = 1 << 32
+    torch._dynamo.config.accumulated_cache_size_limit = 1 << 32
+
     t5 = load_t5(torch_device, max_length=256 if name == "flux-schnell" else 512)
     clip = load_clip(torch_device)
     model = load_flow_model(name, device=torch_device)
