@@ -61,12 +61,11 @@ cd examples/flux && python -m flux.cli --name flux-dev --prompt "A very cute car
 ## How it Works
 
 Chipmunk starts from two empirical facts about Diffusion Transformers: activations evolve slowly across timesteps, and both attention weights and MLP activations are highly sparse.   
-![][howitworks-sum]
-Leveraging this, it caches each layer’s outputs from step n − 1 and, at step n, performs a “delta” pass that recomputes only the few vectors whose weights or values have materially changed, reusing the rest.   
-![][howitworks-cache]  
-Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block‑sparse patterns (e.g., 128 × 256 tiles) that align with the hardware’s GEMM kernels, skipping entire blocks instead of single elements. It then reorders keys, values, and tokens on the fly so that the sparse rows pack densely inside each tile, achieving an effective \[128 × 1\] column sparsity while maintaining contiguous memory access.   
-![][howitworks-sram]
-
+<p align="center"><img src="assets/images/howitworks-sum.png" width="75%"></p>
+Leveraging this, it caches each layer's outputs from step n − 1 and, at step n, performs a "delta" pass that recomputes only the few vectors whose weights or values have materially changed, reusing the rest.   
+<p align="center"><img src="assets/images/howitworks-cache.png" width="75%"></p>
+Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block‑sparse patterns (e.g., 128 × 256 tiles) that align with the hardware's GEMM kernels, skipping entire blocks instead of single elements. It then reorders keys, values, and tokens on the fly so that the sparse rows pack densely inside each tile, achieving an effective \[128 × 1\] column sparsity while maintaining contiguous memory access.   
+<p align="center"><img src="assets/images/howitworks-sram.png" width="75%"></p>
 ## Benchmarks
 
 ![][image4]
