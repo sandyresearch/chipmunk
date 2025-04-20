@@ -45,6 +45,7 @@ class SparseDiffAttn:
         assert bm == 192, "The kernel was written for BM=192. You may need to change the kernel."
         layer = self.layer_num
         multiple_of = attn_config['counts_multiple_of']
+        do_padding = attn_config['pad_qkv_before_kernel']
 
         if layer < attn_config['first_n_dense_layers']:
             o, _ = chipmunk.ops.dense_attn(q, k, v)
@@ -53,7 +54,10 @@ class SparseDiffAttn:
         # ─────────── FULL STEP ───────────
         if do_full_step:
             if inference_step == 0:
-                o, lse = chipmunk.ops.dense_attn(q, k, v)
+                if do_padding:
+                    o, lse = chipmunk.ops.dense_attn(q, k, v)
+                else:
+                    o, lse = torch.ops.chipmunk.dense_attn(q, k, v)
                 lse[..., k.shape[-2]:, :] = 0
                 self.storage.set_lse_constants(lse)
 
@@ -61,7 +65,10 @@ class SparseDiffAttn:
 
             elif inference_step == 1 or attn_config['recompute_mask']:
                 prev_lse = self.storage.get_lse_constants()
-                o, bs, lse = chipmunk.ops.dense_colsum_attn(q, k, v, prev_lse)
+                if do_padding:
+                    o, bs, lse = chipmunk.ops.dense_colsum_attn(q, k, v, prev_lse)
+                else:
+                    o, bs, lse = torch.ops.chipmunk.dense_colsum_attn(q, k, v, prev_lse)
                 # zero out the lse constants for the padded tokens
                 lse[..., k.shape[-2]:, :] = 0
                 self.storage.set_lse_constants(lse)
@@ -95,7 +102,11 @@ class SparseDiffAttn:
                 inds   = self.storage.get_indices()
                 counts = self.storage.get_counts()
 
-            o_cache = o - chipmunk.ops.csp_attn(q, k, v, inds, counts)
+            if do_padding:
+                o_cache = o - chipmunk.ops.csp_attn(q, k, v, inds, counts)
+            else:
+                o_cache = o.clone()
+                torch.ops.chipmunk.csp_attn(q, k, v, o_cache, inds, counts, -1)
             self.storage.set_out_cache(o_cache)
             return o
 
@@ -103,10 +114,13 @@ class SparseDiffAttn:
         inds   = self.storage.get_indices()
         counts = self.storage.get_counts()
         o      = self.storage.get_out_cache()
-        if not self.storage.out_cache.is_offload_enabled:
-            # Our kernel will write to o in place, so we need to clone it if it's not offloaded
-            o = o
-        o = o + chipmunk.ops.csp_attn(q, k, v, inds, counts)
+        if do_padding:
+            o = o + chipmunk.ops.csp_attn(q, k, v, inds, counts)
+        else:
+            if not self.storage.out_cache.is_offload_enabled:
+                # Our kernel will write to o in place, so we need to clone it if it's not offloaded
+                o = o.clone()
+            torch.ops.chipmunk.csp_attn(q, k, v, o, inds, counts, 1)
         return o
     
     def forward(self, q: Tensor, k: Tensor, v: Tensor) -> Tensor:

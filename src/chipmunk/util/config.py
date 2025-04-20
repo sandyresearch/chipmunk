@@ -1,5 +1,5 @@
 GLOBAL_CONFIG = {
-    'should_profile': False,
+    'should_profile': True,
     'generation_index': 0,
     'steps': 50,
 
@@ -33,8 +33,9 @@ GLOBAL_CONFIG = {
         'should_compress_indices': False,
         
         # do not change below this line
-        'counts_multiple_of': 112, # the # of kv_tile_rows in csrc/attn/csp_attn.cu
         # 'counts_multiple_of': 128,
+        'counts_multiple_of': 112, # the # of kv_tile_rows in csrc/attn/csp_attn.cu
+        'pad_qkv_before_kernel': False,
         'mbm': 192,
     },
     "offloading": {
