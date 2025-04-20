@@ -61,9 +61,10 @@ Leveraging this, it caches each layer's outputs from step n − 1 and, at step n
 <p align="center"><img src="assets/images/howitworks-cache.png" width="75%"></p>
 Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block‑sparse patterns (e.g., 128 × 256 tiles) that align with the hardware's GEMM kernels, skipping entire blocks instead of single elements. It then reorders keys, values, and tokens on the fly so that the sparse rows pack densely inside each tile, achieving an effective \[128 × 1\] column sparsity while maintaining contiguous memory access.   
 <p align="center"><img src="assets/images/howitworks-sram.png" width="75%"></p>
+
 ## Benchmarks
 
-![][image4]
+![][speed]
 
 **Quality**
 
@@ -104,4 +105,5 @@ Austin Silveria, Soham Govande, Dan Fu
 [howitworks-cache]: assets/images/howitworks-cache.png
 [howitworks-sram]: assets/images/howitworks-sram.png
 [video-grid]: assets/videos/comparison-grid.mp4
+[speed]: assets/images/performance.png
 [comparison]: assets/images/chipmunk-comparison.png
