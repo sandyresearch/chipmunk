@@ -19,17 +19,14 @@ Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What
 ## Quickstart
 
 ### 1\. Clone repo, build kernels, & install deps
-
 ```bash
 git clone https://github.com/sandyresearch/chipmunk --recurse-submodules --shallow-submodules --depth 1
 
 cd chipmunk
-
 # Create a conda environment for the project
 conda create -n chipmunk python=3.11 -y
 conda activate chipmunk
 conda install cuda==12.8.0 -c nvidia -y # need cuda >12.4 for fast kernel performance!
-
 # Install dependencies and build kernels
 pip install -e .
 pip install -e ./examples/hunyuan # Hunyuan video generation
@@ -40,11 +37,9 @@ Our kernels are written for Hopper GPUs, and depend on optimizations specific to
 
 ### 2\. Select a model
 
-Currently, Chipmunk supports two models: **Hunyuan Video** and **FLUX.1-dev**. You can find these in the `models` directory.
-
 #### Hunyuan Video Generation Example
 
-Use the **one-line accelerated inference script** to get started, and then check out examples/hunyuan/README.md for a comprehensive tutorial.
+Use the one-line accelerated inference script to get started, and then check out [examples/hunyuan/README.md](examples/hunyuan/README.md) for a comprehensive tutorial.
 
 ```bash
 cd examples/hunyuan && python -m <example script>
@@ -52,7 +47,7 @@ cd examples/hunyuan && python -m <example script>
 
 #### FLUX.1-dev Image Generation Example
 
-Use the **one-line accelerated inference script** to get started, and then check out examples/flux/README.md for a comprehensive tutorial.
+Use the one-line accelerated inference script to get started, and then check out [examples/flux/README.md](examples/flux/README.md) for a comprehensive tutorial.
 
 ```bash
 cd examples/flux && python -m flux.cli --name flux-dev --prompt "A very cute cartoon chipmunk dressed up as a ninja holding katanas"
@@ -97,9 +92,9 @@ Technical Deep Dives:
 
 Tutorials
 
-* **Kernel Specification (csrc/README.md):** Description and purpose of each custom CUDA kernel if you’d like to start hacking on our kernels\!  
-* **Hunyuan Video Tutorial (examples/hunyuan/README.md)**: A tutorial of how to edit sparsity settings in Hunyuan and generate fast videos  
-* **FLUX.1-dev Tutorial (examples/flux/README.md)**: A tutorial of how to edit sparsity settings in Flux and generate fast images
+* **[Kernel Specification](csrc/README.md):** Description and purpose of each custom CUDA kernel if you'd like to start hacking on our kernels\!  
+* **[Hunyuan Video Tutorial](examples/hunyuan/README.md)**: A tutorial of how to edit sparsity settings in Hunyuan and generate fast videos  
+* **[FLUX.1-dev Tutorial](examples/flux/README.md)**: A tutorial of how to edit sparsity settings in Flux and generate fast images
 
 ## Contributors
 
