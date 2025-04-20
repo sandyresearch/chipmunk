@@ -89,41 +89,38 @@ __global__ void mask_to_indices_kernel(
 
 // C++ entry point
 namespace chipmunk {
-void mask_to_indices(
+std::vector<at::Tensor> mask_to_indices(
     at::Tensor mask,      // [b, h, m, n], bool
     int64_t multiple_of_,
-    at::Tensor indices,
-    at::Tensor counts
+    int64_t pad_to_multiple_of_ = 192
 )
 {
     TORCH_CHECK(mask.dim() == 4, "mask must be 4-dimensional [b, h, m, n]");
     TORCH_CHECK(mask.scalar_type() == at::kBool, "mask must be bool type");
 
     int multiple_of = static_cast<int>(multiple_of_);
-    int pad_n = indices.size(3);
+    int pad_to_multiple_of = static_cast<int>(pad_to_multiple_of_);
     const int b = mask.size(0);
     const int h = mask.size(1);
     const int m = mask.size(2);
     const int n = mask.size(3);
+    const int pad_n = ((mask.size(3) + pad_to_multiple_of - 1) / pad_to_multiple_of) * pad_to_multiple_of;
 
-    // int pad_to_multiple_of = static_cast<int>(pad_to_multiple_of_);
-    // const int pad_n = ((mask.size(3) + pad_to_multiple_of - 1) / pad_to_multiple_of) * pad_to_multiple_of;
-
-    // at::Tensor indices = torch::empty(
-    //     {
-    //         static_cast<const uint>(b), 
-    //         static_cast<const uint>(h), 
-    //         static_cast<const uint>(m), 
-    //         static_cast<const uint>(pad_n)
-    //     },
-    //     torch::TensorOptions().dtype(torch::kInt32).device(mask.device()));
-    // at::Tensor counts = torch::empty(
-    //     {
-    //         static_cast<const uint>(b), 
-    //         static_cast<const uint>(h), 
-    //         static_cast<const uint>(m)
-    //     },
-    //     torch::TensorOptions().dtype(torch::kInt32).device(mask.device()));
+    at::Tensor indices = torch::empty(
+        {
+            static_cast<const uint>(b), 
+            static_cast<const uint>(h), 
+            static_cast<const uint>(m), 
+            static_cast<const uint>(pad_n)
+        },
+        torch::TensorOptions().dtype(torch::kInt32).device(mask.device()));
+    at::Tensor counts = torch::empty(
+        {
+            static_cast<const uint>(b), 
+            static_cast<const uint>(h), 
+            static_cast<const uint>(m)
+        },
+        torch::TensorOptions().dtype(torch::kInt32).device(mask.device()));
 
 
     const bool* mask_ptr    = mask.data_ptr<bool>();
@@ -141,6 +138,7 @@ void mask_to_indices(
         multiple_of,
         b, h, m, n, pad_n
     );
+    return {indices, counts};
 }
 }
 

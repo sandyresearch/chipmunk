@@ -518,8 +518,8 @@ causal_mask(auto &reg_tile, int qo_idx) {
 #include <iostream>
 
 namespace chipmunk {
-void
-dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p, at::Tensor o, at::Tensor cs, at::Tensor l_vec)
+std::vector<at::Tensor> 
+dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p)
 {
     // CHECK_INPUT(q);
     // CHECK_INPUT(k);
@@ -572,21 +572,21 @@ dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p, at::Te
     float* d_p = reinterpret_cast<float*>(p_ptr);
 
     // for the returned outputs
-    // at::Tensor o     = torch::empty({static_cast<const uint>(batch), 
-    //                                     static_cast<const uint>(qo_heads), 
-    //                                     static_cast<const uint>(seq_len), 
-    //                                     static_cast<const uint>(head_dim)}, v.options());
+    at::Tensor o     = torch::empty({static_cast<const uint>(batch), 
+                                        static_cast<const uint>(qo_heads), 
+                                        static_cast<const uint>(seq_len), 
+                                        static_cast<const uint>(head_dim)}, v.options());
     
-    // at::Tensor cs = torch::empty({static_cast<const uint>(batch), 
-    //                                     static_cast<const uint>(qo_heads), 
-    //                                     static_cast<const uint>(qg), 
-    //                                     static_cast<const uint>(seq_len)}, v.options());
+    at::Tensor cs = torch::empty({static_cast<const uint>(batch), 
+                                        static_cast<const uint>(qo_heads), 
+                                        static_cast<const uint>(qg), 
+                                        static_cast<const uint>(seq_len)}, v.options());
 
-    // at::Tensor l_vec = torch::empty({static_cast<const uint>(batch), 
-    //                                     static_cast<const uint>(qo_heads), 
-    //                                     static_cast<const uint>(seq_len), 
-    //                                     static_cast<const uint>(1)}, 
-    //                                     torch::TensorOptions().dtype(torch::kFloat).device(q.device()).memory_format(at::MemoryFormat::Contiguous));
+    at::Tensor l_vec = torch::empty({static_cast<const uint>(batch), 
+                                        static_cast<const uint>(qo_heads), 
+                                        static_cast<const uint>(seq_len), 
+                                        static_cast<const uint>(1)}, 
+                                        torch::TensorOptions().dtype(torch::kFloat).device(q.device()).memory_format(at::MemoryFormat::Contiguous));
         
 
     bf16*  o_ptr = reinterpret_cast<bf16*>(o.data_ptr<c10::BFloat16>());
@@ -664,6 +664,7 @@ dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p, at::Te
 
     CHECK_CUDA_ERROR(cudaGetLastError());
 
+    return {o, cs, l_vec};
 }
 }
 

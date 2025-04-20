@@ -243,8 +243,8 @@ void fwd_attend_ker(const __grid_constant__ fwd_globals<D> g) {
 #include <iostream>
 
 namespace chipmunk {
-void
-dense_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o, at::Tensor l_vec)
+std::vector<at::Tensor> 
+dense_attn(at::Tensor q, at::Tensor k, at::Tensor v)
 {
     // CHECK_INPUT(q);
     // CHECK_INPUT(k);
@@ -288,16 +288,16 @@ dense_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o, at::Tensor l_
     bf16*  d_v = reinterpret_cast<bf16*>(v_ptr);
     
     // for the returned outputs
-    // at::Tensor o     = torch::empty({static_cast<const uint>(batch), 
-    //                                     static_cast<const uint>(qo_heads), 
-    //                                     static_cast<const uint>(seq_len), 
-    //                                     static_cast<const uint>(head_dim)}, v.options().memory_format(at::MemoryFormat::Contiguous));
+    at::Tensor o     = torch::empty({static_cast<const uint>(batch), 
+                                        static_cast<const uint>(qo_heads), 
+                                        static_cast<const uint>(seq_len), 
+                                        static_cast<const uint>(head_dim)}, v.options().memory_format(at::MemoryFormat::Contiguous));
     
-    // at::Tensor l_vec = torch::empty({static_cast<const uint>(batch), 
-    //                                     static_cast<const uint>(qo_heads), 
-    //                                     static_cast<const uint>(seq_len), 
-    //                                     static_cast<const uint>(1)}, 
-    //                                     torch::TensorOptions().dtype(torch::kFloat).device(q.device()).memory_format(at::MemoryFormat::Contiguous));
+    at::Tensor l_vec = torch::empty({static_cast<const uint>(batch), 
+                                        static_cast<const uint>(qo_heads), 
+                                        static_cast<const uint>(seq_len), 
+                                        static_cast<const uint>(1)}, 
+                                        torch::TensorOptions().dtype(torch::kFloat).device(q.device()).memory_format(at::MemoryFormat::Contiguous));
     at::Tensor m_vec = torch::empty({static_cast<const uint>(batch), 
                                         static_cast<const uint>(qo_heads), 
                                         static_cast<const uint>(seq_len), 
@@ -347,7 +347,6 @@ dense_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o, at::Tensor l_
     chipmunk::create_tensor_map_with_strides<q_tile, 2>(&qg_arg.tma_descs.tma_desc, d_q, batch, qo_heads, seq_len, head_dim, q.stride(0), q.stride(1), q.stride(2));
     chipmunk::create_tensor_map_with_strides<k_tile, 2>(&kg_arg.tma_descs.tma_desc, d_k, batch, kv_heads, kseq_len, head_dim, k.stride(0), k.stride(1), k.stride(2));
     chipmunk::create_tensor_map_with_strides<v_tile, 2>(&vg_arg.tma_descs.tma_desc, d_v, batch, kv_heads, kseq_len, head_dim, v.stride(0), v.stride(1), v.stride(2));
-    chipmunk::create_tensor_map_with_strides<o_tile, 2>(&og_arg.tma_descs.tma_desc, d_o, batch, qo_heads, seq_len, head_dim, o.stride(0), o.stride(1), o.stride(2));
     globals g{qg_arg, kg_arg, vg_arg, lg_arg, mg_arg, og_arg, static_cast<int>(kseq_len), static_cast<int>(hr)};
 
     auto mem_size = kittens::MAX_SHARED_MEMORY;
@@ -368,6 +367,7 @@ dense_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o, at::Tensor l_
     ker_template<<<grid, (32*NUM_WORKERS), mem_size, stream>>>(g);
 
     CHECK_CUDA_ERROR(cudaGetLastError());
+    return {o, l_vec};
 }
 }
 

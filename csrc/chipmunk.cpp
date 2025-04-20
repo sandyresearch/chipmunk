@@ -33,7 +33,7 @@ extern void csp_mlp_mm2_and_scatter_add(at::Tensor packed, at::Tensor unpacked_c
 // // Indexed IO
 extern void copy_indices(at::Tensor bmfc1, at::Tensor bm_mid_cache, at::Tensor sp_inds, at::Tensor sp_counts);
 extern void topk_indices(at::Tensor activation, at::Tensor indices, at::Tensor counts, double sparsity_amount, int64_t multiple_of, double random_amount);
-extern void mask_to_indices(at::Tensor mask, int64_t multiple_of, at::Tensor indices_out, at::Tensor counts_out);
+extern std::vector<at::Tensor> mask_to_indices(at::Tensor mask, int64_t multiple_of, int64_t pad_to_multiple_of);
 extern void csp_scatter_add(at::Tensor packed, at::Tensor unpacked_colmajor, at::Tensor sp_inds, at::Tensor sp_counts, int64_t num_sms);
 
 // // Sparse+Dense Attention
@@ -57,7 +57,7 @@ TORCH_LIBRARY(chipmunk, m) {
     m.def("copy_indices(Tensor bmfc1, Tensor(bm_mid_cache!) bm_mid_cache, Tensor sp_inds, Tensor sp_counts) -> ()");
     m.def("topk_indices(Tensor activation, Tensor(indices!) indices, Tensor counts, float sparsity_amount, int multiple_of, float random_amount) -> ()");
     m.def("csp_scatter_add(Tensor packed, Tensor(unpacked_colmajor!) unpacked_colmajor, Tensor sp_inds, Tensor sp_counts, int num_sms) -> ()");
-    m.def("mask_to_indices(Tensor mask, int multiple_of, Tensor(indices_out!) indices_out, Tensor(counts_out!) counts_out) -> ()");
+    m.def("mask_to_indices(Tensor mask, int multiple_of, int pad_to_multiple_of) -> Tensor[]");
 }
 
 
