@@ -14,6 +14,11 @@ sources = {
             'h100': 'csrc/attn/csp_attn.cu'
         }
     },
+    'csp_128_attn': {
+        'source_files': {
+            'h100': 'csrc/attn/csp_128_attn.cu'
+        }
+    },
     'attn': {
         'source_files': {
             'h100': 'csrc/attn/dense_attn.cu'
@@ -54,6 +59,7 @@ sources = {
 kernels = [
     'colsum_attn',
     'csp_attn',
+    'csp_128_attn',
     'attn',
     'csp_mlp_mm1',
     'csp_mlp_mm2_and_scatter_add',

@@ -106,17 +106,14 @@ def attention(
     if mode == "torch":
         if attn_mask is not None and attn_mask.dtype != torch.bool:
             attn_mask = attn_mask.to(q.dtype)
+
         # need to not attend to post text
         if cu_seqlens_kv is not None:
             qit = q[:, :, :cu_seqlens_q[1], :]
             kit = k[:, :, :cu_seqlens_kv[1], :]
             vit = v[:, :, :cu_seqlens_kv[1], :]
-            # x = attn(qit, kit, vit, inference_step)
             x = attn(qit, kit, vit)
             # tail is ignored so we can cat anything
-            # print(f'x: {x}')
-            # print(f'q[:, :, cu_seqlens_q[1]:, :]: {q[:, :, cu_seqlens_q[1]:, :]}')
-            # raise Exception('stop here')
             x = torch.cat([x, q[:, :, cu_seqlens_q[1]:, :]], dim=2)
         else:
             x = F.scaled_dot_product_attention(

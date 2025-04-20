@@ -5,7 +5,7 @@ GLOBAL_CONFIG = {
 
     'mlp': {
         'is_enabled': False,
-        'is_fp8': True,
+        'is_fp8': False,
 
         'top_keys': 0.3,
         'random_keys': 0.05,
@@ -26,8 +26,10 @@ GLOBAL_CONFIG = {
     'attn': {
         'is_enabled': True,
         'top_keys': 0.05,
+        # 'top_keys': 0.165,
         'full_step_every': 10,
         'first_n_dense_layers': 2,
+        'recompute_mask': True,
 
         # do not change below this line
         # 'counts_multiple_of': 112, # the # of kv_tile_rows in csrc/attn/csp_attn.cu
@@ -43,8 +45,10 @@ GLOBAL_CONFIG = {
         'mlp.sparse_act_T': False,
         'mlp.blockmean_mid_cache': False,
 
-        'attn.out_cache': True,
-        'attn.indices': True,
+        # 'attn.out_cache': True,
+        # 'attn.indices': True,
+        'attn.out_cache': False,
+        'attn.indices': False,
         'attn.counts': False,
         'attn.lse_constants': False,
 

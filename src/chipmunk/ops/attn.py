@@ -1,6 +1,8 @@
 import torch
 from typing import Tuple
 from einops import rearrange
+import chipmunk_tk_kernels
+import chipmunk
 
 # def csp_attn(
 #     q: torch.Tensor,
@@ -48,8 +50,8 @@ def dense_attn(q, k, v):
         q = q.contiguous()
         k = k.contiguous()
         v = v.contiguous()
+        o, l = torch.ops.chipmunk.dense_attn(q, k, v)
         # o, l = torch.ops.chipmunk_tk_kernels.attn_fwd(q, k, v)
-        o, l = torch.ops.chipmunk_tk_kernels.attn_fwd(q, k, v)
         if return_l:
             return o, l
         else:
@@ -68,7 +70,8 @@ def dense_attn(q, k, v):
 
     # compute
     # o, l = torch_tk_attn(qp, k, v)
-    o, l = torch.ops.chipmunk_tk_kernels.attn_fwd(qp, k, v)
+    o, l = torch.ops.chipmunk.dense_attn(qp, k, v)
+    # o, l = torch.ops.chipmunk_tk_kernels.attn_fwd(qp, k, v)
 
     # unpad
     o = o[..., :n, :].contiguous()
@@ -89,7 +92,8 @@ def dense_colsum_attn(q, k, v, p):
         pm = 192  # queries per producer (16 * 4 * 3)
         if q.shape[-2] % pm == 0:
             # o, cs, l = torch_colsum_attn_fwd(q, k, v, p)
-            o, cs, l = torch.ops.chipmunk_tk_kernels.colsum_attn_fwd(q, k, v, p)
+            o, cs, l = torch.ops.chipmunk.dense_colsum_attn(q, k, v, p)
+            # o, cs, l = torch.ops.chipmunk_tk_kernels.colsum_attn_fwd(q, k, v, p)
             if not fuse_reduce:
                 cs = rearrange(cs, 'b h (m r) n -> b h m r n', r=pm//wq).sum(dim=-2)
             return o, cs, l
@@ -110,7 +114,8 @@ def dense_colsum_attn(q, k, v, p):
 
         # compute
         # o, cs, l = torch_colsum_attn_fwd(qp, k, v, p)
-        o, cs, l = torch.ops.chipmunk_tk_kernels.colsum_attn_fwd(qp, k, v, p)
+        o, cs, l = torch.ops.chipmunk.dense_colsum_attn(qp, k, v, p)
+        # o, cs, l = torch.ops.chipmunk_tk_kernels.colsum_attn_fwd(qp, k, v, p)
 
         # unpad
         o = o[..., :n, :].contiguous()
@@ -125,10 +130,17 @@ def dense_colsum_attn(q, k, v, p):
             cs = rearrange(cs, 'b h (m r) n -> b h m r n', r=pm//wq).sum(dim=-2)[..., :n]
         return o, cs, l
 
+# def csp_attn(q, k, v, o, indices, indices_counts, o_scale):
+    # torch.ops.chipmunk.csp_attn(q, k, v, o, indices, indices_counts, o_scale)
+    # return o
 def csp_attn(q, k, v, indices, indices_counts):
     if q.shape[-2] % 192 == 0:
         # return torch_csp_attn_fwd(q, k, v, indices, indices_counts)
-        return torch.ops.chipmunk_tk_kernels.csp_attn_fwd(q, k, v, indices, indices_counts)
+        # torch.ops.chipmunk.csp_attn(q, k, v, o, indices, indices_counts, o_scale)
+        # return o
+
+        return torch.ops.chipmunk.csp_128_attn(q, k, v, indices, indices_counts)
+        # return torch.ops.chipmunk_tk_kernels.csp_attn_fwd(q, k, v, indices, indices_counts)
 
     # pad
     n = q.shape[-2]
@@ -146,7 +158,10 @@ def csp_attn(q, k, v, indices, indices_counts):
     indicesp = indicesp.contiguous()
 
     # o = torch_csp_attn_fwd(qp, k, v, indicesp, indices_counts)
-    o = torch.ops.chipmunk_tk_kernels.csp_attn_fwd(qp, k, v, indicesp, indices_counts)
+    # torch.ops.chipmunk.csp_attn(qp, k, v, o, indicesp, indices_counts, o_scale)
+
+    o = torch.ops.chipmunk.csp_128_attn(qp, k, v, indicesp, indices_counts)
+    # o = torch.ops.chipmunk_tk_kernels.csp_attn_fwd(qp, k, v, indicesp, indices_counts)
 
     # unpad
     o = o[..., :n, :].contiguous()

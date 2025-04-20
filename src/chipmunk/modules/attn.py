@@ -4,7 +4,7 @@ from torch.nn import functional as F
 from torch import nn
 from chipmunk.util import GLOBAL_CONFIG
 import chipmunk.ops
-from chipmunk.util.storage import AttnStorage, LayerCounter
+from chipmunk.util import AttnStorage, LayerCounter
 from chipmunk.util.bitpack import bitpack, bitunpack
 from einops import rearrange
 import triton
@@ -62,8 +62,7 @@ class SparseDiffAttn(nn.Module):
 
                 return o
 
-            # elif inference_step == 1:
-            else:
+            elif inference_step == 1 or attn_config['recompute_mask']:
                 prev_lse = self.storage.get_lse_constants()
                 o, bs, lse = chipmunk.ops.dense_colsum_attn(q, k, v, prev_lse)
                 # zero out the lse constants for the padded tokens
@@ -99,17 +98,23 @@ class SparseDiffAttn(nn.Module):
 
                 inds, counts = chipmunk.ops.mask_to_indices(mask, multiple_of, bm)
 
-            # else:
-            #     o, _ = chipmunk.ops.dense_attn(q, k, v)
+            else:
+                o, _ = chipmunk.ops.dense_attn(q, k, v)
+                packed = self.storage.get_indices()
+                mask = bitunpack(packed, self.mask_shape)
+                inds, counts = chipmunk.ops.mask_to_indices(mask, multiple_of, bm)
 
-            # inds   = self.storage.get_indices()
-            # counts = self.storage.get_counts()
+                # inds   = self.storage.get_indices()
+                # counts = self.storage.get_counts()
 
-                o_cache = o.clone()
-                # chipmunk.ops.csp_attn(q, k, v, o_cache, inds, counts, -1)
-                sp = chipmunk.ops.csp_attn(q, k, v, inds, counts)
-                self.storage.set_out_cache(o_cache - sp)
-                return o
+            # o_cache = o.clone()
+            # chipmunk.ops.csp_attn(q, k, v, o_cache, inds, counts, -1)
+            # self.storage.set_out_cache(o_cache)
+
+            sp = chipmunk.ops.csp_attn(q, k, v, inds, counts)
+            self.storage.set_out_cache(o - sp)
+
+            return o
 
         # ─────────── SPARSE STEP ───────────
         # inds   = self.storage.get_indices()
@@ -125,7 +130,9 @@ class SparseDiffAttn(nn.Module):
         #     o = o.clone()
 
         # bandaid till bindings for new kernels work
-        # chipmunk.ops.csp_attn(q, k, v, o, inds, counts, 1)
+        # chipmunk.ops.csp_attn(q, k, v, o.clone(), inds, counts, 1)
+        # return o
+
         sp = chipmunk.ops.csp_attn(q, k, v, inds, counts)
         return sp + o
     
