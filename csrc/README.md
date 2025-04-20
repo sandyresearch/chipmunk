@@ -54,7 +54,6 @@ o, lse = dense_attn(q, k, v)     // Q/K/V/O: (B, H, N, D), lse: (B, H,�
 ### 1.3 Dense + Column‑Sum Fusion
 
 ```
-
 o, col_sums, lse_cur = dense_colsum_attn(q, k, v, lse_prev)  
    // q/k/v/o:  (B,H,N,D)  
    // col_sums: (B,H,⌈N/192⌉,N)  
@@ -109,10 +108,9 @@ csp_mlp_mm2_and_scatter_add(
 
 2. **Matmul‑2**
 
-   * Runs concurrently on a second stream; uses the same ThunderKittens template as Stage 1 but on the *unpacked* activations.
+   * Runs concurrently on a second stream; points to a Triton matmul kernel (see `src/chipmunk/triton/bf16/csp_mlp_mm2.py`)
 
 3. Both pieces are stitched together in a single **CUDA Graph**, so launch overhead is amortised.
-
 
 ---
 
