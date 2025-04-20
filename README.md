@@ -17,7 +17,8 @@ conda activate chipmunk
 conda install cuda==12.8.0 -c nvidia -y # need cuda >12.4 for fast kernel performance!
 
 # Install dependencies and build kernels
-pip install .
+pip install -e .
+pip install -e ./examples/flux # Flux inference
 ```
 
 ## 2. Select a model

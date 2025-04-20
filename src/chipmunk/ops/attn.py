@@ -1,7 +1,6 @@
 import torch
 from typing import Tuple
 from einops import rearrange
-import chipmunk_tk_kernels
 import chipmunk
 
 # def csp_attn(
