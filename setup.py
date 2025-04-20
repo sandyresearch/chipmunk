@@ -3,6 +3,10 @@ import subprocess
 from setuptools import find_packages, setup
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
+# Read requirements from requirements.txt
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+
 sources = {
     'colsum_attn': {
         'source_files': {
@@ -110,6 +114,7 @@ setup(
     version="0.0.0",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
+    install_requires=requirements,
     ext_modules=[
         CUDAExtension(
             'chipmunk.cuda',
