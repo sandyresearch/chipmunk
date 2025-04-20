@@ -4,19 +4,19 @@ GLOBAL_CONFIG = {
     'steps': 50,
 
     'mlp': {
-        'is_enabled': False,
+        'is_enabled': True,
         'is_fp8': False,
 
         'top_keys': 0.3,
         'random_keys': 0.05,
         'full_step_every': 10,
-        'block_mask_cache': 2,
+        'block_mask_cache': 1,
         'first_n_dense_layers': 2,
 
         # do not change below this line
         'counts_multiple_of': 256,
         'bm': 128,
-        'mbm': 128,
+        'mbm': 16,
     },
      "patchify": {
         # To disable patching at any level, set that level's patch size to 1. To disable patching entirely, set all patch sizes to 1.
@@ -25,15 +25,16 @@ GLOBAL_CONFIG = {
     },
     'attn': {
         'is_enabled': True,
-        'top_keys': 0.05,
-        # 'top_keys': 0.165,
+        # 'top_keys': 0.05,
+        'top_keys': 0.165,
         'full_step_every': 10,
         'first_n_dense_layers': 2,
-        'recompute_mask': True,
-
+        'recompute_mask': False,
+        'should_compress_indices': False,
+        
         # do not change below this line
-        # 'counts_multiple_of': 112, # the # of kv_tile_rows in csrc/attn/csp_attn.cu
-        'counts_multiple_of': 128,
+        'counts_multiple_of': 112, # the # of kv_tile_rows in csrc/attn/csp_attn.cu
+        # 'counts_multiple_of': 128,
         'mbm': 192,
     },
     "offloading": {

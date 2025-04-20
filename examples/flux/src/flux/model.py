@@ -92,11 +92,8 @@ class Flux(nn.Module):
         txt_ids: Tensor,
         timesteps: Tensor,
         y: Tensor,
-        width: int,
-        height: int,
         guidance: Tensor | None = None,
     ) -> Tensor:
-        latent_height, latent_width = height // 2, width // 2
         if img.ndim != 3 or txt.ndim != 3:
             raise ValueError("Input img and txt tensors must have 3 dimensions.")
 
@@ -110,7 +107,10 @@ class Flux(nn.Module):
         vec = vec + self.vector_in(y)
         txt = self.txt_in(txt)
 
-        pe = self.pe_patchified
+        if hasattr(self, 'pe_patchified'):
+            pe = self.pe_patchified
+        else:
+            pe = self.pe_embedder(torch.cat((txt_ids, img_ids), dim=1))
 
         for i, block in enumerate(self.double_blocks):
             if not GLOBAL_CONFIG['offloading']['global_disable_offloading']:

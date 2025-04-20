@@ -147,8 +147,11 @@ def csp_attn(q, k, v, indices, indices_counts):
     qp = torch.zeros(q.shape[:-2] + (padded_n, q.shape[-1]), dtype=q.dtype, device=q.device)
     qp[..., :n, :] = q
 
-    # pad indices to multiple of 16
-    indicesp = indices
+    if indices.shape[-1] % 192 == 0:
+        indicesp = indices
+    else:
+        indicesp = torch.empty((indices.shape[0], indices.shape[1], indices.shape[2], padded_n), device=indices.device, dtype=indices.dtype)
+        indicesp[..., :indices.shape[-1]] = indices
 
     # contiguous
     qp = qp.contiguous()
