@@ -44,7 +44,7 @@ class SparseDiffAttn:
         bm = attn_config['mbm']
         assert bm == 192, "The kernel was written for BM=192. You may need to change the kernel."
         layer = self.layer_num
-        multiple_of = attn_config['counts_multiple_of']
+        multiple_of = attn_config['counts_multiple_of'] if not attn_config['pad_qkv_before_kernel'] else 128
         do_padding = attn_config['pad_qkv_before_kernel']
 
         if layer < attn_config['first_n_dense_layers']:
@@ -106,7 +106,7 @@ class SparseDiffAttn:
                 o_cache = o - chipmunk.ops.csp_attn(q, k, v, inds, counts)
             else:
                 o_cache = o.clone()
-                torch.ops.chipmunk.csp_attn(q, k, v, o_cache, inds, counts, -1)
+                torch.ops.chipmunk.csp_attn(q.contiguous(), k, v, o_cache, inds, counts, -1)
             self.storage.set_out_cache(o_cache)
             return o
 
@@ -120,7 +120,7 @@ class SparseDiffAttn:
             if not self.storage.out_cache.is_offload_enabled:
                 # Our kernel will write to o in place, so we need to clone it if it's not offloaded
                 o = o.clone()
-            torch.ops.chipmunk.csp_attn(q, k, v, o, inds, counts, 1)
+            torch.ops.chipmunk.csp_attn(q.contiguous(), k, v, o, inds, counts, 1)
         return o
     
     def forward(self, q: Tensor, k: Tensor, v: Tensor) -> Tensor:
