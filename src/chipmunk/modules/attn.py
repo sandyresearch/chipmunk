@@ -1,12 +1,10 @@
 import torch
 from torch import Tensor
 from torch.nn import functional as F
-from torch import nn
 from chipmunk.util import GLOBAL_CONFIG
 import chipmunk.ops
 from chipmunk.util import AttnStorage, LayerCounter
-from chipmunk.ops.bitpack import bitpack, bitunpack
-from einops import rearrange
+from chipmunk.ops import bitpack
 import triton
 
 singleton_video_query_groups = torch.ones(1, 24, 621, 119056, device='cuda', dtype=torch.bool)
