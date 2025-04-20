@@ -20,7 +20,7 @@ Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What
 
 ### 1\. Clone repo, build kernels, & install deps
 
-```
+```bash
 git clone https://github.com/sandyresearch/chipmunk --recurse-submodules --shallow-submodules --depth 1
 
 cd chipmunk
@@ -46,7 +46,7 @@ Currently, Chipmunk supports two models: **Hunyuan Video** and **FLUX.1-dev**. Y
 
 Use the **one-line accelerated inference script** to get started, and then check out examples/hunyuan/README.md for a comprehensive tutorial.
 
-```
+```bash
 cd examples/hunyuan && python -m <example script>
 ```
 
@@ -54,7 +54,7 @@ cd examples/hunyuan && python -m <example script>
 
 Use the **one-line accelerated inference script** to get started, and then check out examples/flux/README.md for a comprehensive tutorial.
 
-```
+```bash
 cd examples/flux && python -m flux.cli --name flux-dev --prompt "A very cute cartoon chipmunk dressed up as a ninja holding katanas"
 ```
 
