@@ -5,11 +5,11 @@ BASE_CONFIG = {
     'voxel_order': True,
 }
 
-GLOBAL_CONFIG = copy.deepcopy(BASE_CONFIG)
+HUNYUAN_GLOBAL_CONFIG = copy.deepcopy(BASE_CONFIG)
 
 def update_global_config(config):
-    global GLOBAL_CONFIG
-    GLOBAL_CONFIG.update({
+    global HUNYUAN_GLOBAL_CONFIG
+    HUNYUAN_GLOBAL_CONFIG.update({
         **BASE_CONFIG,
         **config,
     })

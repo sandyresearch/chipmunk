@@ -21,7 +21,7 @@ from hyvideo.modules.head_parallel import setup_dist
 from hyvideo.diffusion.schedulers import FlowMatchDiscreteScheduler
 from hyvideo.diffusion.pipelines import HunyuanVideoPipeline
 from hyvideo.modules.chipmunk.chipmunk import voxel_chunk_no_padding
-from hyvideo.modules.chipmunk.config import GLOBAL_CONFIG
+from hyvideo.modules.chipmunk.config import HUNYUAN_GLOBAL_CONFIG
 from hyvideo.modules.chipmunk.util import offload
 from hyvideo.modules.head_parallel import get_dist
 
@@ -64,10 +64,10 @@ def parallelize_transformer(pipe):
             dist.all_gather(gathered_list, img, group=dist_group)
             return torch.cat(gathered_list, dim=dim)
 
-        if not GLOBAL_CONFIG['voxel_order']:
+        if not HUNYUAN_GLOBAL_CONFIG['voxel_order']:
             x = shard_img(x, split_dim)
 
-        if GLOBAL_CONFIG['voxel_order']:
+        if HUNYUAN_GLOBAL_CONFIG['voxel_order']:
             freqs_cos = shard_img(freqs_cos, dim=0)
             freqs_sin = shard_img(freqs_sin, dim=0)
         else:
@@ -97,7 +97,7 @@ def parallelize_transformer(pipe):
 
         return_dict = not isinstance(output, tuple)
         sample = output["x"]
-        if not GLOBAL_CONFIG['voxel_order']:
+        if not HUNYUAN_GLOBAL_CONFIG['voxel_order']:
             sample = gather_img(sample, split_dim)
         output["x"] = sample
         return output
@@ -228,7 +228,7 @@ class Inference(object):
             logger=logger,
             device=device if not args.use_cpu_offload else "cpu",
         )
-        if 'offload' in GLOBAL_CONFIG and GLOBAL_CONFIG['offload']:
+        if 'offload' in HUNYUAN_GLOBAL_CONFIG and HUNYUAN_GLOBAL_CONFIG['offload']:
             text_encoder.model = offload(text_encoder.model)
 
         text_encoder_2 = None
@@ -242,7 +242,7 @@ class Inference(object):
                 logger=logger,
                 device=device if not args.use_cpu_offload else "cpu",
             )
-            if 'offload' in GLOBAL_CONFIG and GLOBAL_CONFIG['offload']:
+            if 'offload' in HUNYUAN_GLOBAL_CONFIG and HUNYUAN_GLOBAL_CONFIG['offload']:
                 text_encoder_2.model = offload(text_encoder_2.model)
 
         return cls(
@@ -605,7 +605,7 @@ class HunyuanVideoSampler(Inference):
         # === Chipmunk ===========================================================
         # Reorder Rope embeddings into voxel chunk order
         # ========================================================================
-        if GLOBAL_CONFIG['voxel_order']:
+        if HUNYUAN_GLOBAL_CONFIG['voxel_order']:
             original_shape = freqs_cos.shape
             t, h, w = rope_sizes
             freqs_cos = rearrange(freqs_cos, '(t h w) d -> t h w d', t=t, h=h, w=w)[None, None, :, :, :, :]

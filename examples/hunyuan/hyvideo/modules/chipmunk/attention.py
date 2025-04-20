@@ -7,7 +7,7 @@ import triton
 
 from .chipmunk import bitpack, bitunpack
 from .ops import torch_tk_attn, torch_colsum_attn_fwd, torch_csp_attn_fwd, torch_mask_to_indices
-from .config import GLOBAL_CONFIG
+from .config import HUNYUAN_GLOBAL_CONFIG
 
 from chipmunk.util.storage import AttnStorage
 
@@ -221,7 +221,7 @@ class SparseDiffAttention(nn.Module):
         del indices_counts
         # torch.cuda.empty_cache()
 
-        if inference_step == GLOBAL_CONFIG['steps'] - 1:
+        if inference_step == HUNYUAN_GLOBAL_CONFIG['steps'] - 1:
             del self.packed_mask
             del self.packed_lr_mask
             self.prev_l = None

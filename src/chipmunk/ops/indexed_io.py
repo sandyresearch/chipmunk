@@ -34,4 +34,4 @@ def mask_to_indices(
     multiple_of: int,
     pad_to_multiple_of: int
 ) -> List[torch.Tensor]:
-    return torch.ops.chipmunk.mask_to_indices(mask, multiple_of, pad_to_multiple_of)
+    return torch.ops.chipmunk_tk_kernels.mask_to_indices(mask, multiple_of, pad_to_multiple_of)

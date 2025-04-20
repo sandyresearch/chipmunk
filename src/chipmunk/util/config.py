@@ -1,6 +1,7 @@
 GLOBAL_CONFIG = {
     'should_profile': False,
     'generation_index': 0,
+    'steps': 50,
 
     'mlp': {
         'is_enabled': False,
@@ -24,12 +25,13 @@ GLOBAL_CONFIG = {
     },
     'attn': {
         'is_enabled': True,
-        'top_keys': 0.165,
+        'top_keys': 0.05,
         'full_step_every': 10,
         'first_n_dense_layers': 2,
 
         # do not change below this line
-        'counts_multiple_of': 112, # the # of kv_tile_rows in csrc/attn/csp_attn.cu
+        # 'counts_multiple_of': 112, # the # of kv_tile_rows in csrc/attn/csp_attn.cu
+        'counts_multiple_of': 128,
         'mbm': 192,
     },
     "offloading": {
@@ -45,6 +47,8 @@ GLOBAL_CONFIG = {
         'attn.indices': True,
         'attn.counts': False,
         'attn.lse_constants': False,
+
+        'text_encoders': True,
     },
 
 }

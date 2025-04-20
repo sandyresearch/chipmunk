@@ -111,7 +111,8 @@ def attention(
             qit = q[:, :, :cu_seqlens_q[1], :]
             kit = k[:, :, :cu_seqlens_kv[1], :]
             vit = v[:, :, :cu_seqlens_kv[1], :]
-            x = attn(qit, kit, vit, inference_step)
+            # x = attn(qit, kit, vit, inference_step)
+            x = attn(qit, kit, vit)
             # tail is ignored so we can cat anything
             # print(f'x: {x}')
             # print(f'q[:, :, cu_seqlens_q[1]:, :]: {q[:, :, cu_seqlens_q[1]:, :]}')
