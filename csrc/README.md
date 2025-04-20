@@ -13,7 +13,7 @@ All tensors are expected to be **CUDA‑resident**, contiguous (except attention
 |  | dense_attn | Dense attention \+ log-sum-exp constants |
 |  | dense_colsum_attn | Dense attention \+ 192‑col sums |
 | MLP | csp_mlp_mm1 | FC1: Column-sparse A × Bᵀ with bias/GeLU/post-activation cache |
-| MLP | csp_mlp_mm2_and_scatter_add | Cache writeback \+ FC2: second matmul |
+| | csp_mlp_mm2_and_scatter_add | Cache writeback \+ FC2: second matmul |
 | Indexed IO | copy_indices | Fast gather‑scatter between buffers |
 |  | mask_to_indices | Boolean mask → (indices,counts) |
 |  | topk_indices | Approx. top‑k / quantile sparsity |
