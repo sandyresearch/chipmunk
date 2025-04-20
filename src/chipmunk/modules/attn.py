@@ -5,7 +5,7 @@ from torch import nn
 from chipmunk.util import GLOBAL_CONFIG
 import chipmunk.ops
 from chipmunk.util import AttnStorage, LayerCounter
-from chipmunk.util.bitpack import bitpack, bitunpack
+from chipmunk.ops.bitpack import bitpack, bitunpack
 from einops import rearrange
 import triton
 
