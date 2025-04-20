@@ -28,16 +28,17 @@ from .chipmunk.chipmunk import (
     voxel_chunk_no_padding,
     bitpack,
 )
-from .chipmunk.attention import (
-    tk_attn,
-    tk_attn_forward,
-    SparseDiffAttention,
-    test_tk_attn
-)
+# from .chipmunk.attention import (
+#     tk_attn,
+#     tk_attn_forward,
+#     SparseDiffAttention,
+#     test_tk_attn
+# )
 from .chipmunk.config import HUNYUAN_GLOBAL_CONFIG
 
 from chipmunk.modules.attn import SparseDiffAttn
 from chipmunk.util.layer_counter import LayerCounter
+from chipmunk.util.config import GLOBAL_CONFIG
 
 class MMDoubleStreamBlock(nn.Module):
     """
@@ -144,27 +145,31 @@ class MMDoubleStreamBlock(nn.Module):
             **factory_kwargs,
         )
         self.hybrid_seq_parallel_attn = None
-        self.attention = F.scaled_dot_product_attention
-        if 'tk-sparse-diff' in HUNYUAN_GLOBAL_CONFIG:
-            max_seqlen = 119056
-            # self.attention = SparseDiffAttention(
-            #     layer_num=layer_num,
-            #     o_cache_stream=o_cache_stream,
-            #     o_cache_gpu_to_cpu_event=o_cache_gpu_to_cpu_event,
-            #     o_cache_cpu_to_gpu_event=o_cache_cpu_to_gpu_event,
-            #     # max seqlen in first dim so we can preallocate and do a contiguous copy with variable seqlen
-            #     o_cache_shape=(max_seqlen, 1, heads_num, hidden_size // heads_num),
-            #     start_step=GLOBAL_CONFIG['start_step'] if 'start_step' in GLOBAL_CONFIG else 0,
-            #     full_every=GLOBAL_CONFIG['full_every'] if 'full_every' in GLOBAL_CONFIG else 100,
-            #     start_layer=GLOBAL_CONFIG['start_layer'] if 'start_layer' in GLOBAL_CONFIG else 0,
-            # )
-            layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
-            self.attention = SparseDiffAttn(
-                layer_num=layer_num,
-                layer_counter=layer_counter,
-            )
-        elif 'tk-dense' in HUNYUAN_GLOBAL_CONFIG:
-            self.attention = tk_attn_forward
+        # self.attention = F.scaled_dot_product_attention
+        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
+        self.attention = SparseDiffAttn(
+            layer_num=layer_num,
+            layer_counter=layer_counter,
+        )
+        # if 'tk-sparse-diff' in HUNYUAN_GLOBAL_CONFIG:
+        #     max_seqlen = 119056
+        #     # self.attention = SparseDiffAttention(
+        #     #     layer_num=layer_num,
+        #     #     o_cache_stream=o_cache_stream,
+        #     #     o_cache_gpu_to_cpu_event=o_cache_gpu_to_cpu_event,
+        #     #     o_cache_cpu_to_gpu_event=o_cache_cpu_to_gpu_event,
+        #     #     # max seqlen in first dim so we can preallocate and do a contiguous copy with variable seqlen
+        #     #     o_cache_shape=(max_seqlen, 1, heads_num, hidden_size // heads_num),
+        #     #     start_step=GLOBAL_CONFIG['start_step'] if 'start_step' in GLOBAL_CONFIG else 0,
+        #     #     full_every=GLOBAL_CONFIG['full_every'] if 'full_every' in GLOBAL_CONFIG else 100,
+        #     #     start_layer=GLOBAL_CONFIG['start_layer'] if 'start_layer' in GLOBAL_CONFIG else 0,
+        #     # )
+        #     self.attention = SparseDiffAttn(
+        #         layer_num=layer_num,
+        #         layer_counter=layer_counter,
+        #     )
+        # elif 'tk-dense' in HUNYUAN_GLOBAL_CONFIG:
+        #     self.attention = tk_attn_forward
 
     def enable_deterministic(self):
         self.deterministic = True
@@ -245,7 +250,7 @@ class MMDoubleStreamBlock(nn.Module):
         ), f"cu_seqlens_q.shape:{cu_seqlens_q.shape}, img.shape[0]:{img.shape[0]}"
         
         # attention computation start
-        if HUNYUAN_GLOBAL_CONFIG['head_parallel'] and HUNYUAN_GLOBAL_CONFIG['world_size'] > 1:
+        if GLOBAL_CONFIG['world_size'] > 1:
             attn = head_parallel_attention(
                 self.attention,
                 q,
@@ -257,7 +262,7 @@ class MMDoubleStreamBlock(nn.Module):
                 cu_seqlens_kv=cu_seqlens_kv,
                 inference_step=inference_step,
             )
-        elif not self.hybrid_seq_parallel_attn:
+        else:
             attn = attention(
                 q,
                 k,
@@ -270,17 +275,17 @@ class MMDoubleStreamBlock(nn.Module):
                 attn=self.attention,
                 inference_step=inference_step,
             )
-        else:
-            attn = parallel_attention(
-                self.hybrid_seq_parallel_attn,
-                q,
-                k,
-                v,
-                img_q_len=img_q.shape[1],
-                img_kv_len=img_k.shape[1],
-                cu_seqlens_q=cu_seqlens_q,
-                cu_seqlens_kv=cu_seqlens_kv
-            )
+        # else:
+        #     attn = parallel_attention(
+        #         self.hybrid_seq_parallel_attn,
+        #         q,
+        #         k,
+        #         v,
+        #         img_q_len=img_q.shape[1],
+        #         img_kv_len=img_k.shape[1],
+        #         cu_seqlens_q=cu_seqlens_q,
+        #         cu_seqlens_kv=cu_seqlens_kv
+        #     )
             
         # attention computation end
 
@@ -379,29 +384,34 @@ class MMSingleStreamBlock(nn.Module):
             **factory_kwargs,
         )
         self.hybrid_seq_parallel_attn = None
-        self.attention = F.scaled_dot_product_attention
-        if 'tk-sparse-diff' in HUNYUAN_GLOBAL_CONFIG:
-            max_seqlen = 119056
-            # self.attention = SparseDiffAttention(
-            #     layer_num=layer_num,
-            #     o_cache_stream=o_cache_stream,
-            #     o_cache_gpu_to_cpu_event=o_cache_gpu_to_cpu_event,
-            #     o_cache_cpu_to_gpu_event=o_cache_cpu_to_gpu_event,
-            #     # max seqlen in first dim so we can preallocate and do a contiguous copy with variable seqlen
-            #     o_cache_shape=(max_seqlen, 1, heads_num, hidden_size // heads_num),
-            #     start_step=GLOBAL_CONFIG['start_step'] if 'start_step' in GLOBAL_CONFIG else 0,
-            #     full_every=GLOBAL_CONFIG['full_every'] if 'full_every' in GLOBAL_CONFIG else 100,
-            #     start_layer=GLOBAL_CONFIG['start_layer'] if 'start_layer' in GLOBAL_CONFIG else 0,
-            # )
-            layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
-            self.attention = SparseDiffAttn(
-                layer_num=layer_num,
-                layer_counter=layer_counter,
-            )
-        elif 'tk-dense' in HUNYUAN_GLOBAL_CONFIG:
-            self.attention = tk_attn_forward
-        else:
-            print('F.scaled_dot_product_attention')
+        # self.attention = F.scaled_dot_product_attention
+        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
+        self.attention = SparseDiffAttn(
+            layer_num=layer_num,
+            layer_counter=layer_counter,
+        )
+        # if 'tk-sparse-diff' in HUNYUAN_GLOBAL_CONFIG:
+        #     max_seqlen = 119056
+        #     # self.attention = SparseDiffAttention(
+        #     #     layer_num=layer_num,
+        #     #     o_cache_stream=o_cache_stream,
+        #     #     o_cache_gpu_to_cpu_event=o_cache_gpu_to_cpu_event,
+        #     #     o_cache_cpu_to_gpu_event=o_cache_cpu_to_gpu_event,
+        #     #     # max seqlen in first dim so we can preallocate and do a contiguous copy with variable seqlen
+        #     #     o_cache_shape=(max_seqlen, 1, heads_num, hidden_size // heads_num),
+        #     #     start_step=GLOBAL_CONFIG['start_step'] if 'start_step' in GLOBAL_CONFIG else 0,
+        #     #     full_every=GLOBAL_CONFIG['full_every'] if 'full_every' in GLOBAL_CONFIG else 100,
+        #     #     start_layer=GLOBAL_CONFIG['start_layer'] if 'start_layer' in GLOBAL_CONFIG else 0,
+        #     # )
+        #     layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
+        #     self.attention = SparseDiffAttn(
+        #         layer_num=layer_num,
+        #         layer_counter=layer_counter,
+        #     )
+        # elif 'tk-dense' in HUNYUAN_GLOBAL_CONFIG:
+        #     self.attention = tk_attn_forward
+        # else:
+        #     print('F.scaled_dot_product_attention')
 
     def enable_deterministic(self):
         self.deterministic = True
@@ -452,7 +462,7 @@ class MMSingleStreamBlock(nn.Module):
         ), f"cu_seqlens_q.shape:{cu_seqlens_q.shape}, x.shape[0]:{x.shape[0]}"
         
         # attention computation start
-        if HUNYUAN_GLOBAL_CONFIG['head_parallel'] and HUNYUAN_GLOBAL_CONFIG['world_size'] > 1:
+        if GLOBAL_CONFIG['world_size'] > 1:
             attn = head_parallel_attention(
                 self.attention,
                 q,
@@ -464,7 +474,7 @@ class MMSingleStreamBlock(nn.Module):
                 cu_seqlens_kv=cu_seqlens_kv,
                 inference_step=inference_step,
             )
-        elif not self.hybrid_seq_parallel_attn:
+        else:
             # print(f'no hybrid seq parallel attn')
             attn = attention(
                 q,
@@ -478,17 +488,17 @@ class MMSingleStreamBlock(nn.Module):
                 attn=self.attention,
                 inference_step=inference_step,
             )
-        else:
-            attn = parallel_attention(
-                self.hybrid_seq_parallel_attn,
-                q,
-                k,
-                v,
-                img_q_len=img_q.shape[1],
-                img_kv_len=img_k.shape[1],
-                cu_seqlens_q=cu_seqlens_q,
-                cu_seqlens_kv=cu_seqlens_kv
-            )
+        # else:
+        #     attn = parallel_attention(
+        #         self.hybrid_seq_parallel_attn,
+        #         q,
+        #         k,
+        #         v,
+        #         img_q_len=img_q.shape[1],
+        #         img_kv_len=img_k.shape[1],
+        #         cu_seqlens_q=cu_seqlens_q,
+        #         cu_seqlens_kv=cu_seqlens_kv
+        #     )
         # attention computation end
 
         # Compute activation in mlp stream, cat again and run second linear layer.
@@ -602,7 +612,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         self.heads_num = heads_num
 
         # image projection
-        flatten = not HUNYUAN_GLOBAL_CONFIG['voxel_order']
+        flatten = not GLOBAL_CONFIG['patchify']['is_enabled']
         self.img_in = PatchEmbed(
             self.patch_size, self.in_channels, self.hidden_size, flatten=flatten, **factory_kwargs
         )
@@ -643,13 +653,13 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             else None
         )
 
-        should_offload_o_cache = HUNYUAN_GLOBAL_CONFIG['world_size'] == 1
-        self.o_cache_stream = torch.cuda.Stream(device=device) if should_offload_o_cache else None
-        self.o_cache_gpu_to_cpu_event = torch.cuda.Event(enable_timing=False)
-        self.o_cache_cpu_to_gpu_event = torch.cuda.Event(enable_timing=False)
-        # set when we know seqlen
-        self.o_cache_gpu_nmaj = None
-        self.o_cache_gpu_bmaj = None
+        # should_offload_o_cache = HUNYUAN_GLOBAL_CONFIG['world_size'] == 1
+        # self.o_cache_stream = torch.cuda.Stream(device=device) if should_offload_o_cache else None
+        # self.o_cache_gpu_to_cpu_event = torch.cuda.Event(enable_timing=False)
+        # self.o_cache_cpu_to_gpu_event = torch.cuda.Event(enable_timing=False)
+        # # set when we know seqlen
+        # self.o_cache_gpu_nmaj = None
+        # self.o_cache_gpu_bmaj = None
 
         # double blocks
         self.double_blocks = nn.ModuleList(
@@ -711,6 +721,39 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             block.disable_deterministic()
         for block in self.single_blocks:
             block.disable_deterministic()
+    
+    def prepare_modulation(self, t, text_states_2, guidance):
+        # Prepare modulation vectors.
+        vec = self.time_in(t)
+
+        # text modulation
+        vec = vec + self.vector_in(text_states_2)
+
+        # guidance modulation
+        if self.guidance_embed:
+            if guidance is None:
+                raise ValueError(
+                    "Didn't get guidance strength for guidance distilled model."
+                )
+
+            # our timestep_embedding is merged into guidance_in(TimestepEmbedder)
+            vec = vec + self.guidance_in(guidance)
+
+        return vec
+
+    def finish_layer(self, img, vec, gather_img, original_shape, return_dict):
+        tt, th, tw = original_shape
+        # ---------------------------- Final layer ------------------------------
+        img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
+
+        if GLOBAL_CONFIG['patchify']['is_enabled']:
+            img = self.voxel_out(img, tt, th, tw, gather_img)
+        else:
+            img = self.unpatchify(img, tt, th, tw)
+
+        if return_dict:
+            return { "x": img }
+        return img
 
     @torch.compile
     def voxel_in(self, img, shard_img=None):
@@ -769,129 +812,79 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             ow // self.patch_size[2],
         )
 
-        if 'skip_every' in HUNYUAN_GLOBAL_CONFIG and HUNYUAN_GLOBAL_CONFIG['skip_every'] is not None:
+        ### Chipmunk: Step caching ###
+        if GLOBAL_CONFIG['step_caching']['is_enabled']:
             # if inference_step > 0 and inference_step % 10 != 0 and inference_step % GLOBAL_CONFIG['skip_every'] == 0:
             if inference_step in set([7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43]):
+                # Increment singleton layer counter
                 self.all_blocks[0].attention.layer_counter.cur_inference_step += 1
-
                 img = self.step_cache
 
-                # Prepare modulation vectors.
-                vec = self.time_in(t)
+                vec = self.prepare_modulation(t, text_states_2, guidance)
+                return self.finish_layer(img, vec, gather_img, (tt, th, tw), return_dict)
+        ###############################
 
-                # text modulation
-                vec = vec + self.vector_in(text_states_2)
-
-                # guidance modulation
-                if self.guidance_embed:
-                    if guidance is None:
-                        raise ValueError(
-                            "Didn't get guidance strength for guidance distilled model."
-                        )
-
-                    # our timestep_embedding is merged into guidance_in(TimestepEmbedder)
-                    vec = vec + self.guidance_in(guidance)
-
-                # ---------------------------- Final layer ------------------------------
-                img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
-
-                if HUNYUAN_GLOBAL_CONFIG['voxel_order']:
-                    # if gather_img is not None, then we are in distributed mode
-                    if gather_img is not None:
-                        img = gather_img(img, dim=-2)
-
-                    img = img[:, None, :, :]
-                    b, h, n, d = img.shape
-                    original_shape = (b, h, tt, th, tw, d)
-                    img = reverse_voxel_chunk_no_padding(
-                        img,
-                        original_shape,
-                        voxel_shape=(4, 6, 8)
-                    )[:, 0, :, :, :, :]
-                    img = rearrange(img, 'b t h w d -> b (t h w) d')
-
-                img = self.unpatchify(img, tt, th, tw)
-                if return_dict:
-                    out["x"] = img
-                    return out
-                return img
-
-        # if self.o_cache_stream is not None and inference_step == 0:
-        #     b = 1
-        #     h = self.heads_num
-        #     d = self.hidden_size // self.heads_num
-
-        if True or HUNYUAN_GLOBAL_CONFIG['voxel_order'] and inference_step == 0:
-            full_tail_from_attn = True if 'full_tail_from_attn' in HUNYUAN_GLOBAL_CONFIG else False
-            full_tail_to_attn = True if 'full_tail_to_attn' in HUNYUAN_GLOBAL_CONFIG else False
-            rk = HUNYUAN_GLOBAL_CONFIG['rk'] if 'rk' in HUNYUAN_GLOBAL_CONFIG else 0
-            topk = HUNYUAN_GLOBAL_CONFIG['topk'] if 'topk' in HUNYUAN_GLOBAL_CONFIG else 0
-            lv = HUNYUAN_GLOBAL_CONFIG['lv'] if 'lv' in HUNYUAN_GLOBAL_CONFIG else 5
-            topk = int(topk * (tt * th * tw))
-
-            # per layer indices
-            assert 'pli' in HUNYUAN_GLOBAL_CONFIG
-
+        ### Chipmunk: Initialize singleton static mask ###
+        if inference_step == 0:
             txt_len = text_mask.sum(dim=-1)[0].item()
-            def indices_fn():
-                mask, _, _ = get_local_indices_with_text(
-                    vid_shape=(tt, th, tw),
-                    txt_len=txt_len,
-                    voxel_shape=(4, 6, 8),
-                    local_shape=(lv, lv, lv),
-                    full_tail_from_attn=full_tail_from_attn,
-                    full_tail_to_attn=full_tail_to_attn,
-                    rk=rk,
-                    device=x.device
-                )
-                local_heads = self.heads_num // HUNYUAN_GLOBAL_CONFIG['world_size']
-                mask = mask[None, None, :, :].expand(1, local_heads, -1, -1).contiguous()
-                return mask
+            self.all_blocks[0].attention.initialize_static_mask(
+                seq_shape=(tt, th, tw),
+                txt_len=txt_len,
+                local_heads_num=self.heads_num // GLOBAL_CONFIG['world_size'],
+                device=x.device
+            )
+        ##################################################
 
-            mask = indices_fn()
-            sparse_attn_query_groups = ((mask.sum(dim=-1, keepdim=True) + topk) < (tt * th * tw + txt_len))
-            packed_mask, mask_shape = bitpack(mask)
-            del mask
+            # attn_config = GLOBAL_CONFIG['attn']
+            # rk = attn_config['random_keys']
+            # topk = attn_config['top_keys']
+            # lv = attn_config['local_voxels']
+            # topk = int(topk * (tt * th * tw))
 
-            for block in self.double_blocks:
-                if isinstance(block.attention, nn.Module):
-                    # block.attention.indices_fn = indices_fn
-                    block.attention.topk = topk
-                    # block.attention.lr_mask = mask
-                    # block.attention.mask = mask
-                    block.attention.packed_lr_mask = packed_mask
-                    block.attention.packed_mask = packed_mask
-                    block.attention.mask_shape = mask_shape
-                    block.attention.sparse_attn_query_groups = sparse_attn_query_groups
-            for block in self.single_blocks:
-                if isinstance(block.attention, nn.Module):
-                    # block.attention.indices_fn = indices_fn
-                    block.attention.topk = topk
-                    # block.attention.lr_mask = mask
-                    # block.attention.mask = mask
-                    block.attention.packed_lr_mask = packed_mask
-                    block.attention.packed_mask = packed_mask
-                    block.attention.mask_shape = mask_shape
-                    block.attention.sparse_attn_query_groups = sparse_attn_query_groups
-        # Prepare modulation vectors.
-        vec = self.time_in(t)
+            # # def indices_fn():
+            # mask, _, _ = get_local_indices_with_text(
+            #     vid_shape=(tt, th, tw),
+            #     txt_len=txt_len,
+            #     voxel_shape=(4, 6, 8),
+            #     local_shape=(lv, lv, lv),
+            #     rk=rk,
+            #     device=x.device
+            # )
+            # local_heads = self.heads_num // GLOBAL_CONFIG['world_size']
+            # mask = mask[None, None, :, :].expand(1, local_heads, -1, -1).contiguous()
+            # # return mask
 
-        # text modulation
-        vec = vec + self.vector_in(text_states_2)
+            # # mask = indices_fn()
+            # sparse_attn_query_groups = ((mask.sum(dim=-1, keepdim=True) + topk) < (tt * th * tw + txt_len))
+            # packed_mask, mask_shape = bitpack(mask)
+            # del mask
 
-        # guidance modulation
-        if self.guidance_embed:
-            if guidance is None:
-                raise ValueError(
-                    "Didn't get guidance strength for guidance distilled model."
-                )
+            # for block in self.double_blocks:
+            #     if isinstance(block.attention, nn.Module):
+            #         # block.attention.indices_fn = indices_fn
+            #         block.attention.topk = topk
+            #         # block.attention.lr_mask = mask
+            #         # block.attention.mask = mask
+            #         block.attention.packed_lr_mask = packed_mask
+            #         block.attention.packed_mask = packed_mask
+            #         block.attention.mask_shape = mask_shape
+            #         block.attention.sparse_attn_query_groups = sparse_attn_query_groups
+            # for block in self.single_blocks:
+            #     if isinstance(block.attention, nn.Module):
+            #         # block.attention.indices_fn = indices_fn
+            #         block.attention.topk = topk
+            #         # block.attention.lr_mask = mask
+            #         # block.attention.mask = mask
+            #         block.attention.packed_lr_mask = packed_mask
+            #         block.attention.packed_mask = packed_mask
+            #         block.attention.mask_shape = mask_shape
+            #         block.attention.sparse_attn_query_groups = sparse_attn_query_groups
 
-            # our timestep_embedding is merged into guidance_in(TimestepEmbedder)
-            vec = vec + self.guidance_in(guidance)
+        vec = self.prepare_modulation(t, text_states_2, guidance)
 
         # Embed image and text.
         # Voxel order and shard after 3D convolution patch embedding since it requires the 3D shape.
-        if HUNYUAN_GLOBAL_CONFIG['voxel_order']:
+        if GLOBAL_CONFIG['patchify']['is_enabled']:
             img = self.voxel_in(img, shard_img)
         else: 
             img = self.img_in(img)
@@ -931,7 +924,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
 
             if isinstance(block.attention, nn.Module):
                 # wait for this block's o_cache
-                if self.o_cache_stream is not None and (inference_step > 0 or i > 0):
+                # if self.o_cache_stream is not None and (inference_step > 0 or i > 0):
+                if inference_step > 0 or i > 0:
                     # print(f'waiting for block {i}')
                     self.all_blocks[i].attention.storage.load_async_wait()
                 # start load for next block
@@ -959,7 +953,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 
                 if isinstance(block.attention, nn.Module):
                     # wait for this block's o_cache
-                    if self.o_cache_stream is not None and (inference_step > 0 or i > 0):
+                    # if self.o_cache_stream is not None and (inference_step > 0 or i > 0):
+                    if inference_step > 0 or i > 0:
                         # print(f'waiting for block {i + len(self.double_blocks)}')
                         self.all_blocks[i + len(self.double_blocks)].attention.storage.load_async_wait()
                     # start load for next block
@@ -971,21 +966,11 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
 
         img = x[:, :img_seq_len, ...]
 
-        if 'skip_every' in HUNYUAN_GLOBAL_CONFIG and HUNYUAN_GLOBAL_CONFIG['skip_every'] is not None:
+        # if 'skip_every' in HUNYUAN_GLOBAL_CONFIG and HUNYUAN_GLOBAL_CONFIG['skip_every'] is not None:
+        if GLOBAL_CONFIG['step_caching']['is_enabled']:
             self.step_cache = img.clone()
 
-        # ---------------------------- Final layer ------------------------------
-        img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
-
-        if HUNYUAN_GLOBAL_CONFIG['voxel_order']:
-            img = self.voxel_out(img, tt, th, tw, gather_img)
-        else:
-            img = self.unpatchify(img, tt, th, tw)
-
-        if return_dict:
-            out["x"] = img
-            return out
-        return img
+        return self.finish_layer(img, vec, gather_img, (tt, th, tw), return_dict)
 
     def unpatchify(self, x, t, h, w):
         """

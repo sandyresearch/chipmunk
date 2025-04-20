@@ -14,3 +14,7 @@ pyyaml
 python-box
 ruff
 PyYAML
+loguru
+ray
+imageio[ffmpeg]
+diffusers

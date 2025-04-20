@@ -6,6 +6,8 @@ GLOBAL_CONFIG = {
     'should_profile': False,
     'generation_index': 0,
     'steps': 50,
+    # Multi-GPU currently only supported for Hunyuan
+    'world_size': 1,
 
     'mlp': {
         'is_enabled': True,
@@ -23,14 +25,18 @@ GLOBAL_CONFIG = {
         'mbm': 128,
     },
      "patchify": {
+        'is_enabled': True,
+
         # To disable patching at any level, set that level's patch size to 1. To disable patching entirely, set all patch sizes to 1.
         "chunk_size_1": 8,
         "chunk_size_2": 4,
     },
     'attn': {
         'is_enabled': True,
-        # 'top_keys': 0.05,
-        'top_keys': 0.165,
+        'top_keys': 0.05,
+        # 'top_keys': 0.165,
+        'random_keys': 0.01,
+        'local_voxels': 0,
         'full_step_every': 10,
         'first_n_dense_layers': 2,
         'recompute_mask': False,
@@ -50,16 +56,20 @@ GLOBAL_CONFIG = {
         'mlp.sparse_act_T': False,
         'mlp.blockmean_mid_cache': False,
 
-        # 'attn.out_cache': True,
-        # 'attn.indices': True,
-        'attn.out_cache': False,
-        'attn.indices': False,
+        'attn.out_cache': True,
+        'attn.indices': True,
+        # 'attn.out_cache': False,
+        # 'attn.indices': False,
         'attn.counts': False,
         'attn.lse_constants': False,
 
         'text_encoders': True,
     },
+    "step_caching": {
+        'is_enabled': True,
 
+        'skip_step_schedule': set([7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43])
+    }
 }
 
 

@@ -15,8 +15,6 @@ from hyvideo.config import parse_args
 from hyvideo.inference import HunyuanVideoSampler
 from hyvideo.modules.chipmunk.config import update_global_config
 
-from hyvideo.modules.chipmunk.attention import test_tk_attn
-
 from hyvideo.modules.head_parallel import setup_dist
 
 @ray.remote(num_gpus=1)
@@ -26,28 +24,29 @@ def main(args=None, local_rank=None, world_size=None):
         raise ValueError(f"`models_root` not exists: {models_root_path}")
     
     # Create save folder to save the samples
-    save_path = args.save_path if args.save_path_suffix=="" else f'{args.save_path}_{args.save_path_suffix}'
+    # save_path = args.save_path if args.save_path_suffix=="" else f'{args.save_path}_{args.save_path_suffix}'
+    save_path = 'outputs/chipmunk-test'
     if not os.path.exists(save_path):
         os.makedirs(save_path, exist_ok=True)
 
-    if args.config_path:
-        with open(args.config_path, 'r') as f:
-            config = json.load(f)[0]
-        update_global_config(config)
+    # if args.config_path:
+    #     with open(args.config_path, 'r') as f:
+    #         config = json.load(f)[0]
+    #     update_global_config(config)
 
-        # save_path = os.path.join(save_path, config['savedir'])
-        # save_path = config['savedir']
+    #     # save_path = os.path.join(save_path, config['savedir'])
+    #     # save_path = config['savedir']
 
-        # useful for multi node sampling
-        prompt_start_idx = config['prompt_start_idx'] if 'prompt_start_idx' in config else 0
-        skip_already_saved = 'prompt_start_idx' in config
+    #     # useful for multi node sampling
+    #     prompt_start_idx = config['prompt_start_idx'] if 'prompt_start_idx' in config else 0
+    #     skip_already_saved = 'prompt_start_idx' in config
 
-    else:
-        prompts = [{
-            'ids': [f"{args.prompt[:100].replace('/','')}-{args.seed:04d}.mp4"],
-            'prompt': args.prompt,
-            'seed': args.seed,
-        }]
+    # else:
+        # prompts = [{
+        #     'ids': [f"{args.prompt[:100].replace('/','')}-{args.seed:04d}.mp4"],
+        #     'prompt': args.prompt,
+        #     'seed': args.seed,
+        # }]
 
     # ==================== Initialize Distributed Environment ================
     device = torch.device(f"cuda")
@@ -85,11 +84,6 @@ def main(args=None, local_rank=None, world_size=None):
         prompt_text = args.prompt
         seed = args.seed
 
-        save_paths = [f"{prompt_id}.mp4" for prompt_id in prompt_ids]
-        if skip_already_saved and all(os.path.exists(save_path) for save_path in save_paths):
-            print(f'Skip already saved: {save_paths}')
-            continue
-
         # Start sampling
         # TODO: batch inference check
         outputs = hunyuan_video_sampler.predict(
@@ -111,20 +105,15 @@ def main(args=None, local_rank=None, world_size=None):
         # Save samples
         if 'LOCAL_RANK' not in os.environ or int(os.environ['LOCAL_RANK']) == 0:
             for i, sample in enumerate(samples):
-                # Integration Testing #
-                # torch.save(sample, 'hunyuan_expected.pt')
-                torch.save(sample, 'hunyuan_actual.pt')
-                ###
-
                 sample = samples[i].unsqueeze(0)
                 time_flag = datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d-%H:%M:%S")
                 for prompt_id in prompt_ids:
                     cur_save_path = f"{save_path}/{prompt_id}.mp4"
                     save_videos_grid(sample, cur_save_path, fps=24)
                     logger.info(f'Sample save to: {cur_save_path}')
-        del samples
-        del outputs
-        torch.cuda.empty_cache()
+        # del samples
+        # del outputs
+        # torch.cuda.empty_cache()
 
 def run_all(args):
     import traceback

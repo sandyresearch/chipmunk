@@ -12,24 +12,11 @@ def parse_args(namespace=None):
     parser = add_denoise_schedule_args(parser)
     parser = add_inference_args(parser)
     parser = add_parallel_args(parser)
-    parser = add_config_args(parser)
 
     args = parser.parse_args(namespace=namespace)
     args = sanity_check_args(args)
 
     return args
-
-def add_config_args(parser: argparse.ArgumentParser):
-    group = parser.add_argument_group(title="HunyuanVideo config args")
-
-    group.add_argument(
-        "--config-path",
-        type=str,
-        default=None,
-        help="Path to the config file.",
-    )
-
-    return parser
 
 def add_network_args(parser: argparse.ArgumentParser):
     group = parser.add_argument_group(title="HunyuanVideo network args")

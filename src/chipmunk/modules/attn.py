@@ -1,23 +1,53 @@
+from typing import Tuple
 import torch
 from torch import Tensor
 from torch.nn import functional as F
 from chipmunk.util import GLOBAL_CONFIG
+from chipmunk.ops.voxel import get_local_indices_with_text
 import chipmunk.ops
 from chipmunk.util import AttnStorage, LayerCounter
 from chipmunk.ops import bitpack
 import triton
 
-singleton_video_query_groups = torch.ones(1, 24, 621, 119056, device='cuda', dtype=torch.bool)
-singleton_static_mask = torch.zeros(1, 24, 621, 119056, device='cuda', dtype=torch.bool)
-
-singleton_video_query_groups[..., -4:, :] = False
-singleton_static_mask[..., -4:, 1024:] = True
+# Initialized based on sequence shape
+singleton_static_mask = None
+singleton_video_query_groups = None
 
 class SparseDiffAttn:
     def __init__(self, layer_num: int, layer_counter: LayerCounter):
         self.layer_num = layer_num
         self.layer_counter = layer_counter
         self.storage = AttnStorage(layer_num, init_names=['indices', 'out_cache'])
+
+    def initialize_static_mask(self, seq_shape: Tuple, txt_len: int, local_heads_num: int, device: torch.device):
+        if len(seq_shape) == 2:
+            raise NotImplementedError("Not yet implemented for 2D sequences")
+
+        tt, th, tw = seq_shape
+
+        attn_config = GLOBAL_CONFIG['attn']
+        rk = attn_config['random_keys']
+        topk = attn_config['top_keys']
+        lv = attn_config['local_voxels']
+        topk = int(topk * (tt * th * tw))
+
+        mask, _, _ = get_local_indices_with_text(
+            vid_shape=(tt, th, tw),
+            txt_len=txt_len,
+            voxel_shape=(4, 6, 8),
+            local_shape=(lv, lv, lv),
+            rk=rk,
+            device=device
+        )
+
+        mask = mask[None, None, :, :].expand(1, local_heads_num, -1, -1).contiguous()
+        sparse_attn_query_groups = ((mask.sum(dim=-1, keepdim=True) + topk) < (tt * th * tw + txt_len))
+
+        # Update singletons
+        global singleton_static_mask
+        global singleton_video_query_groups
+        singleton_static_mask = mask
+        singleton_video_query_groups = sparse_attn_query_groups
 
     @torch.compile(dynamic=False)
     def random_and_topk(self, cs, topk):

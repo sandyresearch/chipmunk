@@ -291,11 +291,11 @@ def get_local_indices_with_text(
     txt_len,
     voxel_shape,
     local_shape,
-    full_tail_from_attn=False,
-    full_tail_to_attn=False,
     rk=0,
     kv_tile_size=128,
-    device=torch.device('cuda')
+    device=torch.device('cuda'),
+    full_tail_from_attn=False,
+    full_tail_to_attn=False,
 ):
     cdiv = lambda x, y: ((x + y - 1) // y)
 
