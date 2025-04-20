@@ -76,7 +76,7 @@ template<int D, int O_SCALE> struct attn_fwd_template {
         // we index into the indices_counts array for the current batch and head. todo: fix indices offsets for multiple batches and heads!
         batch = 0; // for some reason batch={0,1} when it should be 0
         int H = Q.depth; 
-        int N_groups = Q.rows / (layout::qo_tile::rows * NUM_CONSUMER_WARPGROUPS); // the total number of indices groups per head
+        int N_groups = (Q.rows +  (layout::qo_tile::rows * NUM_CONSUMER_WARPGROUPS) - 1) / (layout::qo_tile::rows * NUM_CONSUMER_WARPGROUPS); // the total number of indices groups per head
         int offset = (batch * H * N_groups) + (head * N_groups) + (seq);
         // if (threadIdx.x == 0 && offset > 504) {
         //     printf("H: %d, N_groups: %d, batch: %d, head: %d, seq: %d, offset: %d, (batch * H * N_groups) + (head * N_groups) + (seq):  (%d * %d * %d) + (%d * %d) + (%d) = %d\n", H, N_groups, batch, head, seq, offset, batch, H, N_groups, head, N_groups, seq, (batch * H * N_groups) + (head * N_groups) + (seq));
@@ -109,7 +109,7 @@ template<int D, int O_SCALE> struct attn_fwd_template {
             int seq = indices_coord.z;
             // global indices shape
             int H = Q.depth;
-            int N_groups = Q.rows / (layout::qo_tile::rows * NUM_CONSUMER_WARPGROUPS); // the total number of indices groups per head
+            int N_groups = (Q.rows + layout::qo_tile::rows * NUM_CONSUMER_WARPGROUPS - 1) / (layout::qo_tile::rows * NUM_CONSUMER_WARPGROUPS); // the total number of indices groups per head
             int N_queries = Q.rows;
             // this indexing calcluation is the SAME as the one in the get_indices_count, but the stride between elements is now `N_keys`
             g_indices += (batch * H * N_groups * N_queries) + (head * N_groups * N_queries) + (seq * N_queries) + iter * layout::kv_tile::rows;
@@ -343,7 +343,7 @@ void csp_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o, at::Tensor
     auto head_dim = q.size(3); 
     auto qo_heads = q.size(1);
     auto kv_heads = k.size(1);
-    auto num_indices_groups = seq_len / (ker_template::NUM_WORKERS * ker_template::layout::qo_tile::rows);
+    auto num_indices_groups = (seq_len+(ker_template::NUM_WORKERS * ker_template::layout::qo_tile::rows)-1) / (ker_template::NUM_WORKERS * ker_template::layout::qo_tile::rows);
 
     TORCH_CHECK(o_scale == 1 || o_scale == -1, "o_scale must be 1 or -1");
     TORCH_CHECK(indices.is_contiguous(), "Indices must be contiguous");
@@ -398,7 +398,7 @@ void csp_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o, at::Tensor
     
     bf16*  o_ptr = reinterpret_cast<bf16*>(o.data_ptr<c10::BFloat16>());
     bf16*  d_o   = reinterpret_cast<bf16*>(o_ptr);
-    TORCH_CHECK(seq_len % (ker_template::NUM_WORKERS*ker_template::layout::qo_tile::rows) == 0, "sequence length must be divisible by num_workers * qo_tile::rows");
+    // TORCH_CHECK(seq_len % (ker_template::NUM_WORKERS*ker_template::layout::qo_tile::rows) == 0, "sequence length must be divisible by num_workers * qo_tile::rows");
     if (head_dim != 128) {
         throw std::runtime_error("Head dimension must be 128");
     }

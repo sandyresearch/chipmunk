@@ -58,7 +58,6 @@ template<int D> struct cs_globals {
     o_gl o;
     c_gl c;
 
-    const int N; 
     const int kN; 
     const int hr;
 };
@@ -560,7 +559,7 @@ dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p)
 
     auto hr = qo_heads / kv_heads;
     auto seq_downsample = FUSE_REDUCE ? 192 : 16;
-    auto qg = seq_len / seq_downsample;
+    auto qg = (seq_len+seq_downsample-1) / seq_downsample;
 
     c10::BFloat16* q_ptr = q.data_ptr<c10::BFloat16>();
     c10::BFloat16* k_ptr = k.data_ptr<c10::BFloat16>();
@@ -634,13 +633,13 @@ dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p)
     chipmunk::create_tensor_map_with_strides<v_tile, 2>(&vg_arg.tma_descs.tma_desc, d_v, batch, kv_heads, kseq_len, head_dim, v.stride(0), v.stride(1), v.stride(2));
 
 
-    globals g{qg_arg, kg_arg, vg_arg, pg_arg, lg_arg, og_arg, cg_arg, static_cast<int>(seq_len), static_cast<int>(kseq_len), static_cast<int>(hr)};
+    globals g{qg_arg, kg_arg, vg_arg, pg_arg, lg_arg, og_arg, cg_arg, static_cast<int>(kseq_len), static_cast<int>(hr)};
 
     auto mem_size = kittens::MAX_SHARED_MEMORY;
     auto threads  = NUM_WORKERS * kittens::WARP_THREADS;
 
     // TORCH_CHECK(seq_len % (CONSUMER_WARPGROUPS*kittens::TILE_DIM*4) == 0, "sequence length must be divisible by 192");
-    dim3 grid(seq_len/(CONSUMER_WARPGROUPS*kittens::TILE_ROW_DIM<bf16>*4), qo_heads, batch);
+    dim3 grid((seq_len+(CONSUMER_WARPGROUPS*kittens::TILE_ROW_DIM<bf16>*4)-1)/(CONSUMER_WARPGROUPS*kittens::TILE_ROW_DIM<bf16>*4), qo_heads, batch);
 
     if (is_causal) {
         cudaFuncSetAttribute(
