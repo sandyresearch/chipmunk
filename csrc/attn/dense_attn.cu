@@ -347,7 +347,7 @@ dense_attn(at::Tensor q, at::Tensor k, at::Tensor v)
     chipmunk::create_tensor_map_with_strides<q_tile, 2>(&qg_arg.tma_descs.tma_desc, d_q, batch, qo_heads, seq_len, head_dim, q.stride(0), q.stride(1), q.stride(2));
     chipmunk::create_tensor_map_with_strides<k_tile, 2>(&kg_arg.tma_descs.tma_desc, d_k, batch, kv_heads, kseq_len, head_dim, k.stride(0), k.stride(1), k.stride(2));
     chipmunk::create_tensor_map_with_strides<v_tile, 2>(&vg_arg.tma_descs.tma_desc, d_v, batch, kv_heads, kseq_len, head_dim, v.stride(0), v.stride(1), v.stride(2));
-    globals g{qg_arg, kg_arg, vg_arg, lg_arg, mg_arg, og_arg, static_cast<int>(seq_len), static_cast<int>(kseq_len), static_cast<int>(hr)};
+    globals g{qg_arg, kg_arg, vg_arg, lg_arg, mg_arg, og_arg, static_cast<int>(kseq_len), static_cast<int>(hr)};
 
     auto mem_size = kittens::MAX_SHARED_MEMORY;
     auto threads  = NUM_WORKERS * kittens::WARP_THREADS;

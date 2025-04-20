@@ -1,12 +1,10 @@
 import torch
 from torch import Tensor
 from torch.nn import functional as F
-from ..util.config import GLOBAL_CONFIG
 import chipmunk.ops
-from chipmunk.util.storage import AttnStorage
+from chipmunk.util import AttnStorage, LayerCounter, GLOBAL_CONFIG
 from einops import rearrange
 import triton
-from ..util.layer_counter import LayerCounter
 
 class SparseDiffAttn:
     def __init__(self, layer_num: int, layer_counter: LayerCounter):
@@ -22,25 +20,25 @@ class SparseDiffAttn:
         inference_step: int,
         do_full_step: bool,
     ) -> Tensor:
-        attn_config = GLOBAL_CONFIG['sparsity']['attention']
+        attn_config = GLOBAL_CONFIG['attn']
         bm = attn_config['mbm']
         assert bm == 192, "The kernel was written for BM=192. You may need to change the kernel."
         layer = self.layer_num
         multiple_of = attn_config['counts_multiple_of']
-
-        if layer <= 1:
+        
+        if layer < attn_config['first_n_dense_layers']:
             o, lse = chipmunk.ops.dense_attn(q, k, v)
             return o
 
         # ─────────── FULL STEP ───────────
-        if do_full_step:
-            if inference_step == 0:
-                o, lse = chipmunk.ops.dense_attn(q, k, v)
-                lse[..., k.shape[-2]:, :] = 0
-                self.storage.set_lse_constants(lse)
-                return o
+        if inference_step == 0:
+            o, lse = chipmunk.ops.dense_attn(q, k, v)
+            lse[..., k.shape[-2]:, :] = 0
+            self.storage.set_lse_constants(lse)
+            return o
 
-            elif inference_step == 1:
+        elif inference_step == 1 or do_full_step:
+            if inference_step == 1:
                 prev_lse = self.storage.get_lse_constants()
                 o, bs, _ = chipmunk.ops.dense_colsum_attn(q, k, v, prev_lse)
 
@@ -57,8 +55,8 @@ class SparseDiffAttn:
                     dtype=torch.int32,
                 )
                 pad = torch.empty((*counts.shape, q.shape[-2] - tk),
-                                  device=q.device,
-                                  dtype=torch.int32)
+                                device=q.device,
+                                dtype=torch.int32)
                 inds = torch.cat([inds, pad], dim=-1).to(torch.int32)
 
                 self.storage.set_indices(inds)
@@ -79,14 +77,17 @@ class SparseDiffAttn:
         inds   = self.storage.get_indices()
         counts = self.storage.get_counts()
         o      = self.storage.get_out_cache()
-
+        
         if not self.storage.out_cache.is_offload_enabled:
-            # csp_attn will write to o in place, so we need to clone it if it's not offloaded
+            # Our kernel will write to o in place, so we need to clone it if it's not offloaded
             o = o.clone()
         chipmunk.ops.csp_attn(q, k, v, o, inds, counts, 1)
         return o
     
     def forward(self, q: Tensor, k: Tensor, v: Tensor) -> Tensor:
+        if not GLOBAL_CONFIG['attn']['is_enabled']:
+            return F.scaled_dot_product_attention(q, k, v)
+
         inference_step, layer, submodule = self.layer_counter.increment()
         do_full_step = self.layer_counter.should_do_full_attn_step()
         bm = GLOBAL_CONFIG['attn']['mbm']
@@ -94,7 +95,6 @@ class SparseDiffAttn:
         if q.shape[-2] % bm == 0:
             # Our kernels are happy!
             o = self.fast_attention_qpadded(q, k, v, inference_step, do_full_step)
-            o = rearrange(o, "B H L D -> B L (H D)")
             return o
         else:
             # Pad queries and outputs to the nearest multiple of bm
@@ -105,5 +105,7 @@ class SparseDiffAttn:
             qp[..., :n, :] = q
             o = self.fast_attention_qpadded(qp, k, v, inference_step, do_full_step)
             o = o[..., :n, :]
-            o = rearrange(o, "B H L D -> B L (H D)")
             return o
+
+    def __call__(self, *args, **kwargs):
+        return self.forward(*args, **kwargs)

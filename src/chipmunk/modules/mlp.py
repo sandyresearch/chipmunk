@@ -3,7 +3,7 @@ from ..util.layer_counter import LayerCounter
 from ..util.config import GLOBAL_CONFIG
 from einops import rearrange
 import chipmunk.ops
-from chipmunk.util.storage import MlpStorage
+from chipmunk.util import MlpStorage
 
 def block_mean(x: torch.Tensor, mbm: int):
     return rearrange(x, 'b (mb mbm) c -> b mb mbm c', mbm=mbm).mean(dim=2)
@@ -16,6 +16,7 @@ class SparseDiffMlp:
         fc1: torch.nn.Linear,
         activation: torch.nn.Module,
         fc2: torch.nn.Linear,
+        heuristic_sms_scatter_add: int = 6
     ):
         self.fc1           = [fc1]
         self.fc2           = [fc2]
@@ -24,19 +25,27 @@ class SparseDiffMlp:
         self.activation    = activation
         self.storage       = MlpStorage(layer_num)
 
+        self.num_sms_scatter_add = heuristic_sms_scatter_add
+
     def forward(self, x: torch.Tensor):
         fc1, fc2 = self.fc1[0], self.fc2[0]
-        do_full  = self.layer_counter.should_do_full_mlp_step()
-        inference_step, layer, _ = self.layer_counter.increment()
-        assert x.ndim == 3 and x.shape[0] == 1, "x must be (1, N, C)"
 
-        if layer <= 1:
+        if not GLOBAL_CONFIG['mlp']['is_enabled']:
             return fc2(self.activation(fc1(x)))
 
-        mlp_cfg     = GLOBAL_CONFIG['mlp']
-        MBM, BM     = mlp_cfg['mbm'], mlp_cfg['bm']
-        sparsity    = 1 - mlp_cfg['top_keys']
-        multiple_of = mlp_cfg['counts_multiple_of']
+        do_full  = self.layer_counter.should_do_full_mlp_step()
+        inference_step, layer, submodule = self.layer_counter.increment()
+
+        assert x.ndim == 3 and x.shape[0] == 1, "x must be (1, N, C)"
+
+        mlp_cfg              = GLOBAL_CONFIG['mlp']
+        MBM, BM              = mlp_cfg['mbm'], mlp_cfg['bm']
+        sparsity             = 1 - mlp_cfg['top_keys']
+        multiple_of          = mlp_cfg['counts_multiple_of']
+        first_n_dense_layers = mlp_cfg['first_n_dense_layers']
+        
+        if layer < first_n_dense_layers:
+            return fc2(self.activation(fc1(x)))
 
         # ─────────── FULL STEP ───────────
         if do_full:
@@ -44,7 +53,7 @@ class SparseDiffMlp:
             pa  = self.activation(mid)
             out = fc2(pa)
 
-            self.storage.set_sparse_act_T(pa.transpose(-1, -2))
+            self.storage.set_sparse_act_T(pa.transpose(-1, -2).contiguous())
             self.storage.set_out_cache(out)
             self.storage.set_blockmean_mid_cache(block_mean(mid, MBM))
             return out
@@ -84,18 +93,31 @@ class SparseDiffMlp:
         out_cache    = self.storage.get_out_cache()[0]
         sparse_act_T = self.storage.get_sparse_act_T()[0]
 
+        if fc1.weight.dtype == torch.float8_e4m3fn:
+            x = self.fc1.quantize_input(x)
+            mm1_scale_a = fc1.input_scale_reciprocal
+            mm1_scale_b = fc1.scale_reciprocal
+        else:
+            mm1_scale_a = None
+            mm1_scale_b = None
+
         chipmunk.ops.mlp(
             x=x[0],
             fc1w=fc1.weight.data,
             fc1b=fc1.bias.data,
-            fc2w_T=self.fc2w_T,
+            fc2w_T=self.fc2w_T[0],
             indices=indices,
             counts=counts,
             sparse_act_T=sparse_act_T,
             cached_out=out_cache,
             num_sms_scatter_add=self.num_sms_scatter_add,
+            mm1_scale_a=mm1_scale_a,
+            mm1_scale_b=mm1_scale_b,
         )
 
         out_cache = out_cache.unsqueeze(0)
         self.storage.set_out_cache(out_cache)
         return out_cache
+    
+    def __call__(self, *args, **kwargs):
+        return self.forward(*args, **kwargs)

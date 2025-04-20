@@ -1,5 +1,5 @@
 import torch
-from chipmunk.util.config import GLOBAL_CONFIG
+from chipmunk.util import GLOBAL_CONFIG
 
 # Global config for whether offloading is enabled
 is_offload_enabled = GLOBAL_CONFIG['offloading']
@@ -157,6 +157,7 @@ class MaybeOffloadedTensor:
         if not self.is_offload_enabled:
             return
 
+        torch.cuda.current_stream().wait_stream(self.load_stream)
         if self.load_completed_event is not None:
             self.load_completed_event.wait()
             self.load_completed_event = None
