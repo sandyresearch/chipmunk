@@ -1,8 +1,8 @@
 # Chipmunk: Hardware-Aware Sparsity for Accelerated Video & Image Generation
 
-Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What if we could make those layers faster? **Chipmunk is a training-free method to accelerate diffusion transformers with hardware-aware, training-free dynamic sparsity**. Chipmunk caches attention weights and MLP activations from previous steps and dynamically computes a sparse “delta” against the cached weights. We make Chipmunk hardware-efficient through \[128, 1\] and \[192, 1\] column-sparsity patterns \+ a suite of optimized attention and MLP kernels that are up to 9.3x and 2.5x faster than FlashAttention3 and cuBLAS, respectively. 
+Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What if we could make those layers faster? **Chipmunk is a training-free method to accelerate diffusion transformers with hardware-aware, training-free dynamic sparsity**. Chipmunk caches attention weights and MLP activations from previous steps and dynamically computes a sparse “delta” against the cached weights. We make Chipmunk hardware-efficient through \[128, 1\] and \[192, 1\] column-sparsity patterns \+ a suite of optimized sparse attention and MLP CUDA kernels.
 
-⌚️Stats:
+⚡️🎇 Stats:
 
 - **\~3.7x** faster video generation on HunyuanVideo at 720x1280 resolution for a 5s video (50 steps)  
 - **\~1.4x** faster image generations on FLUX.1-dev at 1280x768 resolution (50 steps)  
@@ -12,8 +12,13 @@ Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What
 ## Demos
 
 
-![][comparison]
-<p align="center"><i>Images of cute chipmunks can be generated 1.37x faster! Left: Fully Dense FLUX.1-dev. Right: Ours (84% sparse attention and 70% sparse MLP)</i></p>
+
+https://github.com/user-attachments/assets/eb68abb6-249f-4e3a-96fe-657b7cf04531
+
+
+<p align="center"><img src="assets/images/chipmunk-comparison.png" width="75%"></p>
+
+<p align="center"><i>Images of cute chipmunks can be generated 1.37x faster! **Left**: Fully Dense FLUX.1-dev. **Right**: Ours (84% sparse attention and 70% sparse MLP)</i></p>
 
 
 ## Quickstart
