@@ -12,7 +12,7 @@ class SparseDiffAttn:
         self.layer_counter = layer_counter
         self.storage = AttnStorage(layer_num)
 
-    def fast_attention_qpadded(
+    def _fast_attention(
         self,
         q: Tensor,
         k: Tensor,
@@ -33,7 +33,6 @@ class SparseDiffAttn:
         # ─────────── FULL STEP ───────────
         if inference_step == 0:
             o, lse = chipmunk.ops.dense_attn(q, k, v)
-            lse[..., k.shape[-2]:, :] = 0
             self.storage.set_lse_constants(lse)
             return o
 
@@ -69,7 +68,7 @@ class SparseDiffAttn:
             counts = self.storage.get_counts()
 
             o_cache = o.clone()
-            chipmunk.ops.csp_attn(q, k, v, o_cache, inds, counts, -1)
+            chipmunk.ops.csp_attn(q.contiguous(), k, v, o_cache, inds, counts, -1)
             self.storage.set_out_cache(o_cache)
             return o
 
@@ -77,11 +76,10 @@ class SparseDiffAttn:
         inds   = self.storage.get_indices()
         counts = self.storage.get_counts()
         o      = self.storage.get_out_cache()
-        
         if not self.storage.out_cache.is_offload_enabled:
             # Our kernel will write to o in place, so we need to clone it if it's not offloaded
             o = o.clone()
-        chipmunk.ops.csp_attn(q, k, v, o, inds, counts, 1)
+        chipmunk.ops.csp_attn(q.contiguous(), k, v, o, inds, counts, 1)
         return o
     
     def forward(self, q: Tensor, k: Tensor, v: Tensor) -> Tensor:
@@ -90,22 +88,9 @@ class SparseDiffAttn:
 
         inference_step, layer, submodule = self.layer_counter.increment()
         do_full_step = self.layer_counter.should_do_full_attn_step()
-        bm = GLOBAL_CONFIG['attn']['mbm']
         
-        if q.shape[-2] % bm == 0:
-            # Our kernels are happy!
-            o = self.fast_attention_qpadded(q, k, v, inference_step, do_full_step)
-            return o
-        else:
-            # Pad queries and outputs to the nearest multiple of bm
-            # Our kernels are not happy with non-192 seqlens for query dim :(
-            n = q.shape[-2]
-            padded_n = ((n + bm - 1) // bm) * bm
-            qp = torch.zeros(q.shape[:-2] + (padded_n, q.shape[-1]), dtype=q.dtype, device=q.device)
-            qp[..., :n, :] = q
-            o = self.fast_attention_qpadded(qp, k, v, inference_step, do_full_step)
-            o = o[..., :n, :]
-            return o
+        o = self._fast_attention(q, k, v, inference_step, do_full_step)
+        return o
 
     def __call__(self, *args, **kwargs):
         return self.forward(*args, **kwargs)

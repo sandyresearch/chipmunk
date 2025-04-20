@@ -3,8 +3,8 @@ GLOBAL_CONFIG = {
     'generation_index': 0,
 
     'mlp': {
-        'is_enabled': False,
-        'is_fp8': True,
+        'is_enabled': True,
+        'is_fp8': False,
 
         'top_keys': 0.3,
         'random_keys': 0.05,
