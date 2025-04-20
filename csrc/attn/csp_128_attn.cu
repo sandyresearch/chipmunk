@@ -428,8 +428,6 @@ torch::Tensor csp_128_attn(torch::Tensor q, torch::Tensor k, torch::Tensor v, to
     bf16*  d_o   = reinterpret_cast<bf16*>(o_ptr);
     TORCH_CHECK(seq_len % (ker_template::NUM_WORKERS*ker_template::layout::qo_tile::rows) == 0, "sequence length must be divisible by num_workers * qo_tile::rows");
 
-    cudaDeviceSynchronize();
-
     if (head_dim != 128) {
         throw std::runtime_error("Head dimension must be 128");
     }
