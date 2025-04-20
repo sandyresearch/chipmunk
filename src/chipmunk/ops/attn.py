@@ -17,12 +17,7 @@ def dense_attn(
     k: torch.Tensor,
     v: torch.Tensor
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    # attn = torch.nn.functional.scaled_dot_product_attention(q, k, v)
-    # l_vec = torch.ones((q.shape[0], q.shape[1], q.shape[2]), device=q.device)
-    # return attn, l_vec
-    return_val = torch.ops.chipmunk.dense_attn(q, k, v)
-    if return_val is None or len(return_val) == 0: breakpoint()
-    return return_val
+    return torch.ops.chipmunk.dense_attn(q, k, v)
 
 def dense_colsum_attn(
     q: torch.Tensor,
