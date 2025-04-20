@@ -33,13 +33,13 @@ extern void csp_mlp_mm2_and_scatter_add(at::Tensor packed, at::Tensor unpacked_c
 // // Indexed IO
 extern void copy_indices(at::Tensor bmfc1, at::Tensor bm_mid_cache, at::Tensor sp_inds, at::Tensor sp_counts);
 extern void topk_indices(at::Tensor activation, at::Tensor indices, at::Tensor counts, double sparsity_amount, int64_t multiple_of, double random_amount);
-extern std::vector<at::Tensor> mask_to_indices(at::Tensor mask, int64_t multiple_of, int64_t pad_to_multiple_of);
+extern void mask_to_indices(at::Tensor mask, int64_t multiple_of, at::Tensor indices_out, at::Tensor counts_out);
 extern void csp_scatter_add(at::Tensor packed, at::Tensor unpacked_colmajor, at::Tensor sp_inds, at::Tensor sp_counts, int64_t num_sms);
 
 // // Sparse+Dense Attention
 extern void csp_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o, at::Tensor indices, at::Tensor indices_counts, int64_t o_scale);
-extern std::vector<at::Tensor> dense_attn(at::Tensor q, at::Tensor k, at::Tensor v);
-extern std::vector<at::Tensor> dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p);
+extern void dense_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o_out, at::Tensor lse_out);
+extern void dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p, at::Tensor o_out, at::Tensor colsum_out, at::Tensor lse_out);
 
 TORCH_LIBRARY(chipmunk, m) {
     // Sparse MLP
@@ -48,14 +48,14 @@ TORCH_LIBRARY(chipmunk, m) {
 
     // Sparse+Dense Attention
     m.def("csp_attn(Tensor q, Tensor k, Tensor v, Tensor o, Tensor indices, Tensor indices_counts, int o_scale) -> ()");
-    m.def("dense_attn(Tensor q, Tensor k, Tensor v) -> Tensor[]");
-    m.def("dense_colsum_attn(Tensor q, Tensor k, Tensor v, Tensor p) -> Tensor[]");
+    m.def("dense_attn(Tensor q, Tensor k, Tensor v, Tensor(o_out!) o_out, Tensor(lse_out!) lse_out) -> ()");
+    m.def("dense_colsum_attn(Tensor q, Tensor k, Tensor v, Tensor p, Tensor(o_out!) o_out, Tensor(colsum_out!) colsum_out, Tensor(lse_out!) lse_out) -> ()");
 
     // Indexed IO
     m.def("copy_indices(Tensor bmfc1, Tensor(bm_mid_cache!) bm_mid_cache, Tensor sp_inds, Tensor sp_counts) -> ()");
     m.def("topk_indices(Tensor activation, Tensor(indices!) indices, Tensor counts, float sparsity_amount, int multiple_of, float random_amount) -> ()");
     m.def("csp_scatter_add(Tensor packed, Tensor(unpacked_colmajor!) unpacked_colmajor, Tensor sp_inds, Tensor sp_counts, int num_sms) -> ()");
-    m.def("mask_to_indices(Tensor mask, int multiple_of, int pad_to_multiple_of) -> Tensor[]");
+    m.def("mask_to_indices(Tensor mask, int multiple_of, Tensor(indices_out!) indices_out, Tensor(counts_out!) counts_out) -> ()");
 }
 
 

@@ -34,4 +34,9 @@ def mask_to_indices(
     multiple_of: int,
     pad_to_multiple_of: int
 ) -> List[torch.Tensor]:
-    return torch.ops.chipmunk.mask_to_indices(mask, multiple_of, pad_to_multiple_of)
+    b, h, m, n = mask.shape
+    pad_n = ((n + pad_to_multiple_of - 1) / pad_to_multiple_of) * pad_to_multiple_of
+    indices = torch.empty((b, h, m, pad_n), device=mask.device, dtype=torch.int32)
+    counts = torch.empty((b, h, m), device=mask.device, dtype=torch.int32)
+    torch.ops.chipmunk.mask_to_indices(mask, multiple_of, indices, counts)
+    return indices, counts

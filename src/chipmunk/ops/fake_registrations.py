@@ -1,5 +1,4 @@
 import torch
-from typing import List
 
 @torch.library.register_fake("chipmunk::csp_mlp_mm1")
 def chipmunk_op_matmul_1_fake(
@@ -43,18 +42,23 @@ def chipmunk_op_csp_attn_fake(
 def chipmunk_op_dense_attn_fake(
     q: torch.Tensor,
     k: torch.Tensor,
-    v: torch.Tensor
-) -> List[torch.Tensor]:
-    return []
+    v: torch.Tensor,
+    o_out: torch.Tensor,
+    lse_out: torch.Tensor
+) -> None:
+    pass
 
 @torch.library.register_fake("chipmunk::dense_colsum_attn")
 def chipmunk_op_dense_colsum_attn_fake(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-    p: torch.Tensor
-) -> List[torch.Tensor]:
-    return []
+    p: torch.Tensor,
+    o_out: torch.Tensor,
+    cs_out: torch.Tensor,
+    lse_out: torch.Tensor
+) -> None:
+    pass
 
 @torch.library.register_fake("chipmunk::copy_indices")
 def chipmunk_op_copy_indices_fake(
@@ -90,6 +94,7 @@ def chipmunk_op_scatter_add_fake(
 def chipmunk_op_mask_to_indices_fake(
     mask: torch.Tensor,
     multiple_of: int,
-    pad_to_multiple_of: int
-) -> List[torch.Tensor]:
-    return []
+    indices_out: torch.Tensor,
+    counts_out: torch.Tensor
+) -> None:
+    pass
