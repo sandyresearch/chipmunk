@@ -118,3 +118,7 @@ Because GPUs excel at blockâ€‘sized work, Chipmunk maps these deltas onto blockâ
 [video-grid]: assets/videos/comparison-grid.mp4
 [speed]: assets/images/speed.png
 [comparison]: assets/images/chipmunk-comparison.png
+
+## Contributors
+
+Austin Silveria, Soham Govande, Dan Fu
