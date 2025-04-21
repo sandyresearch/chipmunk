@@ -13,8 +13,9 @@ import triton
 singleton_static_mask = None
 singleton_video_query_groups = None
 
-class SparseDiffAttn:
+class SparseDiffAttn(nn.Module):
     def __init__(self, layer_num: int, layer_counter: LayerCounter):
+        super().__init__()
         self.layer_num = layer_num
         self.layer_counter = layer_counter
         self.storage = AttnStorage(layer_num, init_names=['indices', 'out_cache'])
@@ -108,6 +109,7 @@ class SparseDiffAttn:
                     packed, mask_shape = bitpack(mask)
                     self.mask_shape = mask_shape
                     self.storage.set_indices(packed)
+                    inds, counts = chipmunk.ops.mask_to_indices(mask, multiple_of, bm)
                 else:
                     kseq = k.shape[-2]
                     kgroups = (kseq + bm - 1) // bm
@@ -123,12 +125,14 @@ class SparseDiffAttn:
             else:
                 o, _ = chipmunk.ops.dense_attn(q, k, v)
 
-            if attn_config['should_compress_indices']:
-                mask         = self.storage.get_indices()
-                inds, counts = chipmunk.ops.mask_to_indices(mask, multiple_of, bm)
-            else:
-                inds   = self.storage.get_indices()
-                counts = self.storage.get_counts()
+            if not attn_config['recompute_mask']:
+                if attn_config['should_compress_indices']:
+                    packed         = self.storage.get_indices()
+                    mask           = bitunpack(packed, self.mask_shape)
+                    inds, counts   = chipmunk.ops.mask_to_indices(mask, multiple_of, bm)
+                else:
+                    inds   = self.storage.get_indices()
+                    counts = self.storage.get_counts()
 
             if do_padding:
                 o_cache = o - chipmunk.ops.csp_attn(q, k, v, inds, counts)
@@ -139,8 +143,13 @@ class SparseDiffAttn:
             return o
 
         # ─────────── SPARSE STEP ───────────
-        inds   = self.storage.get_indices()
-        counts = self.storage.get_counts()
+        if attn_config['should_compress_indices']:
+            packed         = self.storage.get_indices()
+            mask           = bitunpack(packed, self.mask_shape)
+            inds, counts   = chipmunk.ops.mask_to_indices(mask, multiple_of, bm)
+        else:
+            inds   = self.storage.get_indices()
+            counts = self.storage.get_counts()
         o      = self.storage.get_out_cache()
         if do_padding:
             o = o + chipmunk.ops.csp_attn(q, k, v, inds, counts)

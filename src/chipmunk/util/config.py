@@ -34,17 +34,20 @@ GLOBAL_CONFIG = {
     'attn': {
         'is_enabled': True,
         'top_keys': 0.05,
-        # 'top_keys': 0.165,
         'random_keys': 0.01,
         'local_voxels': 0,
-        'full_step_every': 10,
+
         'first_n_dense_layers': 2,
-        'recompute_mask': False,
-        'should_compress_indices': False,
+        'full_step_every': 10,
+        # If not None, will override full_step_every
+        'full_step_schedule': set([0, 1, 10, 40]),
+
+        'recompute_mask': True,
+        'should_compress_indices': True,
         
         # do not change below this line
         'counts_multiple_of': 128,
-        'pad_qkv_before_kernel': False,
+        'pad_qkv_before_kernel': True,
         'mbm': 192,
     },
     "offloading": {
@@ -58,8 +61,6 @@ GLOBAL_CONFIG = {
 
         'attn.out_cache': True,
         'attn.indices': True,
-        # 'attn.out_cache': False,
-        # 'attn.indices': False,
         'attn.counts': False,
         'attn.lse_constants': False,
 

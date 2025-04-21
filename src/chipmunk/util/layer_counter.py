@@ -27,8 +27,11 @@ class LayerCounter:
         return self.cur_inference_step % GLOBAL_CONFIG['mlp']['full_step_every'] == 0
     
     def should_do_full_attn_step(self):
-        return self.cur_inference_step < 2 or self.cur_inference_step % GLOBAL_CONFIG['attn']['full_step_every'] == 0
-        # return self.cur_inference_step < 2 or self.cur_inference_step in set([10, 25, 40])
+        manual_full_step_schedule = GLOBAL_CONFIG['attn']['full_step_schedule']
+        if manual_full_step_schedule is not None:
+            return self.cur_inference_step in manual_full_step_schedule
+        else:
+            return self.cur_inference_step < 2 or self.cur_inference_step % GLOBAL_CONFIG['attn']['full_step_every'] == 0
 
     def increment(self):
         # Current coordinate to be returned
