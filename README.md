@@ -51,6 +51,7 @@ cd examples/hunyuan
 # Download weights
 huggingface-cli download Tencent-Hunyuan/HunyuanDiT --local-dir ./ckpts
 huggingface-cli download openai/clip-vit-large-patch14 --local-dir ./ckpts/text_encoder_2
+huggingface-cli download xtuner/llava-llama-3-8b-v1_1-transformers --local-dir ./ckpts/llava-llama-3-8b-v1_1-transformers
 python hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py --input_dir ./ckpts/llava-llama-3-8b-v1_1-transformers --output_dir ./ckpts/text_encoder
 # One-line accelerated inference script
 python3 sample_video.py --flow-reverse --chipmunk-config ./chipmunk-config.yml
