@@ -45,7 +45,7 @@ We currently support two models for acceleration, with a third coming soon. Keep
 
 #### Hunyuan Video Generation Example
 
-Use the one-line accelerated inference script to get started, and then check out [examples/hunyuan/README.md](examples/hunyuan/README.md) for a comprehensive tutorial.
+Use the one-line accelerated inference script to get started, and then check out [examples/hunyuan/README.md](examples/hunyuan/README.md) for a comprehensive tutorial. 
 
 ```bash
 cd examples/hunyuan
@@ -56,6 +56,8 @@ python hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py --input_dir ./ck
 # One-line accelerated inference script
 python3 sample_video.py --flow-reverse --chipmunk-config ./chipmunk-config.yml
 ```
+
+*FYI: for Chipmunk's just-in-time offloading, we manage a pool of pinned CPU memory. Model initialization may take up to ~5 minutes as we allocate all these pinned buffers in RAM!*
 
 #### FLUX.1-dev Image Generation Example
 
