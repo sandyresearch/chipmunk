@@ -1,6 +1,8 @@
 import os
 import torch
 
+WEIGHTS_PATH = './ckpts'
+
 __all__ = [
     "C_SCALE",
     "PROMPT_TEMPLATE",
@@ -64,7 +66,7 @@ NORMALIZATION_TYPE = {"layer", "rms"}
 ACTIVATION_TYPE = {"relu", "silu", "gelu", "gelu_tanh"}
 
 # =================== Model Path =====================
-MODEL_BASE = os.getenv("MODEL_BASE", "./ckpts")
+MODEL_BASE = os.getenv("MODEL_BASE", WEIGHTS_PATH)
 
 # =================== Data =======================
 DATA_TYPE = {"image", "video", "image_video"}
