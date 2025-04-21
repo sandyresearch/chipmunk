@@ -16,6 +16,9 @@ Follow the Quickstart instructions in the [base Chipmunk directory](../../README
 
 ```bash
 huggingface-cli download Tencent-Hunyuan/HunyuanDiT --local-dir ./ckpts
+huggingface-cli download openai/clip-vit-large-patch14 --local-dir ./ckpts/text_encoder_2
+python hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py --input_dir ckpts/llava-llama-3-8b-v1_1-transformers --output_dir ./ckpts/text_encoder
+huggingface-cli download openai/clip-vit-large-patch14 --local-dir ./ckpts/text_encoder_2
 ```
 
 ### 3\. Generate fast videos!

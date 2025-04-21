@@ -48,7 +48,13 @@ We currently support two models for acceleration, with a third coming soon. Keep
 Use the one-line accelerated inference script to get started, and then check out [examples/hunyuan/README.md](examples/hunyuan/README.md) for a comprehensive tutorial.
 
 ```bash
-cd examples/hunyuan && huggingface-cli download Tencent-Hunyuan/HunyuanDiT --local-dir ./ckpts && python3 sample_video.py --flow-reverse --chipmunk-config ./chipmunk-config.yml
+cd examples/hunyuan
+# Download weights
+huggingface-cli download Tencent-Hunyuan/HunyuanDiT --local-dir ./ckpts
+huggingface-cli download openai/clip-vit-large-patch14 --local-dir ./ckpts/text_encoder_2
+python hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py --input_dir ./ckpts/llava-llama-3-8b-v1_1-transformers --output_dir ./ckpts/text_encoder
+# One-line accelerated inference script
+python3 sample_video.py --flow-reverse --chipmunk-config ./chipmunk-config.yml
 ```
 
 #### FLUX.1-dev Image Generation Example
