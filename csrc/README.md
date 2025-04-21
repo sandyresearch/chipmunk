@@ -1,6 +1,6 @@
 # **Chipmunk CUDA Kernels**
 
-<p align="center"><img src="assets/images/kittens-2.png" width="60%" /></p>
+<p align="center"><img src="../assets/images/kittens-2.png" width="60%" /></p>
 <center><i>We're big fans of ThunderKittens! Chipmunk kernels are written in ThunderKittens wherever possible.</i></center>
 
 Chipmunk ships all custom kernels as PyTorch extensions available under the `chipmunk.cuda` package. All tensors are expected to be **CUDA‑resident**, contiguous (except attention QKV inputs, which can be strided except for the embedding dimension). Shapes below omit batch B when the kernel is designed for B = 1; otherwise the full shape is given.
