@@ -1,6 +1,6 @@
 # Chipmunk: Hardware-Aware Sparsity for Accelerated Video & Image Generation
 
-Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What if we could make those layers faster? **Chipmunk is a training-free method to accelerate diffusion transformers with hardware-aware, training-free dynamic sparsity**. Chipmunk caches attention weights and MLP activations from previous steps and dynamically computes a sparse “delta” against the cached weights. We make Chipmunk hardware-efficient through \[128, 1\] and \[192, 1\] column-sparsity patterns \+ a suite of optimized sparse attention and MLP CUDA kernels.
+Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What if we could make those layers faster? **Chipmunk is a training-free method to accelerate diffusion transformers with hardware-aware, training-free dynamic sparsity**. Chipmunk caches attention weights and MLP activations from previous steps and dynamically computes a sparse “delta” against the cached weights. We make Chipmunk hardware-efficient through [128, 1] and [192, 1] column-sparsity patterns \+ a suite of optimized sparse attention and MLP CUDA kernels.
 
 ⚡️🎇 Stats:
 
@@ -85,7 +85,7 @@ Chipmunk starts from two empirical facts about Diffusion Transformers: activatio
 <p align="center"><img src="assets/images/howitworks-sum.png" width="60%"></p>
 Leveraging this, it caches each layer's outputs from step n − 1 and, at step n, performs a "delta" pass that recomputes only the few vectors whose weights or values have materially changed, reusing the rest.   
 <p align="center"><img src="assets/images/howitworks-cache.png" width="60%"></p>
-Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block‑sparse patterns (e.g., 128 × 256 tiles) that align with the hardware's GEMM kernels, skipping entire blocks instead of single elements. It then reorders keys, values, and tokens on the fly so that the sparse rows pack densely inside each tile, achieving an effective \[128 × 1\] column sparsity while maintaining contiguous memory access.   
+Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block‑sparse patterns (e.g., 128 × 256 tiles) that align with the hardware's GEMM kernels, skipping entire blocks instead of single elements. It then reorders keys, values, and tokens on the fly so that the sparse rows pack densely inside each tile, achieving an effective [128 × 1] column sparsity while maintaining contiguous memory access.   
 <p align="center"><img src="assets/images/howitworks-sram.png" width="60%"></p>
 
 
