@@ -133,7 +133,7 @@ def main(
         kwargs: additional arguments for TensorRT support
     """
     import chipmunk.util.config
-    chipmunk.util.config.load_from_file(kwargs.get("chipmunk_config", "chipmunk-config.yaml"))
+    chipmunk.util.config.load_from_file(kwargs.get("chipmunk_config", "chipmunk-config.yml"))
     
     device_props = torch.cuda.get_device_properties(torch.device(device))
     sm_major = device_props.major
