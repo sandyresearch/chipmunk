@@ -11,8 +11,6 @@ Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What
 
 ## Demos
 
-
-
 https://github.com/user-attachments/assets/eb68abb6-249f-4e3a-96fe-657b7cf04531
 
 
@@ -58,15 +56,6 @@ Use the one-line accelerated inference script to get started, and then check out
 cd examples/flux && python -m flux.cli --name flux-dev --prompt "A very cute cartoon chipmunk dressed up as a ninja holding katanas"
 ```
 
-## How it Works
-
-Chipmunk starts from two empirical facts about Diffusion Transformers: activations evolve slowly across timesteps, and both attention weights and MLP activations are highly sparse.   
-<p align="center"><img src="assets/images/howitworks-sum.png" width="75%"></p>
-Leveraging this, it caches each layer's outputs from step n − 1 and, at step n, performs a "delta" pass that recomputes only the few vectors whose weights or values have materially changed, reusing the rest.   
-<p align="center"><img src="assets/images/howitworks-cache.png" width="75%"></p>
-Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block‑sparse patterns (e.g., 128 × 256 tiles) that align with the hardware's GEMM kernels, skipping entire blocks instead of single elements. It then reorders keys, values, and tokens on the fly so that the sparse rows pack densely inside each tile, achieving an effective \[128 × 1\] column sparsity while maintaining contiguous memory access.   
-<p align="center"><img src="assets/images/howitworks-sram.png" width="75%"></p>
-
 ## Benchmarks
 
 <p align="center"><img src="assets/images/speed.png" width="75%"></p>
@@ -90,13 +79,23 @@ Baselines: E2E models are `torch.compile`d from reference repositories. Attentio
 | Chipmunk | 80.2%	 | 70% | 83.5% | **1.37x** |
 | Chipmunk \+ Step Caching | 78.0% | 70% | 83.5% | **1.63x** |
 
+## How it Works
+
+Chipmunk starts from two empirical facts about Diffusion Transformers: activations evolve slowly across timesteps, and both attention weights and MLP activations are highly sparse.   
+<p align="center"><img src="assets/images/howitworks-sum.png" width="60%"></p>
+Leveraging this, it caches each layer's outputs from step n − 1 and, at step n, performs a "delta" pass that recomputes only the few vectors whose weights or values have materially changed, reusing the rest.   
+<p align="center"><img src="assets/images/howitworks-cache.png" width="60%"></p>
+Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block‑sparse patterns (e.g., 128 × 256 tiles) that align with the hardware's GEMM kernels, skipping entire blocks instead of single elements. It then reorders keys, values, and tokens on the fly so that the sparse rows pack densely inside each tile, achieving an effective \[128 × 1\] column sparsity while maintaining contiguous memory access.   
+<p align="center"><img src="assets/images/howitworks-sram.png" width="60%"></p>
+
+
 ## Further Reading
 
 Technical Deep Dives:
 
-1. Summary: See SandyResearch blog  
-2. Theory: See SandyResearch blog  
-3. Systems: See SandyResearch blog
+1. **[Summary](https://sandyresearch.github.io)**: Overview of our sparsity method and what inspired it  
+2. **[Theory](https://sandyresearch.github.io)**: Builds mathematical intuition for the core ideas behind Chipmunk
+3. **[Systems](https://sandyresearch.github.io)**: A deep-dive on how Chipmunk exploits GPU kernel optimizations to become hardware-efficient
 
 Tutorials
 
