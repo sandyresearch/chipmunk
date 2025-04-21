@@ -16,7 +16,7 @@ https://github.com/user-attachments/assets/eb68abb6-249f-4e3a-96fe-657b7cf04531
 
 <p align="center"><img src="assets/images/chipmunk-comparison.png" width="75%"></p>
 
-<p align="center"><i>Images of cute chipmunks can be generated 1.37x faster! **Left**: Fully Dense FLUX.1-dev. **Right**: Ours (84% sparse attention and 70% sparse MLP)</i></p>
+<p align="center"><i>Images of cute chipmunks can be generated 1.37x faster! <b>Left</b>: Fully Dense FLUX.1-dev. <b>Right</b>: Ours (84% sparse attention and 70% sparse MLP)</i></p>
 
 
 ## Quickstart
