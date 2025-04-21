@@ -31,11 +31,11 @@ cd chipmunk
 # Create a conda environment for the project
 conda create -n chipmunk python=3.11 -y
 conda activate chipmunk
-conda install cuda==12.8.0 -c nvidia -y # need cuda >12.4 for fast kernel performance!
+conda install cuda==12.8.0 -c nvidia -y
 # Install dependencies and build kernels
 pip install -e .
-pip install -e ./examples/hunyuan # Hunyuan video generation
-pip install -e ./examples/flux # Flux video generation
+pip install -e ./examples/hunyuan
+pip install -e ./examples/flux
 ```
 
 Our kernels are written for Hopper GPUs, and depend on optimizations specific to CUDA Toolkit version ≥12.4 (we recommend 12.8\!).
