@@ -1,10 +1,8 @@
 import argparse
 from .constants import *
+from .constants import WEIGHTS_PATH
 import re
 from .modules.models import HUNYUAN_VIDEO_CONFIG
-
-WEIGHTS_PATH = './ckpts'
-
 
 def parse_args(namespace=None):
     parser = argparse.ArgumentParser(description="HunyuanVideo inference script")
