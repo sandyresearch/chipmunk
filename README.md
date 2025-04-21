@@ -21,7 +21,7 @@ https://github.com/user-attachments/assets/eb68abb6-249f-4e3a-96fe-657b7cf04531
 <p align="center"><i>Images of cute chipmunks can be generated 1.37x faster! <b>Left</b>: Fully Dense FLUX.1-dev. <b>Right</b>: Ours (84% sparse attention and 70% sparse MLP)</i></p>
 
 
-## Quickstart
+## 💡 Quickstart
 
 ### 1\. Clone repo, build kernels, & install deps
 ```bash
@@ -42,7 +42,7 @@ Our kernels are written for Hopper GPUs, and depend on optimizations specific to
 
 We currently support two models for acceleration, with a third coming soon. Keep in mind that for the first few image/video generations, it will be slower due to the cold start overhead of the PyTorch compiler. You should see speedups beginning at generation #3 and onwards.
 
-#### Hunyuan Video Generation Example
+#### 🎬 Hunyuan Video Generation Example
 
 Use the one-line accelerated inference script to get started, and then check out [examples/hunyuan/README.md](examples/hunyuan/README.md) for a comprehensive tutorial. 
 
@@ -59,7 +59,7 @@ python3 sample_video.py --flow-reverse --chipmunk-config ./chipmunk-config.yml
 
 *FYI: for Chipmunk's just-in-time offloading, we manage a pool of pinned CPU memory. Model initialization may take up to ~5 minutes as we allocate all these pinned buffers in RAM!*
 
-#### FLUX.1-dev Image Generation Example
+#### 🌅 FLUX.1-dev Image Generation Example
 
 Use the one-line accelerated inference script to get started, and then check out [examples/flux/README.md](examples/flux/README.md) for a comprehensive tutorial.
 
@@ -67,11 +67,11 @@ Use the one-line accelerated inference script to get started, and then check out
 cd examples/flux && python -m flux.cli --name flux-dev --loop --prompt "A very cute cartoon chipmunk dressed up as a ninja holding katanas" --chipmunk-config ./chipmunk-config.yml
 ```
 
-#### Mochi Video Generation Example
+#### 🎥 Mochi Video Generation Example
 
 Coming soon! Stay tuned.
 
-## Benchmarks
+## ⏰ Benchmarks
 
 <p align="center"><img src="assets/images/speed.png" width="75%"></p>
 
@@ -94,7 +94,7 @@ Baselines: E2E models are `torch.compile`d from reference repositories. Attentio
 | Chipmunk | 80.2%	 | 70% | 83.5% | **1.37x** |
 | Chipmunk \+ Step Caching | 78.0% | 70% | 83.5% | **1.63x** |
 
-## How it Works
+## 📖 How it Works
 
 Chipmunk starts from two empirical facts about Diffusion Transformers: activations evolve slowly across timesteps, and both attention weights and MLP activations are highly sparse.   
 <p align="center"><img src="assets/images/howitworks-sum.png" width="60%"></p>
@@ -104,7 +104,7 @@ Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block�
 <p align="center"><img src="assets/images/howitworks-sram.png" width="60%"></p>
 
 
-## Further Reading
+## 📚 Further Reading
 
 ### Technical Blog Posts
 
@@ -112,7 +112,7 @@ Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block�
 2. **[Mathematical Theory](https://sandyresearch.github.io/chipmunk-part-ii/)**: Builds mathematical intuition for the core ideas behind Chipmunk
 3. **[GPU Optimization & Systems](https://sandyresearch.github.io/chipmunk-part-iii/)**: A deep-dive on how Chipmunk exploits GPU kernel optimizations to become hardware-efficient
 
-### Tutorials
+### 🙋‍♂️ Tutorials
 
 * **[Hunyuan Video Tutorial](examples/hunyuan/README.md)**: A tutorial of how to edit sparsity settings in Hunyuan and generate fast videos  
 * **[FLUX.1-dev Tutorial](examples/flux/README.md)**: A tutorial of how to edit sparsity settings in Flux and generate fast images
@@ -127,6 +127,6 @@ Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block�
 [speed]: assets/images/speed.png
 [comparison]: assets/images/chipmunk-comparison.png
 
-## Contributors
+## 🤝 Contributors
 
 Austin Silveria, Soham Govande, Dan Fu
