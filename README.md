@@ -4,14 +4,14 @@ Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What
 
 *Developed in collaboration between Together AI, Hazy Research, and Sandy Research.*
 
-## ⚡️🎆 At a glance...
+## 🎆 At a glance...
 
 - **\~3.7x** faster video generation on HunyuanVideo at 720x1280 resolution for a 5s video (50 steps)  
 - **\~1.6x** faster image generations on FLUX.1-dev at 1280x768 resolution (50 steps)  
 - Column Sparse Attention layer is **~9.3x** faster than FlashAttention3 baseline  
 - Column Sparse MLP layer is **~2.5x** faster than cuBLAS baseline
 
-## Demos
+## 📸 Demos
 
 https://github.com/user-attachments/assets/eb68abb6-249f-4e3a-96fe-657b7cf04531
 
