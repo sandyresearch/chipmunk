@@ -1,3 +1,7 @@
+import os
+import yaml
+import sys
+
 GLOBAL_CONFIG = {
     'should_profile': False,
     'generation_index': 0,
@@ -57,3 +61,37 @@ GLOBAL_CONFIG = {
     },
 
 }
+
+
+import sys
+import yaml
+from typing import Dict, Any
+
+def deep_update(d: Dict[str, Any], u: Dict[str, Any]) -> None:
+    """Recursively update dictionary d with values from u"""
+    for k, v in u.items():
+        if isinstance(v, dict) and k in d and isinstance(d[k], dict):
+            deep_update(d[k], v)
+        else:
+            d[k] = v
+
+# Check for --chipmunk-config argument
+try:
+    config_idx = sys.argv.index('--chipmunk-config')
+    if config_idx + 1 < len(sys.argv):
+        print(f"CHIPMUNK: using config file {sys.argv[config_idx + 1]}")
+        # Read config file
+        config_file = sys.argv[config_idx + 1]
+        with open(config_file, 'r') as f:
+            yaml_config = yaml.safe_load(f)
+            
+        # Update global config
+        if yaml_config:
+            deep_update(GLOBAL_CONFIG, yaml_config)
+            
+        # Remove the args so they're not visible to other arg parsers
+        sys.argv.pop(config_idx + 1)
+        sys.argv.pop(config_idx)
+except ValueError:
+    print("CHIPMUNK: --chipmunk-config not found in args, using default config")
+    pass

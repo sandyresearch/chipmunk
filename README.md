@@ -34,8 +34,7 @@ conda activate chipmunk
 conda install cuda==12.8.0 -c nvidia -y
 # Install dependencies and build kernels
 pip install -e .
-pip install -e ./examples/hunyuan
-pip install -e ./examples/flux
+pip install -e ./examples/flux # Flux-specific dependencies
 ```
 
 Our kernels are written for Hopper GPUs, and depend on optimizations specific to CUDA Toolkit version ≥12.4 (we recommend 12.8\!).

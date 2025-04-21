@@ -1,0 +1,427 @@
+--- a/flux/src/flux/cli.py
++++ b/flux/src/flux/cli.py
+@@ -5,16 +5,15 @@ from dataclasses import dataclass
+ from glob import iglob
+ 
+ import torch
+ from cuda import cudart
+ from fire import Fire
+ from transformers import pipeline
+ 
+ from flux.sampling import denoise, get_noise, get_schedule, prepare, unpack
+ from flux.trt.trt_manager import TRTManager
+ from flux.util import configs, load_ae, load_clip, load_flow_model, load_t5, save_image
+ 
+ NSFW_THRESHOLD = 0.85
+ 
++import torch
+ 
+ @dataclass
+ class SamplingOptions:
+@@ -107,7 +106,6 @@ def main(
+     num_steps: int | None = None,
+     loop: bool = False,
+     guidance: float = 3.5,
+-    offload: bool = False,
+     output_dir: str = "output",
+     add_sampling_metadata: bool = True,
+     trt: bool = False,
+@@ -135,6 +133,11 @@ def main(
+         kwargs: additional arguments for TensorRT support
+     """
+ 
++    device_props = torch.cuda.get_device_properties(torch.device(device))
++    sm_major = device_props.major
++    if sm_major < 9:
++        raise ValueError("Running Chipmunk requires an H100 GPU (SM90 or higher). Your GPU has compute capability SM{sm_major}X.")
++
+     prompt = prompt.split("|")
+     if len(prompt) == 1:
+         prompt = prompt[0]
+@@ -158,8 +161,8 @@ def main(
+         num_steps = 4 if name == "flux-schnell" else 50
+ 
+     # allow for packing and conversion to latent space
+-    height = 16 * (height // 16)
+-    width = 16 * (width // 16)
++    height = 128 * (height // 128)
++    width = 128 * (width // 128)
+ 
+     output_name = os.path.join(output_dir, "img_{idx}.jpg")
+     if not os.path.exists(output_dir):
+@@ -173,62 +176,17 @@ def main(
+             idx = 0
+ 
+     # init all components
++    torch._dynamo.config.cache_size_limit = 1 << 32
++    torch._dynamo.config.accumulated_cache_size_limit = 1 << 32
++
+     t5 = load_t5(torch_device, max_length=256 if name == "flux-schnell" else 512)
+     clip = load_clip(torch_device)
+-    model = load_flow_model(name, device="cpu" if offload else torch_device)
+-    ae = load_ae(name, device="cpu" if offload else torch_device)
+-
++    model = load_flow_model(name, device=torch_device)
++    ae = load_ae(name, device=torch_device)
+
+     rng = torch.Generator(device="cpu")
+     opts = SamplingOptions(
+@@ -245,7 +203,7 @@ def main(
+ 
+     while opts is not None:
+         if opts.seed is None:
+-            opts.seed = rng.seed()
+         print(f"Generating with seed {opts.seed}:\n{opts.prompt}")
+         t0 = time.perf_counter()
+ 
+@@ -259,27 +217,16 @@ def main(
+             seed=opts.seed,
+         )
+         opts.seed = None
+         if offload:
+             ae = ae.cpu()
+             torch.cuda.empty_cache()
+             t5, clip = t5.to(torch_device), clip.to(torch_device)
+
+         inp = prepare(t5, clip, x, prompt=opts.prompt)
+         timesteps = get_schedule(opts.num_steps, inp["img"].shape[1], shift=(name != "flux-schnell"))
+ 
+         # offload TEs to CPU, load model to gpu
+         if offload:
+             t5, clip = t5.cpu(), clip.cpu()
+             torch.cuda.empty_cache()
+             model = model.to(torch_device)
+ 
+         # denoise initial noise
+         x = denoise(model, **inp, timesteps=timesteps, guidance=opts.guidance)
+ 
+         # offload model, load autoencoder to gpu
+         if offload:
+             model.cpu()
+             torch.cuda.empty_cache()
+             ae.decoder.to(x.device)
++
+ 
+         # decode latents to pixel space
+         x = unpack(x.float(), opts.height, opts.width)
+@@ -291,10 +238,10 @@ def main(
+         t1 = time.perf_counter()
+ 
+         fn = output_name.format(idx=idx)
+-        print(f"Done in {t1 - t0:.1f}s. Saving {fn}")
++        print(f"Done in {t1 - t0:.3f}s. Saving {fn}")
+ 
+         idx = save_image(nsfw_classifier, name, output_name, idx, x, add_sampling_metadata, prompt)
+
+         if loop:
+             print("-" * 80)
+             opts = parse_prompt(opts)
+diff --git a/flux/src/flux/model.py b/flux/src/flux/model.py
+index 6ef8803..ec96c1d 100644
+--- a/flux/src/flux/model.py
++++ b/flux/src/flux/model.py
+@@ -2,7 +2,9 @@ from dataclasses import dataclass
+ 
+ import torch
+ from torch import Tensor, nn
+-
++from chipmunk.ops import patchify_rope, patchify, unpatchify
++from chipmunk.util import GLOBAL_CONFIG
++from chipmunk.util.storage.offloaded_tensor import PIPELINE_DEPTH
+ from flux.modules.layers import (
+     DoubleStreamBlock,
+     EmbedND,
+@@ -12,7 +14,7 @@ from flux.modules.layers import (
+     timestep_embedding,
+ )
+ from flux.modules.lora import LinearLora, replace_linear_with_lora
+-
++from einops import rearrange
+ 
+ @dataclass
+ class FluxParams:
+@@ -78,6 +80,7 @@ class Flux(nn.Module):
+                 for _ in range(params.depth_single_blocks)
+             ]
+         )
++        self.all_blocks = self.double_blocks + self.single_blocks
+ 
+         self.final_layer = LastLayer(self.hidden_size, 1, self.out_channels)
+ 
+@@ -104,14 +107,24 @@ class Flux(nn.Module):
+         vec = vec + self.vector_in(y)
+         txt = self.txt_in(txt)
+ 
+-        ids = torch.cat((txt_ids, img_ids), dim=1)
+-        pe = self.pe_embedder(ids)
++        if hasattr(self, 'pe_patchified'):
++            pe = self.pe_patchified
++        else:
++            pe = self.pe_embedder(torch.cat((txt_ids, img_ids), dim=1))
+ 
+-        for block in self.double_blocks:
++        for i, block in enumerate(self.double_blocks):
++            if not GLOBAL_CONFIG['offloading']['global_disable_offloading']:
++                next_block = self.all_blocks[(i +                          PIPELINE_DEPTH - 1) % len(self.all_blocks)]
++                for storage in [next_block.sparse_mlp.storage, next_block.sparse_attn.storage]: storage.load_async()
++                for storage in [     block.sparse_mlp.storage,      block.sparse_attn.storage]: storage.load_async_wait()
+             img, txt = block(img=img, txt=txt, vec=vec, pe=pe)
+ 
+         img = torch.cat((txt, img), 1)
+-        for block in self.single_blocks:
++        for i, block in enumerate(self.single_blocks):
++            if not GLOBAL_CONFIG['offloading']['global_disable_offloading']:
++                next_block = self.all_blocks[(i + len(self.double_blocks) + PIPELINE_DEPTH - 1) % len(self.all_blocks)]
++                for storage in [next_block.sparse_mlp.storage, next_block.sparse_attn.storage]: storage.load_async()
++                for storage in [     block.sparse_mlp.storage,      block.sparse_attn.storage]: storage.load_async_wait()
+             img = block(img, vec=vec, pe=pe)
+         img = img[:, txt.shape[1] :, ...]
+ 
+diff --git a/flux/src/flux/modules/layers.py b/flux/src/flux/modules/layers.py
+index cbffa3c..28c4261 100644
+--- a/flux/src/flux/modules/layers.py
++++ b/flux/src/flux/modules/layers.py
+@@ -5,9 +5,9 @@ import torch
+ from einops import rearrange
+ from torch import Tensor, nn
+ 
+-from flux.math import attention, rope
+-
+-
++from flux.math import attention, rope, apply_rope
++from chipmunk.modules import SparseDiffMlp, SparseDiffAttn
++from chipmunk.util import LayerCounter
+ class EmbedND(nn.Module):
+     def __init__(self, dim: int, theta: int, axes_dim: list[int]):
+         super().__init__()
+@@ -155,6 +155,12 @@ class DoubleStreamBlock(nn.Module):
+             nn.Linear(mlp_hidden_dim, hidden_size, bias=True),
+         )
+ 
++    def sparsify(self) -> None:
++        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=True, is_attn_sparse=True)
++        # Skip text inputs - it's only 512 tokens so quite fast already!
++        self.sparse_mlp = SparseDiffMlp(layer_num, layer_counter, self.img_mlp[0], self.img_mlp[1], self.img_mlp[2], 12)
++        self.sparse_attn = SparseDiffAttn(layer_num, layer_counter)
++
+     def forward(self, img: Tensor, txt: Tensor, vec: Tensor, pe: Tensor) -> tuple[Tensor, Tensor]:
+         img_mod1, img_mod2 = self.img_mod(vec)
+         txt_mod1, txt_mod2 = self.txt_mod(vec)
+@@ -178,12 +184,17 @@ class DoubleStreamBlock(nn.Module):
+         k = torch.cat((txt_k, img_k), dim=2)
+         v = torch.cat((txt_v, img_v), dim=2)
+ 
+-        attn = attention(q, k, v, pe=pe)
++        q, k = apply_rope(q, k, pe)
++        attn = self.sparse_attn(q, k, v)
++        # attn = torch.nn.functional.scaled_dot_product_attention(q, k, v)
++        attn = rearrange(attn, "B H L D -> B L (H D)")
++
+         txt_attn, img_attn = attn[:, : txt.shape[1]], attn[:, txt.shape[1] :]
+ 
+         # calculate the img bloks
+         img = img + img_mod1.gate * self.img_attn.proj(img_attn)
+-        img = img + img_mod2.gate * self.img_mlp((1 + img_mod2.scale) * self.img_norm2(img) + img_mod2.shift)
++        img = img + img_mod2.gate * self.sparse_mlp((1 + img_mod2.scale) * self.img_norm2(img) + img_mod2.shift)
++        # img = img + img_mod2.gate * self.img_mlp((1 + img_mod2.scale) * self.img_norm2(img) + img_mod2.shift)
+ 
+         # calculate the txt bloks
+         txt = txt + txt_mod1.gate * self.txt_attn.proj(txt_attn)
+@@ -203,6 +214,7 @@ class SingleStreamBlock(nn.Module):
+         num_heads: int,
+         mlp_ratio: float = 4.0,
+         qk_scale: float | None = None,
+     ):
+         super().__init__()
+         self.hidden_dim = hidden_size
+@@ -224,19 +236,78 @@ class SingleStreamBlock(nn.Module):
+         self.mlp_act = nn.GELU(approximate="tanh")
+         self.modulation = Modulation(hidden_size, double=False)
+ 
++    def sparsify(self) -> None:
++        """
++        Break the two fused Linear layers (``linear1`` and ``linear2``) into the
++        four logical sub‑layers used by the block.  
++
++        NOTE: These changes are not specific to Chipmunk! They just make it easier to understand the forward
++        pass code.
++        """
++
++        h = self.hidden_size           # for brevity
++        m = self.mlp_hidden_dim
++
++        # ------------------------------------------------------------------
++        # 1) Split linear1  ->  qkv  +  fc1
++        # ------------------------------------------------------------------
++        # --- attention Q K V projection -----------------------------------
++        self.qkv = nn.Linear(h, 3 * h, bias=True)
++        self.qkv.weight = nn.Parameter(self.linear1.weight[: 3 * h].detach(),
++                                    requires_grad=False)
++        self.qkv.bias   = nn.Parameter(self.linear1.bias  [: 3 * h].detach(),
++                                    requires_grad=False)
++
++        # --- MLP first projection -----------------------------------------
++        self.fc1 = nn.Linear(h, m, bias=True)
++        self.fc1.weight = nn.Parameter(self.linear1.weight[3 * h :].detach(),
++                                    requires_grad=False)
++        self.fc1.bias   = nn.Parameter(self.linear1.bias  [3 * h :].detach(),
++                                    requires_grad=False)
++
++        # ------------------------------------------------------------------
++        # 2) Split linear2  ->  o  +  fc2
++        # ------------------------------------------------------------------
++        # --- attention output projection ----------------------------------
++        self.o = nn.Linear(h, h, bias=True)
++        self.o.weight = nn.Parameter(self.linear2.weight[:, : h].detach(),
++                                    requires_grad=False)
++        self.o.bias   = nn.Parameter(self.linear2.bias.detach(),
++                                    requires_grad=False)
++
++        # --- MLP second projection ----------------------------------------
++        self.fc2 = nn.Linear(m, h, bias=True)
++        self.fc2.weight = nn.Parameter(self.linear2.weight[:, h :].detach(),
++                                    requires_grad=False)
++        self.fc2.bias   = nn.Parameter(self.linear2.bias.detach(),
++                                    requires_grad=False)
++
++        # Deallocate the original tensors
++        del self.linear1, self.linear2
++
++        # Initialize the sparse layers based on these weights
++        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=True, is_attn_sparse=True)
++        self.sparse_attn = SparseDiffAttn(layer_num, layer_counter)
++        self.sparse_mlp = SparseDiffMlp(layer_num, layer_counter, self.fc1, self.mlp_act, self.fc2, 6)
++
++    
+     def forward(self, x: Tensor, vec: Tensor, pe: Tensor) -> Tensor:
+         mod, _ = self.modulation(vec)
+         x_mod = (1 + mod.scale) * self.pre_norm(x) + mod.shift
+-        qkv, mlp = torch.split(self.linear1(x_mod), [3 * self.hidden_size, self.mlp_hidden_dim], dim=-1)
+-
++        qkv = self.qkv(x_mod)
+         q, k, v = rearrange(qkv, "B L (K H D) -> K B H L D", K=3, H=self.num_heads)
+         q, k = self.norm(q, k, v)
+ 
+         # compute attention
+-        attn = attention(q, k, v, pe=pe)
++        q, k = apply_rope(q, k, pe)
++        attn = self.sparse_attn(q, k, v)
++        # attn = torch.nn.functional.scaled_dot_product_attention(q, k, v)
++        attn = rearrange(attn, "B H L D -> B L (H D)")
++        attn = self.o(attn)
+         # compute activation in mlp stream, cat again and run second linear layer
+-        output = self.linear2(torch.cat((attn, self.mlp_act(mlp)), 2))
+-        return x + mod.gate * output
++        mlp = self.sparse_mlp(x_mod)
++        # mlp = self.fc2(self.mlp_act(self.fc1(x_mod)))
++        return x + mod.gate * (attn + mlp)
+ 
+ 
+ class LastLayer(nn.Module):
+diff --git a/flux/src/flux/sampling.py b/flux/src/flux/sampling.py
+index 048b76c..510c399 100644
+--- a/flux/src/flux/sampling.py
++++ b/flux/src/flux/sampling.py
+@@ -12,6 +12,8 @@ from .modules.autoencoder import AutoEncoder
+ from .modules.conditioner import HFEmbedder
+ from .modules.image_embedders import CannyImageEncoder, DepthImageEncoder, ReduxImageEncoder
+ 
++from chipmunk.util.config import GLOBAL_CONFIG
++from chipmunk.ops import patchify, unpatchify, patchify_rope
+ 
+ def get_noise(
+     num_samples: int,
+@@ -64,6 +66,8 @@ def prepare(t5: HFEmbedder, clip: HFEmbedder, img: Tensor, prompt: str | list[st
+         "txt": txt.to(img.device),
+         "txt_ids": txt_ids.to(img.device),
+         "vec": vec.to(img.device),
++        "height": h,
++        "width": w,
+     }
+ 
+ 
+@@ -204,6 +208,8 @@ def prepare_redux(
+         "txt": txt.to(img.device),
+         "txt_ids": txt_ids.to(img.device),
+         "vec": vec.to(img.device),
++        "height": h,
++        "width": w,
+     }
+ 
+ 
+@@ -238,7 +244,7 @@ def get_schedule(
+     return timesteps.tolist()
+ 
+ 
+def denoise(
+     model: Flux,
+     # model input
+     img: Tensor,
+@@ -248,12 +254,26 @@ def denoise(
+     vec: Tensor,
+     # sampling parameters
+     timesteps: list[float],
++    height: int,
++    width: int,
+     guidance: float = 4.0,
+     # extra img tokens
+     img_cond: Tensor | None = None,
++    step_fn = None
+ ):
++    latent_width, latent_height = height // 2, width // 2
++    img = rearrange(img, "b (h w) c -> (b c) h w", h=latent_height, w=latent_width)
++    img = patchify(img)
++    img = rearrange(img, "(b c) x -> b x c", b=1)
++
++    if not hasattr(model, 'pe_patchified'):
++        ids = torch.cat((txt_ids, img_ids), dim=1)
++        pe = model.pe_embedder(ids)
++        model.pe_patchified = patchify_rope(img.shape, pe, latent_width, latent_height)
++
+     # this is ignored for schnell
+     guidance_vec = torch.full((img.shape[0],), guidance, device=img.device, dtype=img.dtype)
++    inference_step = 0
+     for t_curr, t_prev in zip(timesteps[:-1], timesteps[1:]):
+         t_vec = torch.full((img.shape[0],), t_curr, dtype=img.dtype, device=img.device)
+         pred = model(
+@@ -267,9 +287,53 @@ def denoise(
+         )
+ 
+         img = img + (t_prev - t_curr) * pred
++        if step_fn is not None:
++            step_fn(inference_step)
++        inference_step += 1
+ 
++    img = rearrange(img, "b np c -> (b c) np")
++    img = unpatchify(img, (1, latent_height, latent_width))
++    img = rearrange(img, "(b c) h w -> b (h w) c", b=1)
+     return img
+ 
+ 
+ def unpack(x: Tensor, height: int, width: int) -> Tensor:
+     return rearrange(
+diff --git a/flux/src/flux/util.py b/flux/src/flux/util.py
+index 26b9cb2..8a5ffd4 100644
+--- a/flux/src/flux/util.py
++++ b/flux/src/flux/util.py
+@@ -12,6 +12,8 @@ from flux.model import Flux, FluxLoraWrapper, FluxParams
+ from flux.modules.autoencoder import AutoEncoder, AutoEncoderParams
+ from flux.modules.conditioner import HFEmbedder
+ 
++from chipmunk.modules import quantize_fp8
++from chipmunk.util import GLOBAL_CONFIG
+ 
+ def save_image(
+     nsfw_classifier,
+@@ -343,6 +345,11 @@ def load_flow_model(
+         if verbose:
+             print_load_warning(missing, unexpected)
+ 
++    for layer in model.all_blocks:
++        layer.sparsify()
++    if GLOBAL_CONFIG['mlp']['is_fp8']:
++        model = quantize_fp8(model, device=device)
++    model.compile()
+     if configs[name].lora_path is not None:
+         print("Loading LoRA")
+         lora_sd = load_sft(configs[name].lora_path, device=str(device))

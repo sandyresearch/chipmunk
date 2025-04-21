@@ -1,113 +1,41 @@
-# FLUX
-by Black Forest Labs: https://blackforestlabs.ai. Documentation for our API can be found here: [docs.bfl.ml](https://docs.bfl.ml/).
+# Chipmunk + FLUX
 
-![grid](assets/grid.jpg)
+Original repo by Black Forest Labs: https://blackforestlabs.ai. 
 
-This repo contains minimal inference code to run image generation & editing with our Flux models.
 
-## Local installation
+## Quickstart
 
-```bash
-cd $HOME && git clone https://github.com/black-forest-labs/flux
-cd $HOME/flux
-python3.10 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[all]"
-```
+### 1\. Clone repo, build kernels, & install deps
+Follow the Quickstart instructions in the [base directory](../../README.md) to install Chipmunk's base collection of primitives.
 
-### Local installation with TensorRT support
+### 2\. Generate fast images!
 
-If you would like to install the repository with [TensorRT](https://github.com/NVIDIA/TensorRT) support, you currently need to install a PyTorch image from NVIDIA instead. First install [enroot](https://github.com/NVIDIA/enroot), next follow the steps below:
+The first and second images will be slow due to `torch.compile` cold starts. You will speedups for the third image and onwards. For reference, after the first two images, you should see image generation times of ~4.83 seconds per image at a resolution of 1280x768 on the default sparsity config we provide.
 
 ```bash
-cd $HOME && git clone https://github.com/black-forest-labs/flux
-enroot import 'docker://$oauthtoken@nvcr.io#nvidia/pytorch:25.01-py3'
-enroot create -n pti2501 nvidia+pytorch+25.01-py3.sqsh
-enroot start --rw -m ${PWD}/flux:/workspace/flux -r pti2501
-cd flux
-pip install -e ".[tensorrt]" --extra-index-url https://pypi.nvidia.com
+cd <repo_root>/examples/flux
+
+export PROMPT="A very cute cartoon chipmunk dressed up as a ninja holding katanas"
+python -m flux.cli --name flux-dev --prompt "$PROMPT" --loop --chipmunk-config ./chipmunk-config.yml
 ```
 
-### Models
+### 3\. Play around with sparsity settings
 
-We are offering an extensive suite of models. For more information about the invidual models, please refer to the link under **Usage**.
+You can edit `chipmunk-config.yml` to your liking! Here are a few parameters that make the most impact on speed:
 
-| Name                        | Usage                                                      | HuggingFace repo                                               | License                                                               |
-| --------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `FLUX.1 [schnell]`          | [Text to Image](docs/text-to-image.md)                     | https://huggingface.co/black-forest-labs/FLUX.1-schnell        | [apache-2.0](model_licenses/LICENSE-FLUX1-schnell)                    |
-| `FLUX.1 [dev]`              | [Text to Image](docs/text-to-image.md)                     | https://huggingface.co/black-forest-labs/FLUX.1-dev            | [FLUX.1-dev Non-Commercial License](model_licenses/LICENSE-FLUX1-dev) |
-| `FLUX.1 Fill [dev]`         | [In/Out-painting](docs/fill.md)                            | https://huggingface.co/black-forest-labs/FLUX.1-Fill-dev       | [FLUX.1-dev Non-Commercial License](model_licenses/LICENSE-FLUX1-dev) |
-| `FLUX.1 Canny [dev]`        | [Structural Conditioning](docs/structural-conditioning.md) | https://huggingface.co/black-forest-labs/FLUX.1-Canny-dev      | [FLUX.1-dev Non-Commercial License](model_licenses/LICENSE-FLUX1-dev) |
-| `FLUX.1 Depth [dev]`        | [Structural Conditioning](docs/structural-conditioning.md) | https://huggingface.co/black-forest-labs/FLUX.1-Depth-dev      | [FLUX.1-dev Non-Commercial License](model_licenses/LICENSE-FLUX1-dev) |
-| `FLUX.1 Canny [dev] LoRA`   | [Structural Conditioning](docs/structural-conditioning.md) | https://huggingface.co/black-forest-labs/FLUX.1-Canny-dev-lora | [FLUX.1-dev Non-Commercial License](model_licenses/LICENSE-FLUX1-dev) |
-| `FLUX.1 Depth [dev] LoRA`   | [Structural Conditioning](docs/structural-conditioning.md) | https://huggingface.co/black-forest-labs/FLUX.1-Depth-dev-lora | [FLUX.1-dev Non-Commercial License](model_licenses/LICENSE-FLUX1-dev) |
-| `FLUX.1 Redux [dev]`        | [Image variation](docs/image-variation.md)                 | https://huggingface.co/black-forest-labs/FLUX.1-Redux-dev      | [FLUX.1-dev Non-Commercial License](model_licenses/LICENSE-FLUX1-dev) |
-| `FLUX.1 [pro]`              | [Text to Image](docs/text-to-image.md)                     | [Available in our API.](https://docs.bfl.ml/)                  |                                                                       |
-| `FLUX1.1 [pro]`             | [Text to Image](docs/text-to-image.md)                     | [Available in our API.](https://docs.bfl.ml/)                  |                                                                       |
-| `FLUX1.1 [pro] Ultra/raw`   | [Text to Image](docs/text-to-image.md)                     | [Available in our API.](https://docs.bfl.ml/)                  |                                                                       |
-| `FLUX.1 Fill [pro]`         | [In/Out-painting](docs/fill.md)                            | [Available in our API.](https://docs.bfl.ml/)                  |                                                                       |
-| `FLUX.1 Canny [pro]`        | [Structural Conditioning](docs/structural-conditioning.md) | [Available in our API.](https://docs.bfl.ml/)                  |                                                                       |
-| `FLUX.1 Depth [pro]`        | [Structural Conditioning](docs/structural-conditioning.md) | [Available in our API.](https://docs.bfl.ml/)                  |                                                                       |
-| `FLUX1.1 Redux [pro]`       | [Image variation](docs/image-variation.md)                 | [Available in our API.](https://docs.bfl.ml/)                  |                                                                       |
-| `FLUX1.1 Redux [pro] Ultra` | [Image variation](docs/image-variation.md)                 | [Available in our API.](https://docs.bfl.ml/)                  |                                                                       |
+- **MLP Sparsity:** `mlp.top_keys` - This is one out of the two primary tuning knobs of Chipmunk. `mlp.top_keys` represents for every token group of MLPs, what \% of neurons will be active at once. For example, a value of 0.3 means that 30\% of neurons will be active, and 70\% will be inactive. Our kernels' performance generally scales linearly with the sparsity; you can roughly expect a value of 0.5 to be twice as fast as 0.25. We recommend you experiment with values between 0.3 and 0.7 to strike a good balance between image quality and speed. You can disable MLP sparsity entirely with `mlp.is_enabled: false` and restore default behavior.
 
-The weights of the autoencoder are also released under [apache-2.0](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md) and can be found in the HuggingFace repos above.
+- **MLP Full Step Every N Inference Steps:** `mlp.full_step_every` - Chipmunk injects fully dense MLP steps every few inference steps in order to preserve quality. We recommend using values between 5 and 25 for this parameter depending on quality requirements, finding that 10 works well for most use cases.
 
-## API usage
+- **Attention Sparsity:** `attn.top_keys` - This is the second of the two primary tuning knobs of Chipmunk. `attn.top_keys` represents for every query group of attention layers, what \% of keys/values active at once. For example, a value of 0.3 means that every query will attend to 30\% of the total available keys/values. Our kernels' performance generally scales linearly with the sparsity; you can roughly expect a value of 0.5 to be twice as fast as 0.25. Since attention is typically even sparser than MLPs, we've found that you can use values as low as 0.1 (or even 0.05) while preserving image quality. You can disable attention sparsity entirely with `attn.is_enabled: false` and restore default behavior.
 
-Our API offers access to our models. It is documented here:
-[docs.bfl.ml](https://docs.bfl.ml/).
+- **Attention Full Step Every N Inference Steps:** `attn.full_step_every` - Chipmunk injects fully dense attention steps every few inference steps in order to preserve quality. We recommend using values between 5 and 25 for this parameter depending on quality requirements, finding that 10 works well for most use cases.
 
-In this repository we also offer an easy python interface. To use this, you
-first need to register with the API on [api.bfl.ml](https://api.bfl.ml/), and
-create a new API key.
+- **MLP FP8 (Preview):** Our kernels support FP8. *NOTE: This interacts poorly with torch.compile in the public repository, so while it's faster than BF16, it might not be as fast as other FP8 implementations.*
 
-To use the API key either run `export BFL_API_KEY=<your_key_here>` or provide
-it via the `api_key=<your_key_here>` parameter. It is also expected that you
-have installed the package as above.
 
-Usage from python:
+## Add Chipmunk to your own Flux repo (or inference server!)
 
-```python
-from flux.api import ImageRequest
+We implemented the Chipmunk algorithm on top of the base Flux repo to show you how easy it is to sparsify the MLP and attention layers of any model. Don't worry, our changes are not complex or drastic! In < 20 lines of changes to the `forward()` passes, we were able to sparsify the model. There's a bit of set-up boilerplate.
 
-# this will create an api request directly but not block until the generation is finished
-request = ImageRequest("A beautiful beach", name="flux.1.1-pro")
-# or: request = ImageRequest("A beautiful beach", name="flux.1.1-pro", api_key="your_key_here")
-
-# any of the following will block until the generation is finished
-request.url
-# -> https:<...>/sample.jpg
-request.bytes
-# -> b"..." bytes for the generated image
-request.save("outputs/api.jpg")
-# saves the sample to local storage
-request.image
-# -> a PIL image
-```
-
-Usage from the command line:
-
-```bash
-$ python -m flux.api --prompt="A beautiful beach" url
-https:<...>/sample.jpg
-
-# generate and save the result
-$ python -m flux.api --prompt="A beautiful beach" save outputs/api
-
-# open the image directly
-$ python -m flux.api --prompt="A beautiful beach" image show
-```
-
-## Citation
-
-If you find the provided code or models useful for your research, consider citing them as:
-
-```bib
-@misc{flux2024,
-    author={Black Forest Labs},
-    title={FLUX},
-    year={2024},
-    howpublished={\url{https://github.com/black-forest-labs/flux}},
-}
-```
+Want to implement Chipmunk on top of your own Flux repo? We've made a very convenient [diff file](./how-to-add-chipmunk-to-base-flux.patch) that shows exactly what's new in this implementation, so that you can copy and paste the snippets of code into your own Flux inference server!

@@ -137,7 +137,8 @@ def main(
     sm_major = device_props.major
     if sm_major < 9:
         raise ValueError("Running Chipmunk requires an H100 GPU (SM90 or higher). Your GPU has compute capability SM{sm_major}X.")
-
+    if name == 'flux-schnell' or num_steps < 10:
+        print("CHIPMUNK: Warning - using Flux-schnell or a low number of steps may result in suboptimal performance. Proceed with caution unless you know what you're doing.")
     prompt = prompt.split("|")
     if len(prompt) == 1:
         prompt = prompt[0]

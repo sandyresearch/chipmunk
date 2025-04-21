@@ -13,3 +13,4 @@ invisible-watermark
 pyyaml
 python-box
 ruff
+PyYAML
