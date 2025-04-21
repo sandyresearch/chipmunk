@@ -2,14 +2,14 @@
 
 Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What if we could make those layers faster? **Chipmunk is a training-free method to accelerate diffusion transformers with hardware-aware, training-free dynamic sparsity**. Chipmunk caches attention weights and MLP activations from previous steps and dynamically computes a sparse “delta” against the cached weights. We make Chipmunk hardware-efficient through [128, 1] and [192, 1] column-sparsity patterns \+ a suite of optimized sparse attention and MLP CUDA kernels. 
 
-*Developed in collaboration with Together AI.*
+*Developed in collaboration between Together AI, Hazy Research, and Sandy Research.*
 
 ## ⚡️🎆 At a glance...
 
 - **\~3.7x** faster video generation on HunyuanVideo at 720x1280 resolution for a 5s video (50 steps)  
 - **\~1.6x** faster image generations on FLUX.1-dev at 1280x768 resolution (50 steps)  
-- Column Sparse Attention layer is **9.3x** faster than FlashAttention3 baseline  
-- Column Sparse MLP layer is **2.5x** faster than cuBLAS baseline
+- Column Sparse Attention layer is **~9.3x** faster than FlashAttention3 baseline  
+- Column Sparse MLP layer is **~2.5x** faster than cuBLAS baseline
 
 ## Demos
 
@@ -98,19 +98,15 @@ Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block�
 
 Technical Deep Dives:
 
-1. **[Summary](https://sandyresearch.github.io)**: Overview of our sparsity method and what inspired it  
-2. **[Theory](https://sandyresearch.github.io)**: Builds mathematical intuition for the core ideas behind Chipmunk
-3. **[Systems](https://sandyresearch.github.io)**: A deep-dive on how Chipmunk exploits GPU kernel optimizations to become hardware-efficient
+1. **[Summary](https://sandyresearch.github.io/chipmunk-part-i/)**: Overview of our sparsity method and what inspired it  
+2. **[Theory](https://sandyresearch.github.io/chipmunk-part-ii/)**: Builds mathematical intuition for the core ideas behind Chipmunk
+3. **[Systems](https://sandyresearch.github.io/chipmunk-part-iii/)**: A deep-dive on how Chipmunk exploits GPU kernel optimizations to become hardware-efficient
 
 Tutorials
 
 * **[Kernel Specification](csrc/README.md):** Description and purpose of each custom CUDA kernel if you'd like to start hacking on our kernels\!  
 * **[Hunyuan Video Tutorial](examples/hunyuan/README.md)**: A tutorial of how to edit sparsity settings in Hunyuan and generate fast videos  
 * **[FLUX.1-dev Tutorial](examples/flux/README.md)**: A tutorial of how to edit sparsity settings in Flux and generate fast images
-
-## Contributors
-
-Austin Silveria, Soham Govande, Dan Fu
 
 [howitworks-sum]: assets/images/howitworks-sum.png
 [howitworks-cache]: assets/images/howitworks-cache.png
