@@ -57,6 +57,10 @@ Use the one-line accelerated inference script to get started, and then check out
 cd examples/flux && python -m flux.cli --name flux-dev --prompt "A very cute cartoon chipmunk dressed up as a ninja holding katanas"
 ```
 
+#### Mochi Video Generation Example
+
+Coming soon! Stay tuned.
+
 ## Benchmarks
 
 <p align="center"><img src="assets/images/speed.png" width="75%"></p>
