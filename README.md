@@ -4,7 +4,7 @@ Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What
 
 *Developed in collaboration with Together AI, Sandy Research, and Hazy Research.*
 
-⚡️🎇 Stats:
+## ⚡️🎆 At a glance...
 
 - **\~3.7x** faster video generation on HunyuanVideo at 720x1280 resolution for a 5s video (50 steps)  
 - **\~1.4x** faster image generations on FLUX.1-dev at 1280x768 resolution (50 steps)  
