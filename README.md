@@ -104,7 +104,7 @@ Because GPUs excel at blockâ€‘sized work, Chipmunk maps these deltas onto blockâ
 2. **[Mathematical Theory](https://sandyresearch.github.io/chipmunk-part-ii/)**: Builds mathematical intuition for the core ideas behind Chipmunk
 3. **[GPU Optimization & Systems](https://sandyresearch.github.io/chipmunk-part-iii/)**: A deep-dive on how Chipmunk exploits GPU kernel optimizations to become hardware-efficient
 
-## Tutorials
+### Tutorials
 
 * **[Hunyuan Video Tutorial](examples/hunyuan/README.md)**: A tutorial of how to edit sparsity settings in Hunyuan and generate fast videos  
 * **[FLUX.1-dev Tutorial](examples/flux/README.md)**: A tutorial of how to edit sparsity settings in Flux and generate fast images
