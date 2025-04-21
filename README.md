@@ -98,17 +98,19 @@ Because GPUs excel at blockâ€‘sized work, Chipmunk maps these deltas onto blockâ
 
 ## Further Reading
 
-Technical Deep Dives:
+### Technical Blog Posts
 
-1. **[Summary](https://sandyresearch.github.io/chipmunk-part-i/)**: Overview of our sparsity method and what inspired it  
-2. **[Theory](https://sandyresearch.github.io/chipmunk-part-ii/)**: Builds mathematical intuition for the core ideas behind Chipmunk
-3. **[Systems](https://sandyresearch.github.io/chipmunk-part-iii/)**: A deep-dive on how Chipmunk exploits GPU kernel optimizations to become hardware-efficient
+1. **[Overview](https://sandyresearch.github.io/chipmunk-part-i/)**: Overview of our sparsity method and what inspired it  
+2. **[Mathematical Theory](https://sandyresearch.github.io/chipmunk-part-ii/)**: Builds mathematical intuition for the core ideas behind Chipmunk
+3. **[GPU Optimization & Systems](https://sandyresearch.github.io/chipmunk-part-iii/)**: A deep-dive on how Chipmunk exploits GPU kernel optimizations to become hardware-efficient
 
-Tutorials
+## Tutorials
 
-* **[Kernel Specification](csrc/README.md):** Description and purpose of each custom CUDA kernel if you'd like to start hacking on our kernels\!  
 * **[Hunyuan Video Tutorial](examples/hunyuan/README.md)**: A tutorial of how to edit sparsity settings in Hunyuan and generate fast videos  
 * **[FLUX.1-dev Tutorial](examples/flux/README.md)**: A tutorial of how to edit sparsity settings in Flux and generate fast images
+* **[Kernel Specification](csrc/README.md):** Description and purpose of each custom CUDA kernel if you'd like to start hacking on our kernels\!  
+
+<p align="center"><img src="assets/images/kittens.png" width="60%" /></p>
 
 [howitworks-sum]: assets/images/howitworks-sum.png
 [howitworks-cache]: assets/images/howitworks-cache.png
