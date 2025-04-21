@@ -56,7 +56,7 @@ cd examples/hunyuan && python -m <example script>
 Use the one-line accelerated inference script to get started, and then check out [examples/flux/README.md](examples/flux/README.md) for a comprehensive tutorial.
 
 ```bash
-cd examples/flux && python -m flux.cli --name flux-dev --prompt "A very cute cartoon chipmunk dressed up as a ninja holding katanas"
+cd examples/flux && python -m flux.cli --name flux-dev --loop --prompt "A very cute cartoon chipmunk dressed up as a ninja holding katanas"
 ```
 
 #### Mochi Video Generation Example
