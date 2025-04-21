@@ -31,7 +31,7 @@ GLOBAL_CONFIG = {
     },
     'attn': {
         'is_enabled': True,
-        'top_keys': 0.165,
+        'top_keys': 0.05,
         'random_keys': 0.01,
         'local_voxels': 0,
 
