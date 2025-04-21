@@ -344,7 +344,6 @@ def load_flow_model(
         missing, unexpected = model.load_state_dict(sd, strict=False, assign=True)
         if verbose:
             print_load_warning(missing, unexpected)
-
     for layer in model.all_blocks:
         layer.sparsify()
     if GLOBAL_CONFIG['mlp']['is_fp8']:

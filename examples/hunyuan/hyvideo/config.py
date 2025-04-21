@@ -15,6 +15,8 @@ def parse_args(namespace=None):
     parser = add_inference_args(parser)
     parser = add_parallel_args(parser)
 
+    parser.add_argument("--chipmunk-config", type=str, default="chipmunk-config.yml",)
+
     args = parser.parse_args(namespace=namespace)
     args = sanity_check_args(args)
 

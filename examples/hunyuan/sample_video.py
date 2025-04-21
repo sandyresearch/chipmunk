@@ -14,7 +14,7 @@ import torch._dynamo
 from hyvideo.utils.file_utils import save_videos_grid
 from hyvideo.config import parse_args
 from hyvideo.inference import HunyuanVideoSampler
-# from hyvideo.modules.chipmunk.config import update_global_config
+from hyvideo.modules.chipmunk.config import update_global_config
 
 from hyvideo.modules.head_parallel import setup_dist
 
@@ -139,5 +139,7 @@ def run_all(args):
 if __name__ == "__main__":
     ray.init(_temp_dir='/tmp/ray-hunyuan')
     args = parse_args()
+    import chipmunk.util.config
+    chipmunk.util.config.load_from_file(args.chipmunk_config)
     results = run_all(args)
 

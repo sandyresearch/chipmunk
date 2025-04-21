@@ -262,14 +262,14 @@ def _denoise_inner(
     step_fn = None
 ):
     latent_width, latent_height = height // 2, width // 2
-    img = rearrange(img, "b (h w) c -> (b c) h w", h=latent_height, w=latent_width)
-    img = patchify(img)
-    img = rearrange(img, "(b c) x -> b x c", b=1)
-
-    if not hasattr(model, 'pe_patchified'):
-        ids = torch.cat((txt_ids, img_ids), dim=1)
-        pe = model.pe_embedder(ids)
-        model.pe_patchified = patchify_rope(img.shape, pe, latent_width, latent_height)
+    if GLOBAL_CONFIG['patchify']['is_enabled']:
+        img = rearrange(img, "b (h w) c -> (b c) h w", h=latent_height, w=latent_width)
+        img = patchify(img)
+        img = rearrange(img, "(b c) x -> b x c", b=1)
+        if not hasattr(model, 'pe_patchified'):
+            ids = torch.cat((txt_ids, img_ids), dim=1)
+            pe = model.pe_embedder(ids)
+            model.pe_patchified = patchify_rope(img.shape, pe, latent_width, latent_height)
 
     # this is ignored for schnell
     guidance_vec = torch.full((img.shape[0],), guidance, device=img.device, dtype=img.dtype)
@@ -291,9 +291,10 @@ def _denoise_inner(
             step_fn(inference_step)
         inference_step += 1
 
-    img = rearrange(img, "b np c -> (b c) np")
-    img = unpatchify(img, (1, latent_height, latent_width))
-    img = rearrange(img, "(b c) h w -> b (h w) c", b=1)
+    if GLOBAL_CONFIG['patchify']['is_enabled']:
+        img = rearrange(img, "b np c -> (b c) np")
+        img = unpatchify(img, (1, latent_height, latent_width))
+        img = rearrange(img, "(b c) h w -> b (h w) c", b=1)
     return img
 
 def denoise(

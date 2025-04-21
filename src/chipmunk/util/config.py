@@ -1,6 +1,4 @@
-import os
 import yaml
-import sys
 
 GLOBAL_CONFIG = {
     'should_profile': False,
@@ -13,7 +11,7 @@ GLOBAL_CONFIG = {
         'is_enabled': True,
         'is_fp8': False,
 
-        'top_keys': 0.3,
+        'top_keys': "dd", # this will generate an error indicating that top_keys is not a float
         'random_keys': 0.05,
         'full_step_every': 10,
         'block_mask_cache': 2,
@@ -31,47 +29,9 @@ GLOBAL_CONFIG = {
         "chunk_size_1": 8,
         "chunk_size_2": 4,
     },
-    # Flux config
-    #
-    # 'attn': {
-    #     'is_enabled': True,
-    #     'top_keys': 0.165,
-    #     'random_keys': 0.01,
-    #     'local_voxels': 0,
-
-    #     'first_n_dense_layers': 2,
-    #     'full_step_every': 10,
-    #     # If not None, will override full_step_every
-    #     'full_step_schedule': None,
-
-    #     'recompute_mask': False,
-    #     'should_compress_indices': False,
-        
-    #     # do not change below this line
-    #     'counts_multiple_of': 112,
-    #     'pad_qkv_before_kernel': False,
-    #     'mbm': 192,
-    # },
-    # "offloading": {
-    #     'global_disable_offloading': False,
-
-    #     'mlp.out_cache': False,
-    #     'mlp.indices': False,
-    #     'mlp.counts': False,
-    #     'mlp.sparse_act_T': False,
-    #     'mlp.blockmean_mid_cache': False,
-
-    #     'attn.out_cache': False,
-    #     'attn.indices': False,
-    #     'attn.counts': False,
-    #     'attn.lse_constants': False,
-
-    #     'text_encoders': True,
-    # },
-
     'attn': {
         'is_enabled': True,
-        'top_keys': 0.05,
+        'top_keys': 0.165,
         'random_keys': 0.01,
         'local_voxels': 0,
 
@@ -97,12 +57,12 @@ GLOBAL_CONFIG = {
         'mlp.sparse_act_T': False,
         'mlp.blockmean_mid_cache': False,
 
-        'attn.out_cache': True,
-        'attn.indices': True,
+        'attn.out_cache': False,
+        'attn.indices': False,
         'attn.counts': False,
         'attn.lse_constants': False,
 
-        'text_encoders': True,
+        'text_encoders': False,
     },
     "step_caching": {
         'is_enabled': True,
@@ -115,31 +75,19 @@ import sys
 import yaml
 from typing import Dict, Any
 
-def deep_update(d: Dict[str, Any], u: Dict[str, Any]) -> None:
+def _deep_update(d: Dict[str, Any], u: Dict[str, Any]) -> None:
     """Recursively update dictionary d with values from u"""
     for k, v in u.items():
         if isinstance(v, dict) and k in d and isinstance(d[k], dict):
-            deep_update(d[k], v)
+            _deep_update(d[k], v)
         else:
             d[k] = v
 
-# Check for --chipmunk-config argument
-try:
-    config_idx = sys.argv.index('--chipmunk-config')
-    if config_idx + 1 < len(sys.argv):
-        print(f"CHIPMUNK: using config file {sys.argv[config_idx + 1]}")
-        # Read config file
-        config_file = sys.argv[config_idx + 1]
-        with open(config_file, 'r') as f:
-            yaml_config = yaml.safe_load(f)
-            
-        # Update global config
-        if yaml_config:
-            deep_update(GLOBAL_CONFIG, yaml_config)
-            
-        # Remove the args so they're not visible to other arg parsers
-        sys.argv.pop(config_idx + 1)
-        sys.argv.pop(config_idx)
-except ValueError:
-    print("CHIPMUNK: --chipmunk-config not found in args, using default config")
-    pass
+def load_from_file(config_file: str) -> None:
+    with open(config_file, 'r') as f:
+        yaml_config = yaml.safe_load(f)
+        
+    # Update global config
+    if yaml_config:
+        _deep_update(GLOBAL_CONFIG, yaml_config)
+        print(f"CHIPMUNK: using config file {config_file}")

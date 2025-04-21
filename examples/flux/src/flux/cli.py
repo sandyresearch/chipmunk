@@ -132,7 +132,9 @@ def main(
         trt: use TensorRT backend for optimized inference
         kwargs: additional arguments for TensorRT support
     """
-
+    import chipmunk.util.config
+    chipmunk.util.config.load_from_file(kwargs.get("chipmunk_config", "chipmunk-config.yaml"))
+    
     device_props = torch.cuda.get_device_properties(torch.device(device))
     sm_major = device_props.major
     if sm_major < 9:

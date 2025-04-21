@@ -41,14 +41,14 @@ Our kernels are written for Hopper GPUs, and depend on optimizations specific to
 
 ### 2\. Make your GPUs go brr!
 
-We currently support two models for acceleration, with a third coming soon.
+We currently support two models for acceleration, with a third coming soon. Keep in mind that for the first few image/video generations, it will be slower due to the cold start overhead of the PyTorch compiler. You should see speedups beginning at generation #3 and onwards.
 
 #### Hunyuan Video Generation Example
 
 Use the one-line accelerated inference script to get started, and then check out [examples/hunyuan/README.md](examples/hunyuan/README.md) for a comprehensive tutorial.
 
 ```bash
-cd examples/hunyuan && python -m <example script>
+cd examples/hunyuan && huggingface-cli download Tencent-Hunyuan/HunyuanDiT --local-dir ./ckpts && python3 sample_video.py --flow-reverse --chipmunk-config ./chipmunk-config.yml
 ```
 
 #### FLUX.1-dev Image Generation Example
@@ -56,7 +56,7 @@ cd examples/hunyuan && python -m <example script>
 Use the one-line accelerated inference script to get started, and then check out [examples/flux/README.md](examples/flux/README.md) for a comprehensive tutorial.
 
 ```bash
-cd examples/flux && python -m flux.cli --name flux-dev --loop --prompt "A very cute cartoon chipmunk dressed up as a ninja holding katanas"
+cd examples/flux && python -m flux.cli --name flux-dev --loop --prompt "A very cute cartoon chipmunk dressed up as a ninja holding katanas" --chipmunk-config ./chipmunk-config.yml
 ```
 
 #### Mochi Video Generation Example

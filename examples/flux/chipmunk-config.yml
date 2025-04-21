@@ -15,7 +15,23 @@ attn:
   recompute_mask: false
   should_compress_indices: false
 
+  pad_qkv_before_kernel: false
+
 patchify:
+  is_enabled: true
   # To disable patching at any level, set that level's patch size to 1. To disable patching entirely, set all patch sizes to 1.
   chunk_size_1: 8
   chunk_size_2: 4
+
+offloading:
+  global_disable_offloading: false
+  mlp.out_cache: false
+  mlp.indices: false
+  mlp.counts: false
+  mlp.sparse_act_T: false
+  mlp.blockmean_mid_cache: false
+  attn.out_cache: false
+  attn.indices: false
+  attn.counts: false
+  attn.lse_constants: false
+  text_encoders: false
