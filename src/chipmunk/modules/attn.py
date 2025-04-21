@@ -1,12 +1,12 @@
 from typing import Tuple
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 from torch.nn import functional as F
 from chipmunk.util import GLOBAL_CONFIG
 from chipmunk.ops.voxel import get_local_indices_with_text
 import chipmunk.ops
 from chipmunk.util import AttnStorage, LayerCounter
-from chipmunk.ops import bitpack
+from chipmunk.ops import bitpack, bitunpack
 import triton
 
 # Initialized based on sequence shape

@@ -28,14 +28,6 @@ from .chipmunk.chipmunk import (
     voxel_chunk_no_padding,
     bitpack,
 )
-# from .chipmunk.attention import (
-#     tk_attn,
-#     tk_attn_forward,
-#     SparseDiffAttention,
-#     test_tk_attn
-# )
-from .chipmunk.config import HUNYUAN_GLOBAL_CONFIG
-
 from chipmunk.modules.attn import SparseDiffAttn
 from chipmunk.util.layer_counter import LayerCounter
 from chipmunk.util.config import GLOBAL_CONFIG
@@ -145,31 +137,11 @@ class MMDoubleStreamBlock(nn.Module):
             **factory_kwargs,
         )
         self.hybrid_seq_parallel_attn = None
-        # self.attention = F.scaled_dot_product_attention
         layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
         self.attention = SparseDiffAttn(
             layer_num=layer_num,
             layer_counter=layer_counter,
         )
-        # if 'tk-sparse-diff' in HUNYUAN_GLOBAL_CONFIG:
-        #     max_seqlen = 119056
-        #     # self.attention = SparseDiffAttention(
-        #     #     layer_num=layer_num,
-        #     #     o_cache_stream=o_cache_stream,
-        #     #     o_cache_gpu_to_cpu_event=o_cache_gpu_to_cpu_event,
-        #     #     o_cache_cpu_to_gpu_event=o_cache_cpu_to_gpu_event,
-        #     #     # max seqlen in first dim so we can preallocate and do a contiguous copy with variable seqlen
-        #     #     o_cache_shape=(max_seqlen, 1, heads_num, hidden_size // heads_num),
-        #     #     start_step=GLOBAL_CONFIG['start_step'] if 'start_step' in GLOBAL_CONFIG else 0,
-        #     #     full_every=GLOBAL_CONFIG['full_every'] if 'full_every' in GLOBAL_CONFIG else 100,
-        #     #     start_layer=GLOBAL_CONFIG['start_layer'] if 'start_layer' in GLOBAL_CONFIG else 0,
-        #     # )
-        #     self.attention = SparseDiffAttn(
-        #         layer_num=layer_num,
-        #         layer_counter=layer_counter,
-        #     )
-        # elif 'tk-dense' in HUNYUAN_GLOBAL_CONFIG:
-        #     self.attention = tk_attn_forward
 
     def enable_deterministic(self):
         self.deterministic = True
@@ -275,18 +247,6 @@ class MMDoubleStreamBlock(nn.Module):
                 attn=self.attention,
                 inference_step=inference_step,
             )
-        # else:
-        #     attn = parallel_attention(
-        #         self.hybrid_seq_parallel_attn,
-        #         q,
-        #         k,
-        #         v,
-        #         img_q_len=img_q.shape[1],
-        #         img_kv_len=img_k.shape[1],
-        #         cu_seqlens_q=cu_seqlens_q,
-        #         cu_seqlens_kv=cu_seqlens_kv
-        #     )
-            
         # attention computation end
 
         img_attn, txt_attn = attn[:, : img.shape[1]], attn[:, img.shape[1] :]
@@ -384,34 +344,11 @@ class MMSingleStreamBlock(nn.Module):
             **factory_kwargs,
         )
         self.hybrid_seq_parallel_attn = None
-        # self.attention = F.scaled_dot_product_attention
         layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
         self.attention = SparseDiffAttn(
             layer_num=layer_num,
             layer_counter=layer_counter,
         )
-        # if 'tk-sparse-diff' in HUNYUAN_GLOBAL_CONFIG:
-        #     max_seqlen = 119056
-        #     # self.attention = SparseDiffAttention(
-        #     #     layer_num=layer_num,
-        #     #     o_cache_stream=o_cache_stream,
-        #     #     o_cache_gpu_to_cpu_event=o_cache_gpu_to_cpu_event,
-        #     #     o_cache_cpu_to_gpu_event=o_cache_cpu_to_gpu_event,
-        #     #     # max seqlen in first dim so we can preallocate and do a contiguous copy with variable seqlen
-        #     #     o_cache_shape=(max_seqlen, 1, heads_num, hidden_size // heads_num),
-        #     #     start_step=GLOBAL_CONFIG['start_step'] if 'start_step' in GLOBAL_CONFIG else 0,
-        #     #     full_every=GLOBAL_CONFIG['full_every'] if 'full_every' in GLOBAL_CONFIG else 100,
-        #     #     start_layer=GLOBAL_CONFIG['start_layer'] if 'start_layer' in GLOBAL_CONFIG else 0,
-        #     # )
-        #     layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
-        #     self.attention = SparseDiffAttn(
-        #         layer_num=layer_num,
-        #         layer_counter=layer_counter,
-        #     )
-        # elif 'tk-dense' in HUNYUAN_GLOBAL_CONFIG:
-        #     self.attention = tk_attn_forward
-        # else:
-        #     print('F.scaled_dot_product_attention')
 
     def enable_deterministic(self):
         self.deterministic = True
@@ -475,7 +412,6 @@ class MMSingleStreamBlock(nn.Module):
                 inference_step=inference_step,
             )
         else:
-            # print(f'no hybrid seq parallel attn')
             attn = attention(
                 q,
                 k,
@@ -488,17 +424,6 @@ class MMSingleStreamBlock(nn.Module):
                 attn=self.attention,
                 inference_step=inference_step,
             )
-        # else:
-        #     attn = parallel_attention(
-        #         self.hybrid_seq_parallel_attn,
-        #         q,
-        #         k,
-        #         v,
-        #         img_q_len=img_q.shape[1],
-        #         img_kv_len=img_k.shape[1],
-        #         cu_seqlens_q=cu_seqlens_q,
-        #         cu_seqlens_kv=cu_seqlens_kv
-        #     )
         # attention computation end
 
         # Compute activation in mlp stream, cat again and run second linear layer.
@@ -653,14 +578,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             else None
         )
 
-        # should_offload_o_cache = HUNYUAN_GLOBAL_CONFIG['world_size'] == 1
-        # self.o_cache_stream = torch.cuda.Stream(device=device) if should_offload_o_cache else None
-        # self.o_cache_gpu_to_cpu_event = torch.cuda.Event(enable_timing=False)
-        # self.o_cache_cpu_to_gpu_event = torch.cuda.Event(enable_timing=False)
-        # # set when we know seqlen
-        # self.o_cache_gpu_nmaj = None
-        # self.o_cache_gpu_bmaj = None
-
         # double blocks
         self.double_blocks = nn.ModuleList(
             [
@@ -814,8 +731,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
 
         ### Chipmunk: Step caching ###
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
-            # if inference_step > 0 and inference_step % 10 != 0 and inference_step % GLOBAL_CONFIG['skip_every'] == 0:
-            if inference_step in set([7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43]):
+            if inference_step in GLOBAL_CONFIG['step_caching']['skip_step_schedule']:
                 # Increment singleton layer counter
                 self.all_blocks[0].attention.layer_counter.cur_inference_step += 1
                 img = self.step_cache
@@ -834,51 +750,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 device=x.device
             )
         ##################################################
-
-            # attn_config = GLOBAL_CONFIG['attn']
-            # rk = attn_config['random_keys']
-            # topk = attn_config['top_keys']
-            # lv = attn_config['local_voxels']
-            # topk = int(topk * (tt * th * tw))
-
-            # # def indices_fn():
-            # mask, _, _ = get_local_indices_with_text(
-            #     vid_shape=(tt, th, tw),
-            #     txt_len=txt_len,
-            #     voxel_shape=(4, 6, 8),
-            #     local_shape=(lv, lv, lv),
-            #     rk=rk,
-            #     device=x.device
-            # )
-            # local_heads = self.heads_num // GLOBAL_CONFIG['world_size']
-            # mask = mask[None, None, :, :].expand(1, local_heads, -1, -1).contiguous()
-            # # return mask
-
-            # # mask = indices_fn()
-            # sparse_attn_query_groups = ((mask.sum(dim=-1, keepdim=True) + topk) < (tt * th * tw + txt_len))
-            # packed_mask, mask_shape = bitpack(mask)
-            # del mask
-
-            # for block in self.double_blocks:
-            #     if isinstance(block.attention, nn.Module):
-            #         # block.attention.indices_fn = indices_fn
-            #         block.attention.topk = topk
-            #         # block.attention.lr_mask = mask
-            #         # block.attention.mask = mask
-            #         block.attention.packed_lr_mask = packed_mask
-            #         block.attention.packed_mask = packed_mask
-            #         block.attention.mask_shape = mask_shape
-            #         block.attention.sparse_attn_query_groups = sparse_attn_query_groups
-            # for block in self.single_blocks:
-            #     if isinstance(block.attention, nn.Module):
-            #         # block.attention.indices_fn = indices_fn
-            #         block.attention.topk = topk
-            #         # block.attention.lr_mask = mask
-            #         # block.attention.mask = mask
-            #         block.attention.packed_lr_mask = packed_mask
-            #         block.attention.packed_mask = packed_mask
-            #         block.attention.mask_shape = mask_shape
-            #         block.attention.sparse_attn_query_groups = sparse_attn_query_groups
 
         vec = self.prepare_modulation(t, text_states_2, guidance)
 
@@ -924,12 +795,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
 
             if isinstance(block.attention, nn.Module):
                 # wait for this block's o_cache
-                # if self.o_cache_stream is not None and (inference_step > 0 or i > 0):
                 if inference_step > 0 or i > 0:
-                    # print(f'waiting for block {i}')
                     self.all_blocks[i].attention.storage.load_async_wait()
                 # start load for next block
-                # print(f'loading next block {i + 1}')
                 self.all_blocks[i + 1].attention.storage.load_async()
 
             img, txt = block(*double_block_args)
@@ -953,20 +821,16 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 
                 if isinstance(block.attention, nn.Module):
                     # wait for this block's o_cache
-                    # if self.o_cache_stream is not None and (inference_step > 0 or i > 0):
                     if inference_step > 0 or i > 0:
-                        # print(f'waiting for block {i + len(self.double_blocks)}')
                         self.all_blocks[i + len(self.double_blocks)].attention.storage.load_async_wait()
                     # start load for next block
                     idx = (i + len(self.double_blocks) + 1) % len(self.all_blocks)
-                    # print(f'loading next block {idx}')
                     self.all_blocks[idx].attention.storage.load_async()
 
                 x = block(*single_block_args)
 
         img = x[:, :img_seq_len, ...]
 
-        # if 'skip_every' in HUNYUAN_GLOBAL_CONFIG and HUNYUAN_GLOBAL_CONFIG['skip_every'] is not None:
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
             self.step_cache = img.clone()
 

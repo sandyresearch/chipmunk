@@ -3,6 +3,8 @@ from .constants import *
 import re
 from .modules.models import HUNYUAN_VIDEO_CONFIG
 
+WEIGHTS_PATH = './ckpts'
+
 
 def parse_args(namespace=None):
     parser = argparse.ArgumentParser(description="HunyuanVideo inference script")
@@ -222,13 +224,13 @@ def add_inference_args(parser: argparse.ArgumentParser):
     group.add_argument(
         "--model-base",
         type=str,
-        default="/data/austin/hunyuan/ckpts",
+        default=WEIGHTS_PATH,
         help="Root path of all the models, including t2v models and extra models.",
     )
     group.add_argument(
         "--dit-weight",
         type=str,
-        default="/data/austin/hunyuan/ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt",
+        default=f"{WEIGHTS_PATH}/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt",
         help="Path to the HunyuanVideo model. If None, search the model in the args.model_root."
         "1. If it is a file, load the model directly."
         "2. If it is a directory, search the model in the directory. Support two types of models: "

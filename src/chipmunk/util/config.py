@@ -31,6 +31,44 @@ GLOBAL_CONFIG = {
         "chunk_size_1": 8,
         "chunk_size_2": 4,
     },
+    # Flux config
+    #
+    # 'attn': {
+    #     'is_enabled': True,
+    #     'top_keys': 0.165,
+    #     'random_keys': 0.01,
+    #     'local_voxels': 0,
+
+    #     'first_n_dense_layers': 2,
+    #     'full_step_every': 10,
+    #     # If not None, will override full_step_every
+    #     'full_step_schedule': None,
+
+    #     'recompute_mask': False,
+    #     'should_compress_indices': False,
+        
+    #     # do not change below this line
+    #     'counts_multiple_of': 112,
+    #     'pad_qkv_before_kernel': False,
+    #     'mbm': 192,
+    # },
+    # "offloading": {
+    #     'global_disable_offloading': False,
+
+    #     'mlp.out_cache': False,
+    #     'mlp.indices': False,
+    #     'mlp.counts': False,
+    #     'mlp.sparse_act_T': False,
+    #     'mlp.blockmean_mid_cache': False,
+
+    #     'attn.out_cache': False,
+    #     'attn.indices': False,
+    #     'attn.counts': False,
+    #     'attn.lse_constants': False,
+
+    #     'text_encoders': True,
+    # },
+
     'attn': {
         'is_enabled': True,
         'top_keys': 0.05,
@@ -72,7 +110,6 @@ GLOBAL_CONFIG = {
         'skip_step_schedule': set([7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43])
     }
 }
-
 
 import sys
 import yaml

@@ -103,7 +103,7 @@ def main(
         '"FLUX" is painted over it in big, red brush strokes with visible texture'
     ),
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
-    num_steps: int | None = None,
+    num_steps: int | None = 50,
     loop: bool = False,
     guidance: float = 3.5,
     output_dir: str = "output",

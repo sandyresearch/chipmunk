@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import random
 from pathlib import Path
 from loguru import logger
 from datetime import datetime
@@ -13,7 +14,7 @@ import torch._dynamo
 from hyvideo.utils.file_utils import save_videos_grid
 from hyvideo.config import parse_args
 from hyvideo.inference import HunyuanVideoSampler
-from hyvideo.modules.chipmunk.config import update_global_config
+# from hyvideo.modules.chipmunk.config import update_global_config
 
 from hyvideo.modules.head_parallel import setup_dist
 
@@ -28,25 +29,6 @@ def main(args=None, local_rank=None, world_size=None):
     save_path = 'outputs/chipmunk-test'
     if not os.path.exists(save_path):
         os.makedirs(save_path, exist_ok=True)
-
-    # if args.config_path:
-    #     with open(args.config_path, 'r') as f:
-    #         config = json.load(f)[0]
-    #     update_global_config(config)
-
-    #     # save_path = os.path.join(save_path, config['savedir'])
-    #     # save_path = config['savedir']
-
-    #     # useful for multi node sampling
-    #     prompt_start_idx = config['prompt_start_idx'] if 'prompt_start_idx' in config else 0
-    #     skip_already_saved = 'prompt_start_idx' in config
-
-    # else:
-        # prompts = [{
-        #     'ids': [f"{args.prompt[:100].replace('/','')}-{args.seed:04d}.mp4"],
-        #     'prompt': args.prompt,
-        #     'seed': args.seed,
-        # }]
 
     # ==================== Initialize Distributed Environment ================
     device = torch.device(f"cuda")
@@ -71,18 +53,34 @@ def main(args=None, local_rank=None, world_size=None):
 
     # for prompt in prompts:
     # twice for torch compile warmup
-    for prompt in [args.prompt, args.prompt]:
-        # torch._dynamo.reset()
-        # torch.compiler.reset()
-        # torch.cuda.empty_cache()
-
+    # for prompt in [args.prompt, args.prompt]:
+    prompt_cache = None
+    while True:
+        if prompt_cache is None:
+            prompt = input("Enter a prompt: ")
+            seed = input("Enter a seed (empty for random): ")
+            if seed == "":
+                seed = random.randint(0, 1000000)
+            prompt_cache = prompt
+        else:
+            prompt = input("Enter a prompt (empty for previous prompt): ")
+            if prompt == "":
+                prompt = prompt_cache
+            prompt_cache = prompt
+            seed = input("Enter a seed (empty for random): ")
+            if seed == "":
+                seed = random.randint(0, 1000000)
+        
         # prompt_ids = prompt['ids']
         # prompt_text = prompt['prompt']
         # seed = prompt['seed']
 
-        prompt_ids = [f"{args.prompt[:100].replace('/','')}-{args.seed:04d}"]
-        prompt_text = args.prompt
-        seed = args.seed
+        # prompt_ids = [f"{args.prompt[:100].replace('/','')}-{args.seed:04d}"]
+        # prompt_text = args.prompt
+        # seed = args.seed
+        prompt_ids = [f"{prompt[:100].replace('/','')}-{seed:04d}"]
+        prompt_text = prompt
+        seed = seed
 
         # Start sampling
         # TODO: batch inference check
@@ -111,9 +109,6 @@ def main(args=None, local_rank=None, world_size=None):
                     cur_save_path = f"{save_path}/{prompt_id}.mp4"
                     save_videos_grid(sample, cur_save_path, fps=24)
                     logger.info(f'Sample save to: {cur_save_path}')
-        # del samples
-        # del outputs
-        # torch.cuda.empty_cache()
 
 def run_all(args):
     import traceback
