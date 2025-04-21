@@ -2,6 +2,7 @@ mlp:
   is_enabled: true
   is_fp8: false
   top_keys: 0.3
+  
   random_keys: 0.05
   full_step_every: 10
   block_mask_cache: 2
@@ -10,11 +11,13 @@ mlp:
 attn:
   is_enabled: true
   top_keys: 0.165
+
   full_step_every: 10
   first_n_dense_layers: 2
   recompute_mask: false
   should_compress_indices: false
-
+  
+  # Do not change below this line -- kernel-specific business
   pad_qkv_before_kernel: false
 
 patchify:
@@ -24,14 +27,4 @@ patchify:
   chunk_size_2: 4
 
 offloading:
-  global_disable_offloading: false
-  mlp.out_cache: false
-  mlp.indices: false
-  mlp.counts: false
-  mlp.sparse_act_T: false
-  mlp.blockmean_mid_cache: false
-  attn.out_cache: false
-  attn.indices: false
-  attn.counts: false
-  attn.lse_constants: false
-  text_encoders: false
+  global_disable_offloading: true

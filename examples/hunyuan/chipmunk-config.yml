@@ -19,9 +19,7 @@ attn:
   # full_step_every: 10
 
   # Do not change below this line -- kernel-specific business
-  counts_multiple_of: 128
   pad_qkv_before_kernel: true
-  mbm: 192
 
 offloading:
   attn.out_cache: true

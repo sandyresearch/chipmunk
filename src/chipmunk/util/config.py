@@ -57,12 +57,12 @@ GLOBAL_CONFIG = {
         'mlp.sparse_act_T': False,
         'mlp.blockmean_mid_cache': False,
 
-        'attn.out_cache': False,
-        'attn.indices': False,
+        'attn.out_cache': True,
+        'attn.indices': True,
         'attn.counts': False,
         'attn.lse_constants': False,
 
-        'text_encoders': False,
+        'text_encoders': True,
     },
     "step_caching": {
         'is_enabled': True,
