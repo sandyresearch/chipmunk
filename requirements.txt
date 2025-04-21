@@ -16,5 +16,5 @@ ruff
 PyYAML
 loguru
 ray
-imageio
+imageio[ffmpeg]
 diffusers
