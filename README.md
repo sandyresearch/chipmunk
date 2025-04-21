@@ -39,7 +39,9 @@ pip install -e ./examples/flux # Flux-specific dependencies
 
 Our kernels are written for Hopper GPUs, and depend on optimizations specific to CUDA Toolkit version ≥12.4 (we recommend 12.8\!).
 
-### 2\. Make image/video generation go brr!
+### 2\. Make your GPUs go brr!
+
+We currently support two models for acceleration, with a third coming soon.
 
 #### Hunyuan Video Generation Example
 
