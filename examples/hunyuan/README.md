@@ -3,6 +3,11 @@
 Original repo: https://github.com/Tencent/HunyuanVideo
 
 
+
+https://github.com/user-attachments/assets/b68f5c08-6acc-4915-99a8-e80293836aea
+
+
+
 ## Quickstart
 ### 1\. Download Weights
 * Download the HunyuanVideo weights from here: https://github.com/Tencent/HunyuanVideo/blob/main/ckpts/README.md 
