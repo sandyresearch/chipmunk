@@ -7,18 +7,10 @@ mlp:
   full_step_every: 10
   block_mask_cache: 2
   first_n_dense_layers: 2
-
-attn:
-  is_enabled: true
-  top_keys: 0.165
-
-  full_step_every: 10
-  first_n_dense_layers: 2
-  recompute_mask: false
-  should_compress_indices: false
-  
-  # Do not change below this line -- kernel-specific business
-  pad_qkv_before_kernel: false
+  # do not change below this line
+  counts_multiple_of: 256
+  bm: 128
+  mbm: 128
 
 patchify:
   is_enabled: true
@@ -26,5 +18,29 @@ patchify:
   chunk_size_1: 8
   chunk_size_2: 4
 
+attn:
+  is_enabled: true
+  top_keys: 0.165
+
+  full_step_every: 10
+  full_step_schedule: ~
+  first_n_dense_layers: 2
+  recompute_mask: false
+  should_compress_indices: false
+  # do not change below this line
+  counts_multiple_of: 112
+  pad_qkv_before_kernel: false
+  mbm: 192
+
 offloading:
   global_disable_offloading: true
+  mlp.out_cache: false
+  mlp.indices: false
+  mlp.counts: false
+  mlp.sparse_act_T: false
+  mlp.blockmean_mid_cache: false
+  attn.out_cache: false
+  attn.indices: false
+  attn.counts: false
+  attn.lse_constants: false
+  text_encoders: false

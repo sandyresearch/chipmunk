@@ -239,4 +239,46 @@ __host__ static inline void create_tensor_map_with_strides(CUtensorMap *tma_map,
     }
 }
 
+/**
+ * @brief Loads data from global memory into a shared memory tile, without assuming that the global tile is contiguous.
+ * Strides for b, d, and r are passed in as a 3-tuple.
+ *
+ * @tparam ST The type of the shared tile.
+ * @param[out] dst The destination shared memory tile.
+ * @param[in] src The source global memory array.
+ * @param[in] idx The coordinate of the tile in the global memory array.
+ * @param[in] strides The strides for b, d, and r.
+ */
+template<ducks::st::all ST, ducks::gl::all GL, ducks::coord::tile COORD=coord<ST>>
+__device__ static inline void load_strided(ST &dst, const GL &src, const COORD &idx, int3 strides) {
+    using T = typename ST::dtype;
+    const int row_stride = strides.z;
+    constexpr int N_THREADS = 128;
+    constexpr int axis = 2;
+    constexpr int elem_per_memcpy = sizeof(float4)/sizeof(typename ST::dtype);
+    constexpr int memcpy_per_row = dst.cols / elem_per_memcpy;
+    constexpr int total_calls = (dst.height*dst.width * kittens::TILE_ROW_DIM<T>*kittens::TILE_COL_DIM<T> + N_THREADS*elem_per_memcpy-1) / (N_THREADS*elem_per_memcpy); // round up
+    constexpr int total_rows = dst.height*dst.width;
+
+    typename GL::dtype *src_ptr = (typename GL::dtype*)&src[
+        idx.b*strides.x + 
+        idx.d*strides.y + 
+        idx.r*strides.z*ST::rows + 
+        idx.c*1*ST::cols
+    ];
+    uint32_t dst_ptr = static_cast<uint32_t>(__cvta_generic_to_shared(&dst.data[0]));
+    int laneid = threadIdx.x % N_THREADS;
+
+    #pragma unroll
+    for(int i = 0; i < total_calls; i++) {
+
+        int load_idx = i * N_THREADS + laneid;
+        
+        int row = load_idx / memcpy_per_row;
+        int col = (load_idx*elem_per_memcpy) % dst.cols;
+        float4 tmp;
+        move<float4>::ldg(tmp, (float4*)&src_ptr[row*row_stride + col]);
+        move<float4>::sts(dst.idx(dst_ptr, {row, col}), tmp);
+    }
+}
 }

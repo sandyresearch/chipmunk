@@ -91,6 +91,8 @@ class SparseDiffAttn(nn.Module):
         do_full_step: bool,
     ) -> Tensor:
         attn_config = GLOBAL_CONFIG['attn']
+        if inference_step == 0 and self.layer_num == 0:
+            print(attn_config)
         bm = attn_config['mbm']
         assert bm == 192, "The kernel was written for BM=192. You may need to change the kernel."
         layer = self.layer_num
@@ -159,7 +161,7 @@ class SparseDiffAttn(nn.Module):
                 o_cache = o - chipmunk.ops.csp_attn(q, k, v, inds, counts)
             else:
                 o_cache = o.clone()
-                torch.ops.chipmunk.csp_attn(q.contiguous(), k, v, o_cache, inds, counts, -1)
+                torch.ops.chipmunk.csp_attn(q, k, v, o_cache, inds, counts, -1)
             self.storage.set_out_cache(o_cache)
             return o
 
@@ -178,7 +180,7 @@ class SparseDiffAttn(nn.Module):
             if not self.storage.out_cache.is_offload_enabled:
                 # Our kernel will write to o in place, so we need to clone it if it's not offloaded
                 o = o.clone()
-            torch.ops.chipmunk.csp_attn(q.contiguous(), k, v, o, inds, counts, 1)
+            torch.ops.chipmunk.csp_attn(q, k, v, o, inds, counts, 1)
         return o
     
     def forward(self, q: Tensor, k: Tensor, v: Tensor) -> Tensor:
