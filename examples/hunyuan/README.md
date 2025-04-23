@@ -24,7 +24,7 @@ huggingface-cli download openai/clip-vit-large-patch14 --local-dir ./ckpts/text_
 
 ### 3\. Generate fast videos!
 
-The first video will be slightly slower due to `torch.compile` cold starts (by about 10s). For reference, you should see video generation times of ~280s seconds per video at a resolution of 720x1280 on the default sparsity config we provide. Additionally, because of Chipmunk's just-in-time offloading, we manage a pool of pinned CPU memory. Model initialization may take up to ~5 minutes as we allocate all these pinned buffers in RAM!
+The first video will be slightly slower due to `torch.compile` cold starts (by about 10s). For reference, you should see video generation times of ~280s seconds per video at a resolution of 720x1280 on the default sparsity config we provide. Additionally, because of Chipmunk's just-in-time offloading, we manage a pool of pinned CPU memory. Model initialization may take up to ~5 minutes as we allocate all these pinned buffers in RAM, but you can interactively enter prompts after this without re-initializing!
 
 ```bash
 cd <repo_root>/examples/hunyuan

@@ -1,6 +1,7 @@
+import copy
 import yaml
 
-GLOBAL_CONFIG = {
+BASE_CONFIG = {
     'should_profile': False,
     'generation_index': 0,
     'steps': 50,
@@ -34,11 +35,13 @@ GLOBAL_CONFIG = {
         'top_keys': 0.05,
         'random_keys': 0.01,
         'local_voxels': 0,
+        'local_1d_window': 0,
 
         'first_n_dense_layers': 2,
         'full_step_every': 10,
         # If not None, will override full_step_every
-        'full_step_schedule': set([0, 1, 10, 40]),
+        # 'full_step_schedule': set([0, 1, 10, 40]),
+        'full_step_schedule': None,
 
         'recompute_mask': True,
         'should_compress_indices': True,
@@ -71,6 +74,15 @@ GLOBAL_CONFIG = {
     }
 }
 
+GLOBAL_CONFIG = copy.deepcopy(BASE_CONFIG)
+
+def update_global_config(config):
+    global GLOBAL_CONFIG
+    GLOBAL_CONFIG.update({
+        **GLOBAL_CONFIG,
+        **config,
+    })
+
 import sys
 import yaml
 from typing import Dict, Any
@@ -90,4 +102,5 @@ def load_from_file(config_file: str) -> None:
     # Update global config
     if yaml_config:
         _deep_update(GLOBAL_CONFIG, yaml_config)
+        # update_global_config(yaml_config)
         print(f"CHIPMUNK: using config file {config_file}")

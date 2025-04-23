@@ -1,3 +1,5 @@
+import chipmunk.util.config
+
 import os
 import json
 import time
@@ -20,13 +22,14 @@ from hyvideo.modules.head_parallel import setup_dist
 
 @ray.remote(num_gpus=1)
 def main(args=None, local_rank=None, world_size=None):
+    chipmunk.util.config.load_from_file("chipmunk-config.yml")
     models_root_path = Path(args.model_base)
     if not models_root_path.exists():
         raise ValueError(f"`models_root` not exists: {models_root_path}")
     
     # Create save folder to save the samples
     # save_path = args.save_path if args.save_path_suffix=="" else f'{args.save_path}_{args.save_path_suffix}'
-    save_path = 'outputs/chipmunk-test'
+    save_path = 'outputs/chipmunk'
     if not os.path.exists(save_path):
         os.makedirs(save_path, exist_ok=True)
 
@@ -61,6 +64,8 @@ def main(args=None, local_rank=None, world_size=None):
             seed = input("Enter a seed (empty for random): ")
             if seed == "":
                 seed = random.randint(0, 1000000)
+            else:
+                seed = int(seed)
             prompt_cache = prompt
         else:
             prompt = input("Enter a prompt (empty for previous prompt): ")
@@ -70,7 +75,8 @@ def main(args=None, local_rank=None, world_size=None):
             seed = input("Enter a seed (empty for random): ")
             if seed == "":
                 seed = random.randint(0, 1000000)
-        
+            else:
+                seed = int(seed)
         # prompt_ids = prompt['ids']
         # prompt_text = prompt['prompt']
         # seed = prompt['seed']
@@ -139,7 +145,5 @@ def run_all(args):
 if __name__ == "__main__":
     ray.init(_temp_dir='/tmp/ray-hunyuan')
     args = parse_args()
-    import chipmunk.util.config
-    chipmunk.util.config.load_from_file(args.chipmunk_config)
     results = run_all(args)
 

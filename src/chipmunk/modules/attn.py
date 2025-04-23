@@ -30,8 +30,10 @@ class SparseDiffAttn(nn.Module):
         rk = attn_config['random_keys']
         topk = attn_config['top_keys']
         lv = attn_config['local_voxels']
+        lw1d = attn_config['local_1d_window']
         topk = int(topk * (tt * th * tw))
 
+        # Apply local 3D window
         mask, _, _ = get_local_indices_with_text(
             vid_shape=(tt, th, tw),
             txt_len=txt_len,
@@ -40,6 +42,25 @@ class SparseDiffAttn(nn.Module):
             rk=rk,
             device=device
         )
+
+        # Apply local 1D window
+        if lw1d > 0:
+            window_size = int(lw1d * (tt * th * tw))
+            # Each query group (dim=0, a chunk of 192 queries) in [qg, n] attends to a local 1D window
+            total_seq_len = tt * th * tw + txt_len
+            query_groups = (tt * th * tw) // 192  # Assuming 192 queries per group
+            
+            for qg in range(query_groups):
+                # Calculate the center position for this query group
+                center_pos = qg * 192 + 192 // 2
+                
+                # Define the window boundaries (ensuring we don't go out of bounds)
+                window_start = max(0, center_pos - window_size // 2)
+                window_end = min(tt * th * tw, center_pos + window_size // 2)
+                
+                # For the current query group, allow attention to tokens within the window
+                mask[qg, window_start:window_end] = True
+                # mask[0, 0, qg, tt * th * tw:total_seq_len] = True  # Always attend to text tokens
 
         mask = mask[None, None, :, :].expand(1, local_heads_num, -1, -1).contiguous()
         sparse_attn_query_groups = ((mask.sum(dim=-1, keepdim=True) + topk) < (tt * th * tw + txt_len))
@@ -105,7 +126,7 @@ class SparseDiffAttn(nn.Module):
                 tk = int(multiple_of * round((attn_config['top_keys'] * k.shape[-2]) / multiple_of))
                 
                 if attn_config['should_compress_indices']:
-                    mask = self.random_and_topk(bs, tk)
+                    mask = self.random_and_topk(bs, tk) if tk > 0 else singleton_static_mask[..., :bs.shape[-2], :bs.shape[-1]]
                     packed, mask_shape = bitpack(mask)
                     self.mask_shape = mask_shape
                     self.storage.set_indices(packed)
