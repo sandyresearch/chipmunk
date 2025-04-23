@@ -108,9 +108,9 @@ Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block�
 
 ### 🗒️ Technical Blog Posts
 
-1. **[Overview](https://sandyresearch.github.io/chipmunk-part-i/)**: Overview of our sparsity method and what inspired it  
-2. **[Mathematical Theory](https://sandyresearch.github.io/chipmunk-part-ii/)**: Builds mathematical intuition for the core ideas behind Chipmunk
-3. **[GPU Optimization & Systems](https://sandyresearch.github.io/chipmunk-part-iii/)**: A deep-dive on how Chipmunk exploits GPU kernel optimizations to become hardware-efficient
+1. **[Overview](https://sandyresearch.github.io/chipmunk-part-I/)**: Overview of our sparsity method and what inspired it  
+2. **[Mathematical Theory](https://sandyresearch.github.io/chipmunk-part-II/)**: Builds mathematical intuition for the core ideas behind Chipmunk
+3. **[GPU Optimization & Systems](https://sandyresearch.github.io/chipmunk-part-III/)**: A deep-dive on how Chipmunk exploits GPU kernel optimizations to become hardware-efficient
 
 ### 🙋‍♂️ Tutorials
 
