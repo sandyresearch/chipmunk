@@ -297,7 +297,7 @@ template<int D, int O_SCALE> struct attn_fwd_template {
                 warpgroup::store(o_smem, args.state.o_reg);
                 warpgroup::sync(warpgroup::groupid());
                 if(warpgroup::warpid() == 0)
-                    tma::store_async(args.globals.O, o_smem, {args.common.batch, args.common.head, args.common.seq*NUM_WORKERS+warpgroup::groupid(), 0});
+                    tma::store_add_async(args.globals.O, o_smem, {args.common.batch, args.common.head, args.common.seq*NUM_WORKERS+warpgroup::groupid(), 0});
                 tma::store_async_read_wait();
             }
             __syncwarp();
