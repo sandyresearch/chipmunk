@@ -28,6 +28,7 @@ attn:
   counts_multiple_of: 128
 
 offloading:
+  global_disable_offloading: true
   attn.out_cache: true
   attn.indices: true
   text_encoders: true

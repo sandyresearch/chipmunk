@@ -8,7 +8,10 @@ from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.models.modeling_utils import ModelMixin
 
 from .attention import flash_attention
-
+from chipmunk.modules import SparseDiffMlp, SparseDiffAttn
+from chipmunk.util import LayerCounter
+from chipmunk.ops.voxel import voxel_chunk_no_padding, reverse_voxel_chunk_no_padding
+from einops import rearrange
 __all__ = ['WanModel']
 
 T5_CONTEXT_TOKEN_NUMBER = 512
@@ -60,7 +63,9 @@ def rope_apply(x, grid_sizes, freqs):
             freqs[2][:w].view(1, 1, w, -1).expand(f, h, w, -1)
         ],
                             dim=-1).reshape(seq_len, 1, -1)
-
+        freqs_i_viewed = rearrange(freqs_i, '(f h w) (b1 b2) d -> b1 b2 f h w d', f=f, h=h, w=w, b1=1)
+        freqs_i = voxel_chunk_no_padding(freqs_i_viewed, voxel_shape=(4, 6, 8)).squeeze(0)
+        freqs_i = freqs_i.transpose(0, 1)
         # apply rotary embedding
         x_i = torch.view_as_real(x_i * freqs_i).flatten(2)
         x_i = torch.cat([x_i, x[i, seq_len:]])
@@ -127,6 +132,9 @@ class WanSelfAttention(nn.Module):
         self.norm_q = WanRMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
         self.norm_k = WanRMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
 
+        layer_num, layer_counter = LayerCounter.build_for_layer(is_attn_sparse=True, is_mlp_sparse=False)
+        self.attn = SparseDiffAttn(layer_num, layer_counter)
+
     def forward(self, x, seq_lens, grid_sizes, freqs):
         r"""
         Args:
@@ -146,6 +154,19 @@ class WanSelfAttention(nn.Module):
 
         q, k, v = qkv_fn(x)
 
+        # q = rope_apply(q, grid_sizes, freqs)
+        # k = rope_apply(k, grid_sizes, freqs)
+        # q, k, v = q.permute(0, 2, 1, 3).to(torch.bfloat16), k.permute(0, 2, 1, 3).to(torch.bfloat16), v.permute(0, 2, 1, 3).to(torch.bfloat16)
+        # # x = self.attn(q, k, v)
+        # # x = flash_attention(
+        # #     q=q,
+        # #     k=k,
+        # #     v=v
+        # # )
+
+        # # output
+        # x = x.permute(0, 2, 1, 3)
+        # x = x.flatten(2)
         x = flash_attention(
             q=rope_apply(q, grid_sizes, freqs),
             k=rope_apply(k, grid_sizes, freqs),
@@ -519,6 +540,8 @@ class WanModel(ModelMixin, ConfigMixin):
             List[Tensor]:
                 List of denoised video tensors with original input shapes [C_out, F, H / 8, W / 8]
         """
+        voxel_shape = (4, 6, 8)
+
         if self.model_type == 'i2v' or self.model_type == 'flf2v':
             assert clip_fea is not None and y is not None
         # params
@@ -533,7 +556,12 @@ class WanModel(ModelMixin, ConfigMixin):
         x = [self.patch_embedding(u.unsqueeze(0)) for u in x]
         grid_sizes = torch.stack(
             [torch.tensor(u.shape[2:], dtype=torch.long) for u in x])
-        x = [u.flatten(2).transpose(1, 2) for u in x]
+        
+        x[0] = x[0].unsqueeze(-1)
+        x_og_shape = x[0].shape
+        x[0] = voxel_chunk_no_padding(x[0], voxel_shape).squeeze(-1).transpose(1, 2)
+        # x = [u.flatten(2).transpose(1, 2) for u in x]
+
         seq_lens = torch.tensor([u.size(1) for u in x], dtype=torch.long)
         assert seq_lens.max() <= seq_len
         x = torch.cat([
@@ -574,8 +602,9 @@ class WanModel(ModelMixin, ConfigMixin):
             x = block(x, **kwargs)
 
         # head
+        x = reverse_voxel_chunk_no_padding(x.transpose(1, 2).unsqueeze(-1), x_og_shape, voxel_shape).squeeze(-1)
+        x = x.flatten(2).transpose(1, 2)
         x = self.head(x, e)
-
         # unpatchify
         x = self.unpatchify(x, grid_sizes)
         return [u.float() for u in x]
