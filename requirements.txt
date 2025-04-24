@@ -18,3 +18,7 @@ loguru
 ray
 imageio[ffmpeg]
 diffusers
+accelerate
+ftfy
+flash_attn
+easydict
