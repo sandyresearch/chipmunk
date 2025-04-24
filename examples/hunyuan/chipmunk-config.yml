@@ -24,7 +24,7 @@ attn:
   # full_step_every: 10
 
   # Do not change below this line -- kernel-specific business
-  pad_qkv_before_kernel: true
+  pad_qkv_before_kernel: false
 
 offloading:
   attn.out_cache: true
