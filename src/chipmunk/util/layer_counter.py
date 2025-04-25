@@ -8,6 +8,7 @@ class LayerCounter:
         self.has_attn_sparsity = False
 
         self.cur_inference_step = 0
+        self.cur_model_invocation_per_step = 0
         self.cur_layer = 0
         self.cur_layer_submodule = 0
 
@@ -44,11 +45,15 @@ class LayerCounter:
             self.cur_layer += 1
             if self.cur_layer == self.num_layers:
                 self.cur_layer = 0
-                self.cur_inference_step += 1
+                self.cur_model_invocation_per_step += 1
+                if self.cur_model_invocation_per_step == GLOBAL_CONFIG['num_model_invocations_per_inference_step']:
+                    self.cur_model_invocation_per_step = 0
+                    self.cur_inference_step += 1
         
         if self.cur_inference_step == GLOBAL_CONFIG['steps'] - 1 and \
             self.cur_layer == self.num_layers - 1 and \
-            self.cur_layer_submodule == self.num_submodules_per_layer - 1:
+            self.cur_layer_submodule == self.num_submodules_per_layer - 1 and \
+            self.cur_model_invocation_per_step == GLOBAL_CONFIG['num_model_invocations_per_inference_step'] - 1:
             self.reset()
         
         return cur_coord

@@ -2,6 +2,7 @@ import copy
 import yaml
 
 BASE_CONFIG = {
+    'num_model_invocations_per_inference_step': 1,
     'should_profile': False,
     'generation_index': 0,
     'steps': 50,

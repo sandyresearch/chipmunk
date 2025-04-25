@@ -12,6 +12,16 @@ class MlpStorage:
         self.counts = None
         self.blockmean_mid_cache = None
     
+    def complete_cur_layer(self):
+        if self.blockmean_mid_cache is not None:
+            self.blockmean_mid_cache.complete_cur_layer()
+        if self.out_cache is not None:
+            self.out_cache.complete_cur_layer()
+        if self.indices is not None:
+            self.indices.complete_cur_layer()
+        if self.counts is not None:
+            self.counts.complete_cur_layer()
+
     def get_blockmean_mid_cache(self):
         if self.blockmean_mid_cache is None:
             return None
@@ -106,6 +116,17 @@ class AttnStorage:
                 torch.device('cuda'),
                 cpu_buf_size=MaybeOffloadedTensor.MEDIUM_BUF_SIZE
             )
+
+    def complete_cur_layer(self):
+        if self.indices is not None:
+            self.indices.complete_cur_layer()
+        if self.counts is not None:
+            self.counts.complete_cur_layer()
+        if self.out_cache is not None:
+            self.out_cache.complete_cur_layer()
+        if self.lse_constants is not None:
+            self.lse_constants.complete_cur_layer()
+
 
     def get_indices(self):
         if self.indices is None:

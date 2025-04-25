@@ -9,7 +9,8 @@ from diffusers.models.modeling_utils import ModelMixin
 
 from .attention import flash_attention
 from chipmunk.modules import SparseDiffMlp, SparseDiffAttn
-from chipmunk.util import LayerCounter
+from chipmunk.util import LayerCounter, GLOBAL_CONFIG
+from chipmunk.util.storage.offloaded_tensor import PIPELINE_DEPTH
 from chipmunk.ops.voxel import voxel_chunk_no_padding, reverse_voxel_chunk_no_padding
 from einops import rearrange
 __all__ = ['WanModel']
@@ -154,25 +155,20 @@ class WanSelfAttention(nn.Module):
 
         q, k, v = qkv_fn(x)
 
-        # q = rope_apply(q, grid_sizes, freqs)
-        # k = rope_apply(k, grid_sizes, freqs)
-        # q, k, v = q.permute(0, 2, 1, 3).to(torch.bfloat16), k.permute(0, 2, 1, 3).to(torch.bfloat16), v.permute(0, 2, 1, 3).to(torch.bfloat16)
-        # # x = self.attn(q, k, v)
-        # # x = flash_attention(
-        # #     q=q,
-        # #     k=k,
-        # #     v=v
-        # # )
+        q = rope_apply(q, grid_sizes, freqs)
+        k = rope_apply(k, grid_sizes, freqs)
+        q, k, v = q.permute(0, 2, 1, 3).to(torch.bfloat16), k.permute(0, 2, 1, 3).to(torch.bfloat16), v.permute(0, 2, 1, 3).to(torch.bfloat16)
+        x = self.attn(q, k, v)
+        x = x.permute(0, 2, 1, 3)
+        self.attn.storage.complete_cur_layer()
 
         # # output
-        # x = x.permute(0, 2, 1, 3)
-        # x = x.flatten(2)
-        x = flash_attention(
-            q=rope_apply(q, grid_sizes, freqs),
-            k=rope_apply(k, grid_sizes, freqs),
-            v=v,
-            k_lens=seq_lens,
-            window_size=self.window_size)
+        # x = flash_attention(
+        #     q=rope_apply(q, grid_sizes, freqs),
+        #     k=rope_apply(k, grid_sizes, freqs),
+        #     v=v,
+        #     k_lens=seq_lens,
+        #     window_size=self.window_size)
 
         # output
         x = x.flatten(2)
@@ -516,6 +512,7 @@ class WanModel(ModelMixin, ConfigMixin):
         t,
         context,
         seq_len,
+        inference_step,
         clip_fea=None,
         y=None,
     ):
@@ -540,8 +537,8 @@ class WanModel(ModelMixin, ConfigMixin):
             List[Tensor]:
                 List of denoised video tensors with original input shapes [C_out, F, H / 8, W / 8]
         """
+        ###############################
         voxel_shape = (4, 6, 8)
-
         if self.model_type == 'i2v' or self.model_type == 'flf2v':
             assert clip_fea is not None and y is not None
         # params
@@ -576,6 +573,16 @@ class WanModel(ModelMixin, ConfigMixin):
             e0 = self.time_projection(e).unflatten(1, (6, self.dim))
             assert e.dtype == torch.float32 and e0.dtype == torch.float32
 
+        if GLOBAL_CONFIG['step_caching']['is_enabled']:
+            if inference_step in GLOBAL_CONFIG['step_caching']['skip_step_schedule']:
+                # Increment singleton layer counter
+                self.blocks[0].self_attn.attn.layer_counter.cur_inference_step += 1
+                x = self.step_cache
+                x = self.head(x, e)
+
+                x = self.unpatchify(x, grid_sizes)
+                return [u.float() for u in x]
+        
         # context
         context_lens = None
         context = self.text_embedding(
@@ -598,15 +605,24 @@ class WanModel(ModelMixin, ConfigMixin):
             context=context,
             context_lens=context_lens)
 
-        for block in self.blocks:
+        for i, block in enumerate(self.blocks):
+            next_block = self.blocks[(i + PIPELINE_DEPTH - 1) % len(self.blocks)]
+            block.self_attn.attn.storage.load_async_wait()
+            next_block.self_attn.attn.storage.load_async()
             x = block(x, **kwargs)
 
         # head
         x = reverse_voxel_chunk_no_padding(x.transpose(1, 2).unsqueeze(-1), x_og_shape, voxel_shape).squeeze(-1)
         x = x.flatten(2).transpose(1, 2)
+        
+        if GLOBAL_CONFIG['step_caching']['is_enabled']:
+            self.step_cache = x.clone()
+
         x = self.head(x, e)
+
         # unpatchify
         x = self.unpatchify(x, grid_sizes)
+
         return [u.float() for u in x]
 
     def unpatchify(self, x, grid_sizes):

@@ -225,6 +225,13 @@ class WanT2V:
 
             arg_c = {'context': context, 'seq_len': seq_len}
             arg_null = {'context': context_null, 'seq_len': seq_len}
+            self.model.blocks[0].self_attn.attn.initialize_static_mask(
+                seq_shape=(21, 45, 80),
+                # seq_shape=(21, 30, 52),
+                txt_len=0,
+                local_heads_num=40,
+                device='cuda'
+            )
 
             for _, t in enumerate(tqdm(timesteps)):
                 latent_model_input = latents
@@ -234,9 +241,9 @@ class WanT2V:
 
                 self.model.to(self.device)
                 noise_pred_cond = self.model(
-                    latent_model_input, t=timestep, **arg_c)[0]
+                    latent_model_input, t=timestep, inference_step=_, **arg_c)[0]
                 noise_pred_uncond = self.model(
-                    latent_model_input, t=timestep, **arg_null)[0]
+                    latent_model_input, t=timestep, inference_step=_, **arg_null)[0]
 
                 noise_pred = noise_pred_uncond + guide_scale * (
                     noise_pred_cond - noise_pred_uncond)
