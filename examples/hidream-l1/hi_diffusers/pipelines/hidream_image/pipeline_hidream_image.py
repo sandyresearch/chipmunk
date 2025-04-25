@@ -27,6 +27,9 @@ from .pipeline_output import HiDreamImagePipelineOutput
 from ...models.transformers.transformer_hidream_image import HiDreamImageTransformer2DModel
 from ...schedulers.fm_solvers_unipc import FlowUniPCMultistepScheduler
 
+from chipmunk.ops import patchify, unpatchify, patchify_rope
+from chipmunk.util import GLOBAL_CONFIG
+
 if is_torch_xla_available():
     import torch_xla.core.xla_model as xm
 
@@ -631,6 +634,13 @@ class HiDreamImagePipeline(DiffusionPipeline, FromSingleFileMixin):
                 img_ids = img_ids.repeat(2 * B, 1, 1)
         else:
             img_sizes = img_ids = None
+    
+        if GLOBAL_CONFIG['patchify']['is_enabled']:
+            b, c, h, w = latents.shape
+            latents = einops.rearrange(latents, 'b c h w -> (b c) h w')
+            latents_original_shape = latents.shape
+            latents = patchify(latents)
+            latents = einops.rearrange(latents, '(b c) (h w) -> b c h w', b=b, c=c, h=h, w=w)
 
         # 5. Prepare timesteps
         mu = calculate_shift(self.transformer.max_seq)
@@ -714,6 +724,11 @@ class HiDreamImagePipeline(DiffusionPipeline, FromSingleFileMixin):
 
                 if XLA_AVAILABLE:
                     xm.mark_step()
+
+        if GLOBAL_CONFIG['patchify']['is_enabled']:
+            latents = einops.rearrange(latents, 'b c h w -> (b c) h w')
+            latents = unpatchify(latents.flatten(1), latents_original_shape)
+            latents = einops.rearrange(latents, '(b c) h w -> b c h w', b=b, c=c, h=h, w=w)
 
         if output_type == "latent":
             image = latents

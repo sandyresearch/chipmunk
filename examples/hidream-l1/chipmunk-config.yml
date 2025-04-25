@@ -1,0 +1,21 @@
+patchify:
+  is_enabled: false
+  # To disable patching at any level, set that level's patch size to 1. To disable patching entirely, set all patch sizes to 1.
+  chunk_size_1: 2
+  chunk_size_2: 2
+
+attn:
+  is_enabled: true
+  top_keys: 0.165
+
+  full_step_every: 10
+  full_step_schedule: ~
+  first_n_dense_layers: 2
+  recompute_mask: false
+  should_compress_indices: false
+  # do not change below this line
+  counts_multiple_of: 112
+  pad_qkv_before_kernel: false
+
+offloading:
+  global_disable_offloading: true

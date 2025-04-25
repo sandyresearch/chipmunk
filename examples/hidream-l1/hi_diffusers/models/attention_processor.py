@@ -1,18 +1,12 @@
 from typing import Optional
 import torch
 from .attention import HiDreamAttention
-ATTN_FUNC_BACKEND = None
+from chipmunk.modules import SparseDiffAttn
+from chipmunk.util import LayerCounter
+import torch.nn.functional as F
 import einops
-try:
-    try:
-        from flash_attn_interface import flash_attn_func
-        ATTN_FUNC_BACKEND = "FLASH_ATTN_3"
-    except:
-        from flash_attn import flash_attn_func
-        ATTN_FUNC_BACKEND = "FLASH_ATTN_2"
-except:
-    import torch.nn.functional as F
-    ATTN_FUNC_BACKEND = "VANILLA"
+
+ATTN_FUNC_BACKEND = "VANILLA"
 
 # Copied from https://github.com/black-forest-labs/flux/blob/main/src/flux/math.py
 def apply_rope(xq: torch.Tensor, xk: torch.Tensor, freqs_cis: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -22,27 +16,28 @@ def apply_rope(xq: torch.Tensor, xk: torch.Tensor, freqs_cis: torch.Tensor) -> t
     xk_out = freqs_cis[..., 0] * xk_[..., 0] + freqs_cis[..., 1] * xk_[..., 1]
     return xq_out.reshape(*xq.shape).type_as(xq), xk_out.reshape(*xk.shape).type_as(xk)
 
-def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor):
-    if ATTN_FUNC_BACKEND == "FLASH_ATTN_3":
-        hidden_states = flash_attn_func(query, key, value, causal=False, deterministic=False)[0]
-    elif ATTN_FUNC_BACKEND == "FLASH_ATTN_2":
-        hidden_states = flash_attn_func(query, key, value, dropout_p=0., causal=False)
-    elif ATTN_FUNC_BACKEND == "VANILLA":
-        # Use einops for transpose: b s, h d -> b h s d 
-        query = einops.rearrange(query, 'b s h d -> b h s d')
-        key = einops.rearrange(key, 'b s h d -> b h s d')
-        value = einops.rearrange(value, 'b s h d -> b h s d')
+def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, sparse_attn: SparseDiffAttn | None = None):
+    assert ATTN_FUNC_BACKEND == "VANILLA", "Only vanilla attention is supported for HiDream"
+    # Use einops for transpose: b s, h d -> b h s d 
+    query = einops.rearrange(query, 'b s h d -> b h s d')
+    key = einops.rearrange(key, 'b s h d -> b h s d')
+    value = einops.rearrange(value, 'b s h d -> b h s d')
+    if sparse_attn is None:
         hidden_states = F.scaled_dot_product_attention(query, key, value, dropout_p=0.0, is_causal=False)
-        # Use einops for transpose: b h s d -> b s, h d
-        hidden_states = einops.rearrange(hidden_states, 'b h s d -> b s h d')
     else:
-        raise RuntimeError(f"Unknown attention backend: {ATTN_FUNC_BACKEND}")
+        hidden_states = sparse_attn(query, key, value)
+    # Use einops for transpose: b h s d -> b s, h d
+    hidden_states = einops.rearrange(hidden_states, 'b h s d -> b s h d')
     hidden_states = hidden_states.flatten(-2)
     hidden_states = hidden_states.to(query.dtype)
     return hidden_states
 
 class HiDreamAttnProcessor_flashattn:
     """Attention processor used typically in processing the SD3-like self-attention projections."""
+
+    def __init__(self):
+        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
+        self.sparse_attn = SparseDiffAttn(layer_num, layer_counter)
 
     def __call__(
         self,
@@ -98,7 +93,7 @@ class HiDreamAttnProcessor_flashattn:
             query = torch.cat([query_1, query_2], dim=-1)
             key = torch.cat([key_1, key_2], dim=-1)
 
-        hidden_states = attention(query, key, value)
+        hidden_states = attention(query, key, value, sparse_attn=self.sparse_attn)
 
         if not attn.single:
             hidden_states_i, hidden_states_t = torch.split(hidden_states, [num_image_tokens, num_text_tokens], dim=1)

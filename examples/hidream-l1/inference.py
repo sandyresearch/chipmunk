@@ -5,10 +5,13 @@ from hi_diffusers import HiDreamImageTransformer2DModel
 from hi_diffusers.schedulers.fm_solvers_unipc import FlowUniPCMultistepScheduler
 from hi_diffusers.schedulers.flash_flow_match import FlashFlowMatchEulerDiscreteScheduler
 from transformers import LlamaForCausalLM, PreTrainedTokenizerFast
+import chipmunk.util.config
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_type", type=str, default="dev")
+parser.add_argument("--chipmunk-config", type=str, default="chipmunk-config.yml")
 args = parser.parse_args()
 model_type = args.model_type
+chipmunk.util.config.load_from_file(args.chipmunk_config)
 MODEL_PREFIX = "HiDream-ai"
 LLAMA_MODEL_NAME = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 

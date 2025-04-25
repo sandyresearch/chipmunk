@@ -1,17 +1,17 @@
 num_model_invocations_per_inference_step: 2
 
 patchify:
-  is_enabled: true
+  is_enabled: false
 
 mlp:
   is_enabled: false
 
 attn:
-  is_enabled: false
-  top_keys: 0.2
-  random_keys: 0.05
+  is_enabled: true
+  top_keys: 0.1
+  random_keys: 0.01
   # Number of local voxels to use for static local attention
-  local_voxels: 0
+  local_voxels: 5
   local_1d_window: 0
   first_n_dense_layers: 2
   recompute_mask: true

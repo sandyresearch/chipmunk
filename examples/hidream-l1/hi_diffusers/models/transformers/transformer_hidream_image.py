@@ -16,7 +16,22 @@ from ..attention import HiDreamAttention, FeedForwardSwiGLU
 from ..attention_processor import HiDreamAttnProcessor_flashattn
 from ..moe import MOEFeedForwardSwiGLU
 
+from chipmunk.ops import patchify
+from chipmunk.util import GLOBAL_CONFIG
+from einops import rearrange
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
+def patchify_rope(x_shape, pe, width_rope, height_rope):
+    img_tokens = x_shape[1]
+    rope_all = pe[:, :img_tokens, :, :, :, :]
+    r0, r1, r2, r3, r4, r5 = rope_all.shape
+    rope_all = rearrange(rope_all, 'a (h w) b d e z -> (a b d e z) h w', h=height_rope, w=width_rope)
+    rope_all = patchify(rope_all)
+    rope_all = rearrange(rope_all, "(a b d e z) c -> a c b d e z", a=r0, b=r2, d=r3, e=r4, z=r5)
+    
+    pe[:, :img_tokens, :, :, :, :] = rope_all
+
+    return pe
 
 class TextProjection(nn.Module):
     def __init__(self, in_features, hidden_size):
@@ -428,7 +443,13 @@ class HiDreamImageTransformer2DModel(
             device=img_ids.device, dtype=img_ids.dtype
         )
         ids = torch.cat((img_ids, txt_ids), dim=1)
-        rope = self.pe_embedder(ids)
+        
+        if not hasattr(self, 'pe_patchified'):
+            self.pe_patchified = self.pe_embedder(ids)
+            if GLOBAL_CONFIG['patchify']['is_enabled']:
+                self.pe_patchified = patchify_rope(hidden_states.shape, self.pe_patchified, pH, pW)
+
+        rope = self.pe_patchified
 
         # 2. Blocks
         block_id = 0
