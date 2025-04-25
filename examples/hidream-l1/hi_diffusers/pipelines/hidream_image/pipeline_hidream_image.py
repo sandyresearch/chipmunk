@@ -691,6 +691,7 @@ class HiDreamImagePipeline(DiffusionPipeline, FromSingleFileMixin):
                     img_sizes = img_sizes,
                     img_ids = img_ids,
                     return_dict = False,
+                    inference_step = i,
                 )[0]
                 noise_pred = -noise_pred
 

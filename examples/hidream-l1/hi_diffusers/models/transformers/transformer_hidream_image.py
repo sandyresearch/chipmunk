@@ -386,6 +386,7 @@ class HiDreamImageTransformer2DModel(
         img_ids: Optional[torch.Tensor] = None,
         joint_attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = True,
+        inference_step: int = None,
     ):
         if joint_attention_kwargs is not None:
             joint_attention_kwargs = joint_attention_kwargs.copy()
@@ -413,6 +414,26 @@ class HiDreamImageTransformer2DModel(
         adaln_input = timesteps + p_embedder
 
         hidden_states, image_tokens_masks, img_sizes = self.patchify(hidden_states, self.max_seq, img_sizes)
+
+        if GLOBAL_CONFIG['step_caching']['is_enabled']:
+            if inference_step in GLOBAL_CONFIG['step_caching']['skip_step_schedule']:
+                self.double_stream_blocks[0].block.attn1.processor.sparse_attn.layer_counter.cur_inference_step += 1
+                hidden_states = self.step_cache
+                output = self.final_layer(hidden_states, adaln_input)
+                output = self.unpatchify(output, img_sizes, self.training)
+                if image_tokens_masks is not None:
+                    image_tokens_masks = image_tokens_masks[:, :image_tokens_seq_len]
+                if image_tokens_masks is not None:
+                    image_tokens_masks = image_tokens_masks[:, :image_tokens_seq_len]
+
+                if USE_PEFT_BACKEND:
+                    # remove `lora_scale` from each PEFT layer
+                    unscale_lora_layers(self, lora_scale)
+
+                if not return_dict:
+                    return (output, image_tokens_masks)
+                return Transformer2DModelOutput(sample=output, mask=image_tokens_masks)
+
         if image_tokens_masks is None:
             pH, pW = img_sizes[0]
             img_ids = torch.zeros(pH, pW, 3, device=hidden_states.device)
@@ -532,6 +553,8 @@ class HiDreamImageTransformer2DModel(
             block_id += 1
         
         hidden_states = hidden_states[:, :image_tokens_seq_len, ...]
+        if GLOBAL_CONFIG['step_caching']['is_enabled']:
+            self.step_cache = hidden_states.clone()
         output = self.final_layer(hidden_states, adaln_input)
         output = self.unpatchify(output, img_sizes, self.training)
         if image_tokens_masks is not None:
