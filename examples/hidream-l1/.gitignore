@@ -1,0 +1,7 @@
+__pycache__
+tmp
+*_local.py
+*.jpg
+*.png
+*.tar
+*.txt
