@@ -50,6 +50,7 @@ def main(args=None, local_rank=None, world_size=None):
 
     # Load models
     hunyuan_video_sampler = HunyuanVideoSampler.from_pretrained(models_root_path, args=args, device=device)
+    hunyuan_video_sampler.pipeline.transformer.sparsify()
 
     # Get the updated args
     args = hunyuan_video_sampler.args

@@ -5,12 +5,17 @@ mlp:
   is_enabled: false
 
 attn:
+  # debug: true
   is_enabled: true
-  top_keys: 0.05
+  # coverage: 0.7
+  top_keys: 0.01
   random_keys: 0.01
+  # top_keys: 0
+  # random_keys: 0
   # Number of local voxels to use for static local attention
   local_voxels: 0
   local_1d_window: 0
+  # local_1d_window: 0.25
   first_n_dense_layers: 2
   recompute_mask: true
   should_compress_indices: true
@@ -30,6 +35,11 @@ offloading:
   attn.out_cache: true
   attn.indices: true
   text_encoders: true
+
+tea_cache:
+  is_enabled: false
+  threshold: 0.06
+  debug: false
 
 step_caching:
   is_enabled: true

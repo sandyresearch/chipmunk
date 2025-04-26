@@ -31,7 +31,9 @@ BASE_CONFIG = {
         "chunk_size_2": 4,
     },
     'attn': {
+        'debug': False,
         'is_enabled': True,
+        'coverage': None,
         'top_keys': 0.05,
         'random_keys': 0.01,
         'local_voxels': 0,
@@ -71,6 +73,19 @@ BASE_CONFIG = {
         'is_enabled': True,
 
         'skip_step_schedule': set([7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43])
+    },
+    "tea_cache": {
+        'is_enabled': False,
+        'threshold': 1e-5,
+    },
+    "token_cache": {
+        'is_enabled': False,
+        'cache_ratio': 0.85,
+        'full_every': 3,
+    },
+    "offline_search": {
+        'is_enabled': False,
+        'output_path': 'offline-search.json',
     }
 }
 

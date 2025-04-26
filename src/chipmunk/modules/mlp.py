@@ -1,14 +1,16 @@
 import torch
+import torch.nn as nn
 from ..util.layer_counter import LayerCounter
 from ..util.config import GLOBAL_CONFIG
 from einops import rearrange
 import chipmunk.ops
+from chipmunk.cache.token_cache import TokenCache
 from chipmunk.util import MlpStorage
 
 def block_mean(x: torch.Tensor, mbm: int):
     return rearrange(x, 'b (mb mbm) c -> b mb mbm c', mbm=mbm).mean(dim=2)
 
-class SparseDiffMlp:
+class SparseDiffMlp(nn.Module):
     def __init__(
         self,
         layer_num: int,
@@ -16,21 +18,37 @@ class SparseDiffMlp:
         fc1: torch.nn.Linear,
         activation: torch.nn.Module,
         fc2: torch.nn.Linear,
-        heuristic_sms_scatter_add: int = 6
+        heuristic_sms_scatter_add: int = 6,
+        token_cache: TokenCache | None = None
     ):
+        super().__init__()
         self.fc1           = [fc1]
         self.fc2           = [fc2]
         self.fc2w_T        = [fc2.weight.data.transpose(0, 1).contiguous()]
         self.layer_counter = layer_counter
         self.activation    = activation
         self.storage       = MlpStorage(layer_num)
-
+        self.token_cache   = token_cache
+    
         self.num_sms_scatter_add = heuristic_sms_scatter_add
 
     def forward(self, x: torch.Tensor):
         fc1, fc2 = self.fc1[0], self.fc2[0]
 
         if not GLOBAL_CONFIG['mlp']['is_enabled']:
+            if GLOBAL_CONFIG['token_cache']['is_enabled']:
+                # ToCa recomputes MLP every 3 steps
+                if inference_step == 0 or inference_step % 3 == 0:
+                    o = fc2(self.activation(fc1(x)))
+                    self.storage.set_out_cache(o)
+                # ToCa sparse step
+                else:
+                    gathered = self.token_cache.gather(x)
+                    o = fc2(self.activation(fc1(gathered)))
+                    o = self.token_cache.scatter(o, self.storage.get_out_cache())
+                    self.storage.set_out_cache(o)
+                return o
+
             return fc2(self.activation(fc1(x)))
 
         do_full  = self.layer_counter.should_do_full_mlp_step()
@@ -119,5 +137,5 @@ class SparseDiffMlp:
         self.storage.set_out_cache(out_cache)
         return out_cache
     
-    def __call__(self, *args, **kwargs):
-        return self.forward(*args, **kwargs)
+    # def __call__(self, *args, **kwargs):
+    #     return self.forward(*args, **kwargs)

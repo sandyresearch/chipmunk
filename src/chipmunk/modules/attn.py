@@ -6,7 +6,8 @@ from chipmunk.util import GLOBAL_CONFIG
 from chipmunk.ops.voxel import get_local_indices_with_text
 import chipmunk.ops
 from chipmunk.util import AttnStorage, LayerCounter
-from chipmunk.ops import bitpack, bitunpack
+from chipmunk.cache.token_cache import TokenCache
+from chipmunk.ops import bitpack, bitunpack, compute_coverage_mask
 import triton
 
 # Initialized based on sequence shape
@@ -14,11 +15,16 @@ singleton_static_mask = None
 singleton_video_query_groups = None
 
 class SparseDiffAttn(nn.Module):
-    def __init__(self, layer_num: int, layer_counter: LayerCounter):
+    def __init__(self, layer_num: int, layer_counter: LayerCounter, token_cache: TokenCache | None = None):
         super().__init__()
         self.layer_num = layer_num
         self.layer_counter = layer_counter
         self.storage = AttnStorage(layer_num, init_names=['indices', 'out_cache'])
+        self.token_cache = token_cache
+
+        # debug
+        self.attn_sparsity = 0
+        self.attn_sparsity_count = 0
 
     def initialize_static_mask(self, seq_shape: Tuple, txt_len: int, local_heads_num: int, device: torch.device):
         if len(seq_shape) == 2:
@@ -78,6 +84,10 @@ class SparseDiffAttn(nn.Module):
 
         qg = cs.shape[-2]
         n = cs.shape[-1]
+
+        if GLOBAL_CONFIG['attn']['coverage'] is not None:
+            mask = compute_coverage_mask(cs, GLOBAL_CONFIG['attn']['coverage'], mask)
+
         mask = (mask * singleton_video_query_groups[..., :qg, :n]) | singleton_static_mask[..., :qg, :n]
 
         return mask
@@ -123,6 +133,9 @@ class SparseDiffAttn(nn.Module):
                 lse[..., k.shape[-2]:, :] = 0
                 self.storage.set_lse_constants(lse)
 
+                # Score tokens as a function of column sums
+                self.token_cache.score(bs)
+
                 tk = int(multiple_of * round((attn_config['top_keys'] * k.shape[-2]) / multiple_of))
                 
                 if attn_config['should_compress_indices']:
@@ -161,6 +174,14 @@ class SparseDiffAttn(nn.Module):
                 o_cache = o.clone()
                 torch.ops.chipmunk.csp_attn(q.contiguous(), k, v, o_cache, inds, counts, -1)
             self.storage.set_out_cache(o_cache)
+
+            if GLOBAL_CONFIG['attn']['debug']:
+                sparsity = torch.sum(counts) / inds.numel()
+                print(f'step {inference_step:02} layer {self.layer_num:02} sparsity: {sparsity:.4f}')
+
+            if attn_config['should_compress_indices']:
+                del inds, counts, mask
+
             return o
 
         # ─────────── SPARSE STEP ───────────
@@ -179,16 +200,49 @@ class SparseDiffAttn(nn.Module):
                 # Our kernel will write to o in place, so we need to clone it if it's not offloaded
                 o = o.clone()
             torch.ops.chipmunk.csp_attn(q.contiguous(), k, v, o, inds, counts, 1)
+
+        if GLOBAL_CONFIG['attn']['debug']:
+            sparsity = torch.sum(counts) / inds.numel()
+            self.attn_sparsity += sparsity
+            self.attn_sparsity_count += 1
+            self.layer_counter.attn_sparsity += sparsity
+            self.layer_counter.attn_sparsity_count += 1
+
+        if attn_config['should_compress_indices']:
+            del inds, counts, mask
+
         return o
     
     def forward(self, q: Tensor, k: Tensor, v: Tensor) -> Tensor:
         do_full_step = self.layer_counter.should_do_full_attn_step()
-        if not GLOBAL_CONFIG['attn']['is_enabled']:
-            return F.scaled_dot_product_attention(q, k, v)
-
         inference_step, layer, submodule = self.layer_counter.increment()
+        if GLOBAL_CONFIG['offline_search']['is_enabled']:
+            if inference_step == 0 and layer == 0:
+                print(f'=== RUNNING OFFLINE SEARCH ===')
+            print(f'inference_step: {inference_step}, do_full_step: {do_full_step}')
 
-        return self._fast_attention(q, k, v, inference_step, do_full_step)
+        if not GLOBAL_CONFIG['attn']['is_enabled']:
+            if GLOBAL_CONFIG['token_cache']['is_enabled']:
+                if inference_step == 0:
+                    o = chipmunk.ops.dense_attn(q, k, v)
+                # ToCa recomputes attention every 3 steps
+                elif inference_step % 3 == 0:
+                    o, cs = chipmunk.ops.dense_colsum_attn(q, k, v)
+                    self.token_cache.score(cs)
+                else:
+                    o = self.storage.get_out_cache()
+                return o
+            else:
+                return F.scaled_dot_product_attention(q, k, v)
+
+        o = self._fast_attention(q, k, v, inference_step, do_full_step)
+
+        if GLOBAL_CONFIG['attn']['debug'] and inference_step == GLOBAL_CONFIG['steps'] - 1:
+            if self.attn_sparsity_count > 0:
+                print(f'layer {self.layer_num} attn sparsity: {self.attn_sparsity / self.attn_sparsity_count}')
+                print(f'avg attn sparsity: {self.layer_counter.attn_sparsity / self.layer_counter.attn_sparsity_count}')
+
+        return o
 
     def __call__(self, *args, **kwargs):
         return self.forward(*args, **kwargs)
