@@ -1,10 +1,6 @@
 import torch
 from chipmunk.util import GLOBAL_CONFIG
 
-# Global config for whether offloading is enabled
-is_offload_enabled = GLOBAL_CONFIG['offloading']
-NUM_MODEL_INVOCATIONS_PER_INFERENCE_STEP = GLOBAL_CONFIG['num_model_invocations_per_inference_step']
-
 # Determines how many layer "slots" we keep in GPU memory simultaneously
 PIPELINE_DEPTH = 2
 assert PIPELINE_DEPTH > 1, "Pipeline depth must be greater than 1 - if pipeline depth is 1, this means we are using naive offloading per-layer which doesn't make sense!"
@@ -58,6 +54,7 @@ class MaybeOffloadedTensor:
         :param device: Device on which GPU allocation will occur (e.g. 'cuda').
         :param cpu_buf_size: Size of the pinned CPU buffer for offloading.
         """
+        is_offload_enabled = GLOBAL_CONFIG['offloading']
         if name not in is_offload_enabled:
             raise ValueError(f"Invalid tensor name: {name}. Expected one of: {is_offload_enabled.keys()}")
         self.name = name
@@ -71,11 +68,11 @@ class MaybeOffloadedTensor:
         # Pre-allocate pinned CPU buffer to hold the tensor data
         if self.is_offload_enabled:
             print(f"Offloaded tensor {name} allocated {cpu_buf_size} bytes of pinned CPU memory")
-            self.cpu_buf = [torch.empty(cpu_buf_size, dtype=dtype, device="cpu", pin_memory=True) for _ in range(NUM_MODEL_INVOCATIONS_PER_INFERENCE_STEP)]
+            self.cpu_buf = [torch.empty(cpu_buf_size, dtype=dtype, device="cpu", pin_memory=True) for _ in range(GLOBAL_CONFIG['num_model_invocations_per_inference_step'])]
         else:
-            self.gpu_tensor = [None for _ in range(NUM_MODEL_INVOCATIONS_PER_INFERENCE_STEP)]
+            self.gpu_tensor = [None for _ in range(GLOBAL_CONFIG['num_model_invocations_per_inference_step'])]
         # Will store the original shape of the tensor so we can reload properly
-        self.real_shape = None
+        self.real_shape = [None for _ in range(GLOBAL_CONFIG['num_model_invocations_per_inference_step'])]
         self.load_completed_event = None
 
         self.model_invocation_count = 0
@@ -88,7 +85,7 @@ class MaybeOffloadedTensor:
         self.model_invocation_count += 1
 
     def get_cur_model_invocation_key(self):
-        return self.model_invocation_count % NUM_MODEL_INVOCATIONS_PER_INFERENCE_STEP
+        return self.model_invocation_count % GLOBAL_CONFIG['num_model_invocations_per_inference_step']
 
     @torch.compiler.disable # disable torch.compile so that we can use pinned memory and .record_stream()
     def offload(self, gpu_tensor: torch.Tensor):
@@ -106,8 +103,7 @@ class MaybeOffloadedTensor:
             "Tensor is too large to offload - try adjusting MaybeOffloadedTensor.LARGE_BUF_SIZE"
         )
         # Record the original shape so we can create a matching GPU tensor on load
-        self.real_shape = gpu_tensor.shape
-
+        self.real_shape[self.get_cur_model_invocation_key()] = gpu_tensor.shape
         # Perform copy on our dedicated self.offload_stream
         self.offload_stream.wait_stream(torch.cuda.current_stream())
         with torch.cuda.stream(self.offload_stream):
@@ -144,15 +140,15 @@ class MaybeOffloadedTensor:
         :return: The GPU tensor now loaded into the correct slot.
         """
         # no op if the tensor does not exist yet
-        if not self.real_shape:
+        if self.real_shape[self.get_cur_model_invocation_key()] is None:
             return None
-
+        cur_real_shape = self.real_shape[self.get_cur_model_invocation_key()]
         if not self.is_offload_enabled:
             return self.gpu_tensor[self.get_cur_model_invocation_key()]
         # Allocate a GPU tensor if the slot is currently None / used by a different shape (happens when switching between double and single stream block)
-        if gpu_tensors[self.name][self.layer_key] is None or gpu_tensors[self.name][self.layer_key].shape != self.real_shape:
+        if gpu_tensors[self.name][self.layer_key] is None or gpu_tensors[self.name][self.layer_key].shape != cur_real_shape:
             gpu_tensors[self.name][self.layer_key] = torch.empty(
-                self.real_shape, dtype=self.cpu_buf[self.get_cur_model_invocation_key()].dtype, device=self.device
+                cur_real_shape, dtype=self.cpu_buf[self.get_cur_model_invocation_key()].dtype, device=self.device
             )
 
         gpu_tensor = gpu_tensors[self.name][self.layer_key]

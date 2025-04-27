@@ -3,6 +3,8 @@ import json
 import os
 import time
 
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = os.environ.get('PYTORCH_CUDA_ALLOC_CONF', 'expandable_segments:True')
+
 import click
 import numpy as np
 import torch
@@ -17,6 +19,10 @@ from genmo.mochi_preview.pipelines import (
     T5ModelFactory,
     linear_quadratic_schedule,
 )
+
+import chipmunk.util.config
+
+torch._dynamo.config.cache_size_limit = 1 << 31
 
 pipeline = None
 model_dir_path = None
@@ -148,10 +154,12 @@ inviting atmosphere.
 @click.option("--out_dir", default="outputs", help="Output directory for generated videos")
 @click.option("--threshold-noise", default=0.025, help="threshold noise")
 @click.option("--linear-steps", default=None, type=int, help="linear steps")
+@click.option("--chipmunk-config", default='chipmunk-config.yml', help="Path to the chipmunk config file.")
 def generate_cli(
     prompt, sweep_file, negative_prompt, width, height, num_frames, seed, cfg_scale, num_steps, 
-    model_dir, lora_path, cpu_offload, out_dir, threshold_noise, linear_steps
+    model_dir, lora_path, cpu_offload, out_dir, threshold_noise, linear_steps, chipmunk_config
 ):
+    chipmunk.util.config.load_from_file(chipmunk_config)
     configure_model(model_dir, lora_path, cpu_offload)
 
     if sweep_file:

@@ -108,7 +108,6 @@ def dense_colsum_attn(q, k, v, p):
         k = k.contiguous()
         v = v.contiguous()
         p = p.contiguous()
-
         assert p.shape[-2] == padded_n
 
         # compute

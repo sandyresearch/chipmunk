@@ -31,10 +31,25 @@ from genmo.mochi_preview.dit.joint_model.utils import (
     modulate,
     pad_and_split_xy,
 )
+from chipmunk.modules import SparseDiffAttn
+from chipmunk.ops.voxel import voxel_chunk_no_padding, reverse_voxel_chunk_no_padding
+from chipmunk.util import LayerCounter, GLOBAL_CONFIG
+from chipmunk.util.storage.offloaded_tensor import PIPELINE_DEPTH
 
 COMPILE_FINAL_LAYER = os.environ.get("COMPILE_DIT") == "1"
 COMPILE_MMDIT_BLOCK = os.environ.get("COMPILE_DIT") == "1"
 
+def voxel_chunk_rope(
+    rope: torch.Tensor,
+    voxel_shape: Tuple[int, int, int],
+    T: int,
+    H: int,
+    W: int,
+):
+    rope = rearrange(rope, '(t h w) d1 d2 -> d1 t h w d2', t=T, h=H // 2, w=W // 2).unsqueeze(0)
+    rope = voxel_chunk_no_padding(rope, voxel_shape)
+    rope = rope.squeeze(0).transpose(0, 1)
+    return rope
 
 def ck(fn, *args, enabled=True, **kwargs) -> torch.Tensor:
     if enabled:
@@ -105,6 +120,9 @@ class AsymmetricAttention(nn.Module):
         )
         self.proj_x = LoraLinear(dim_x, dim_x, **proj_lora_kwargs)
         self.proj_y = LoraLinear(dim_x, dim_y, **proj_lora_kwargs) if update_y else nn.Identity()
+
+        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
+        self.attn = SparseDiffAttn(layer_num, layer_counter)
 
     def run_qkv_y(self, y):
         cp_rank, cp_size = cp.get_cp_rank_size()
@@ -231,25 +249,15 @@ class AsymmetricAttention(nn.Module):
         total = q.size(0)
         assert k.size(0) == total and v.size(0) == total
 
-        if self.attention_mode == "flash":
-            out = self.flash_attention(
-                q, k, v, cu_seqlens, max_seqlen_in_batch, total, local_dim)  # (total, local_dim)
-        else:
-            assert B == 1, \
-                f"Non-flash attention mode {self.attention_mode} only supports batch size 1, got {B}"
+        q = rearrange(q, "(b s) h d -> b h s d", b=B)
+        k = rearrange(k, "(b s) h d -> b h s d", b=B)
+        v = rearrange(v, "(b s) h d -> b h s d", b=B)
 
-            q = rearrange(q, "(b s) h d -> b h s d", b=B)
-            k = rearrange(k, "(b s) h d -> b h s d", b=B)
-            v = rearrange(v, "(b s) h d -> b h s d", b=B)
+        out = self.attn(q, k, v)
 
-            if self.attention_mode == "sdpa":
-                out = self.sdpa_attention(q, k, v)  # (B, local_heads, seq_len, head_dim)
-            elif self.attention_mode == "sage":
-                out = self.sage_attention(q, k, v)  # (B, local_heads, seq_len, head_dim)
-            else:
-                raise ValueError(f"Unknown attention mode: {self.attention_mode}")
-
-            out = rearrange(out, "b h s d -> (b s) (h d)")
+        self.attn.storage.complete_cur_layer()
+        
+        out = rearrange(out, "b h s d -> (b s) (h d)")
 
         return out
 
@@ -681,6 +689,7 @@ class AsymmDiTJoint(nn.Module):
             packed_indices: Dict with keys for Flash Attention. Result of compute_packed_indices.
         """
         _, _, T, H, W = x.shape
+        inference_step, model_invocation_in_step = self.blocks[0].attn.attn.layer_counter.cur_inference_step, self.blocks[0].attn.attn.layer_counter.cur_model_invocation_per_step
 
         if self.pos_frequencies.dtype != torch.float32:
             warnings.warn(f"pos_frequencies dtype {self.pos_frequencies.dtype} != torch.float32")
@@ -689,22 +698,70 @@ class AsymmDiTJoint(nn.Module):
         # Have to call sdpa_kernel outside of a torch.compile region.
         with sdpa_kernel(torch.nn.attention.SDPBackend.EFFICIENT_ATTENTION):
             x, c, y_feat, rope_cos, rope_sin = self.prepare(x, sigma, y_feat[0], y_mask[0])
-        del y_mask
 
         cp_rank, cp_size = cp.get_cp_rank_size()
         N = x.size(1)
         M = N // cp_size
+
+        if GLOBAL_CONFIG['step_caching']['is_enabled']:
+            if inference_step in GLOBAL_CONFIG['step_caching']['skip_step_schedule']:
+                print(f"Step {inference_step} in skip_step_schedule")
+                self.blocks[0].attn.attn.layer_counter.cur_model_invocation_per_step += 1
+                if self.blocks[0].attn.attn.layer_counter.cur_model_invocation_per_step == GLOBAL_CONFIG['num_model_invocations_per_inference_step']:
+                    self.blocks[0].attn.attn.layer_counter.cur_inference_step += 1
+                    self.blocks[0].attn.attn.layer_counter.cur_model_invocation_per_step = 0
+                
+                x = self.step_cache
+                x = self.final_layer(x, c)
+                patch = x.size(2)
+                x = cp.all_gather(x)
+                x = rearrange(x, "(G B) M P -> B (G M) P", G=cp_size, P=patch)
+                x = rearrange(
+                    x,
+                    "B (T hp wp) (p1 p2 c) -> B c T (hp p1) (wp p2)",
+                    T=T,
+                    hp=H // self.patch_size,
+                    wp=W // self.patch_size,
+                    p1=self.patch_size,
+                    p2=self.patch_size,
+                    c=self.out_channels,
+                )
+                return x
+        
+        voxel_shape = (4, 6, 8)
+        if GLOBAL_CONFIG['patchify']['is_enabled']:
+            x = rearrange(x, 'b (t h w) d -> b t h w d', t=T, h=H // 2, w=W // 2).unsqueeze(0)
+            x_og_shape = x.shape
+            x = voxel_chunk_no_padding(x, voxel_shape)
+            x = x.squeeze(0)
+            rope_cos = voxel_chunk_rope(rope_cos, voxel_shape, T, H, W)
+            rope_sin = voxel_chunk_rope(rope_sin, voxel_shape, T, H, W)
+
         assert N % cp_size == 0, f"Visual sequence length ({x.shape[1]}) must be divisible by cp_size ({cp_size})."
+
+        local_heads = self.num_heads // cp_size
 
         if cp_size > 1:
             x = x.narrow(1, cp_rank * M, M)
 
-            assert self.num_heads % cp_size == 0
-            local_heads = self.num_heads // cp_size
+            assert self.num_heads % cp_size == 0            
             rope_cos = rope_cos.narrow(1, cp_rank * local_heads, local_heads)
             rope_sin = rope_sin.narrow(1, cp_rank * local_heads, local_heads)
+        
+        if inference_step == 0 and model_invocation_in_step == 0:
+            self.blocks[0].attn.attn.initialize_static_mask(
+                seq_shape=(T, H // 2, W // 2),
+                txt_len=y_mask[0].sum().item(),
+                local_heads_num=local_heads,
+                device='cuda'
+            )
+        del y_mask
+
 
         for i, block in enumerate(self.blocks):
+            block.attn.attn.storage.load_async_wait()
+            self.blocks[(i + PIPELINE_DEPTH - 1) % len(self.blocks)].attn.attn.storage.load_async()
+
             x, y_feat = block(
                 x,
                 c,
@@ -718,6 +775,13 @@ class AsymmDiTJoint(nn.Module):
             )  # (B, M, D), (B, L, D)
         del y_feat  # Final layers don't use dense text features.
 
+        if GLOBAL_CONFIG['patchify']['is_enabled']:
+            x = reverse_voxel_chunk_no_padding(x.unsqueeze(0), x_og_shape, voxel_shape)
+            x = rearrange(x, 'b1 b2 t h w d -> (b1 b2) (t h w) d')
+
+        if GLOBAL_CONFIG['step_caching']['is_enabled']:
+            self.step_cache = x
+        
         x = self.final_layer(x, c)  # (B, M, patch_size ** 2 * out_channels)
 
         patch = x.size(2)

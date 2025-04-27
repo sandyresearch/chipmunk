@@ -19,6 +19,7 @@ class SparseDiffAttn(nn.Module):
         self.layer_num = layer_num
         self.layer_counter = layer_counter
         self.storage = AttnStorage(layer_num, init_names=['indices', 'out_cache'])
+        self.mask_shape = [None] * GLOBAL_CONFIG['num_model_invocations_per_inference_step']
 
     def initialize_static_mask(self, seq_shape: Tuple, txt_len: int, local_heads_num: int, device: torch.device):
         if len(seq_shape) == 2:
@@ -71,7 +72,7 @@ class SparseDiffAttn(nn.Module):
         singleton_static_mask = mask
         singleton_video_query_groups = sparse_attn_query_groups
 
-    @torch.compile(dynamic=False)
+    # @torch.compile(dynamic=False)
     def random_and_topk(self, cs, topk):
         mask = torch.randint(0, 100, cs.shape, device=cs.device, dtype=torch.uint8) == 0
         mask.scatter_(-1, cs.topk(k=topk, dim=-1).indices, True)
@@ -91,18 +92,21 @@ class SparseDiffAttn(nn.Module):
         do_full_step: bool,
     ) -> Tensor:
         attn_config = GLOBAL_CONFIG['attn']
-        if inference_step == 0 and self.layer_num == 0:
-            print(attn_config)
         bm = attn_config['mbm']
         assert bm == 192, "The kernel was written for BM=192. You may need to change the kernel."
         layer = self.layer_num
         multiple_of = attn_config['counts_multiple_of'] if not attn_config['pad_qkv_before_kernel'] else 128
         do_padding = attn_config['pad_qkv_before_kernel']
 
+        # coord = (self.layer_counter.cur_inference_step, self.layer_counter.cur_model_invocation_per_step, self.layer_counter.cur_layer, self.layer_counter.cur_layer_submodule)
+        # bkpt_coords = {(1, 0, 2, 0), (2, 0, 2, 0), (1, 1, 2, 0), (2, 1, 2, 0)}
+        # if coord in bkpt_coords:
+        #     print('q.shape', q.shape, 'k.shape', k.shape, 'v.shape', v.shape)
+        #     breakpoint()
+
         if layer < attn_config['first_n_dense_layers']:
             o, _ = chipmunk.ops.dense_attn(q, k, v)
             return o
-
         # ─────────── FULL STEP ───────────
         if do_full_step:
             if inference_step == 0:
@@ -130,7 +134,7 @@ class SparseDiffAttn(nn.Module):
                 if attn_config['should_compress_indices']:
                     mask = self.random_and_topk(bs, tk) if tk > 0 else singleton_static_mask[..., :bs.shape[-2], :bs.shape[-1]]
                     packed, mask_shape = bitpack(mask)
-                    self.mask_shape = mask_shape
+                    self.mask_shape[self.layer_counter.cur_model_invocation_per_step] = mask_shape
                     self.storage.set_indices(packed)
                     inds, counts = chipmunk.ops.mask_to_indices(mask, multiple_of, bm)
                 else:
@@ -151,7 +155,7 @@ class SparseDiffAttn(nn.Module):
             if not attn_config['recompute_mask']:
                 if attn_config['should_compress_indices']:
                     packed         = self.storage.get_indices()
-                    mask           = bitunpack(packed, self.mask_shape)
+                    mask           = bitunpack(packed, self.mask_shape[self.layer_counter.cur_model_invocation_per_step])
                     inds, counts   = chipmunk.ops.mask_to_indices(mask, multiple_of, bm)
                 else:
                     inds   = self.storage.get_indices()
@@ -168,12 +172,14 @@ class SparseDiffAttn(nn.Module):
         # ─────────── SPARSE STEP ───────────
         if attn_config['should_compress_indices']:
             packed         = self.storage.get_indices()
-            mask           = bitunpack(packed, self.mask_shape)
+            mask           = bitunpack(packed, self.mask_shape[self.layer_counter.cur_model_invocation_per_step])
             inds, counts   = chipmunk.ops.mask_to_indices(mask, multiple_of, bm)
         else:
             inds   = self.storage.get_indices()
             counts = self.storage.get_counts()
-        o      = self.storage.get_out_cache()
+        
+        o = self.storage.get_out_cache()
+        
         if do_padding:
             o = o + chipmunk.ops.csp_attn(q, k, v, inds, counts)
         else:
@@ -184,13 +190,15 @@ class SparseDiffAttn(nn.Module):
         return o
     
     def forward(self, q: Tensor, k: Tensor, v: Tensor) -> Tensor:
-        do_full_step = self.layer_counter.should_do_full_attn_step()
         if not GLOBAL_CONFIG['attn']['is_enabled']:
             return F.scaled_dot_product_attention(q, k, v)
+        
+        do_full_step = self.layer_counter.should_do_full_attn_step()
+        inference_step = self.layer_counter.cur_inference_step
+        out = self._fast_attention(q, k, v, inference_step, do_full_step)
+        self.layer_counter.increment()
+        return out
 
-        inference_step, layer, submodule = self.layer_counter.increment()
-
-        return self._fast_attention(q, k, v, inference_step, do_full_step)
 
     def __call__(self, *args, **kwargs):
         return self.forward(*args, **kwargs)
