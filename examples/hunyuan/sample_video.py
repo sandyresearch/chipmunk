@@ -20,6 +20,8 @@ from hyvideo.modules.chipmunk.config import update_global_config
 
 from hyvideo.modules.head_parallel import setup_dist
 
+from chipmunk.util.config import GLOBAL_CONFIG
+
 @ray.remote(num_gpus=1)
 def main(args=None, local_rank=None, world_size=None):
     chipmunk.util.config.load_from_file("chipmunk-config.yml")
@@ -144,7 +146,9 @@ def run_all(args):
         sys.exit(1)
 
 if __name__ == "__main__":
+    chipmunk.util.config.load_from_file("chipmunk-config.yml")
     ray.init(_temp_dir='/tmp/ray-hunyuan')
     args = parse_args()
+    args.ulysses_degree = GLOBAL_CONFIG['world_size']
     results = run_all(args)
 

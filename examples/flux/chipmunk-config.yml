@@ -1,3 +1,6 @@
+model_name: flux
+world_size: 1
+
 mlp:
   is_enabled: true
   is_fp8: false

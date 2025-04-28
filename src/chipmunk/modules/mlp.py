@@ -27,7 +27,7 @@ class SparseDiffMlp(nn.Module):
         self.fc2w_T        = [fc2.weight.data.transpose(0, 1).contiguous()]
         self.layer_counter = layer_counter
         self.activation    = activation
-        self.storage       = MlpStorage(layer_num)
+        self.storage       = MlpStorage(layer_num, init_names=['out_cache'])
         self.token_cache   = token_cache
     
         self.num_sms_scatter_add = heuristic_sms_scatter_add
@@ -35,10 +35,13 @@ class SparseDiffMlp(nn.Module):
     def forward(self, x: torch.Tensor):
         fc1, fc2 = self.fc1[0], self.fc2[0]
 
+        do_full  = self.layer_counter.should_do_full_mlp_step()
+        inference_step, layer, submodule = self.layer_counter.increment()
+
         if not GLOBAL_CONFIG['mlp']['is_enabled']:
             if GLOBAL_CONFIG['token_cache']['is_enabled']:
                 # ToCa recomputes MLP every 3 steps
-                if inference_step == 0 or inference_step % 3 == 0:
+                if inference_step < 2 or inference_step % 3 == 0:
                     o = fc2(self.activation(fc1(x)))
                     self.storage.set_out_cache(o)
                 # ToCa sparse step
@@ -50,9 +53,6 @@ class SparseDiffMlp(nn.Module):
                 return o
 
             return fc2(self.activation(fc1(x)))
-
-        do_full  = self.layer_counter.should_do_full_mlp_step()
-        inference_step, layer, submodule = self.layer_counter.increment()
 
         assert x.ndim == 3 and x.shape[0] == 1, "x must be (1, N, C)"
 

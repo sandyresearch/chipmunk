@@ -2,7 +2,7 @@ from typing import Tuple
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
-from chipmunk.util import GLOBAL_CONFIG
+from chipmunk.util import GLOBAL_CONFIG, update_global_config
 from chipmunk.ops.voxel import get_local_indices_with_text
 import chipmunk.ops
 from chipmunk.util import AttnStorage, LayerCounter
@@ -31,6 +31,7 @@ class SparseDiffAttn(nn.Module):
             raise NotImplementedError("Not yet implemented for 2D sequences")
 
         tt, th, tw = seq_shape
+        update_global_config({'non_text_seqlen': tt * th * tw})
 
         attn_config = GLOBAL_CONFIG['attn']
         rk = attn_config['random_keys']
@@ -40,13 +41,17 @@ class SparseDiffAttn(nn.Module):
         topk = int(topk * (tt * th * tw))
 
         # Apply local 3D window
+        full_attn_from_3d_tail = GLOBAL_CONFIG['attn']['full_attn_from_3d_tail']
+        full_attn_to_3d_tail = GLOBAL_CONFIG['attn']['full_attn_to_3d_tail']
         mask, _, _ = get_local_indices_with_text(
             vid_shape=(tt, th, tw),
             txt_len=txt_len,
             voxel_shape=(4, 6, 8),
             local_shape=(lv, lv, lv),
             rk=rk,
-            device=device
+            device=device,
+            full_tail_from_attn=full_attn_from_3d_tail,
+            full_tail_to_attn=full_attn_to_3d_tail,
         )
 
         # Apply local 1D window
@@ -224,12 +229,23 @@ class SparseDiffAttn(nn.Module):
         if not GLOBAL_CONFIG['attn']['is_enabled']:
             if GLOBAL_CONFIG['token_cache']['is_enabled']:
                 if inference_step == 0:
-                    o = chipmunk.ops.dense_attn(q, k, v)
+                    if layer == 0:
+                        print(f'Step {inference_step}: Computing Attention')
+                    o, l = chipmunk.ops.dense_attn(q, k, v)
+                    l[..., k.shape[-2]:, :] = 0
+                    self.storage.set_lse_constants(l)
+                    self.storage.set_out_cache(o)
                 # ToCa recomputes attention every 3 steps
-                elif inference_step % 3 == 0:
-                    o, cs = chipmunk.ops.dense_colsum_attn(q, k, v)
+                elif inference_step == 1 or inference_step % 3 == 0:
+                    if layer == 0:
+                        print(f'Step {inference_step}: Computing Attention')
+                    l = self.storage.get_lse_constants()
+                    o, cs, _ = chipmunk.ops.dense_colsum_attn(q, k, v, l)
                     self.token_cache.score(cs)
+                    self.storage.set_out_cache(o)
                 else:
+                    if layer == 0:
+                        print(f'Step {inference_step}: Skipping Attention')
                     o = self.storage.get_out_cache()
                 return o
             else:

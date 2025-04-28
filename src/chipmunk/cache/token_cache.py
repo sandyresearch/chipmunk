@@ -1,4 +1,5 @@
 import torch
+import torch.distributed as dist
 from einops import rearrange
 from chipmunk.util.config import GLOBAL_CONFIG
 
@@ -31,21 +32,40 @@ class TokenCache:
             
         # Sum across heads and query groups to get per-token importance
         scores = cs.sum(dim=(1, 2))
+        if GLOBAL_CONFIG['world_size'] > 1:
+            # all reduce sum
+            dist.all_reduce(scores, op=dist.ReduceOp.SUM, group=dist.group.WORLD)
+
+            # shard
+            rank, world_size = dist.get_rank(), dist.get_world_size()
+            # start, end = rank * GLOBAL_CONFIG['cp_seq_len'] // world_size, (rank + 1) * GLOBAL_CONFIG['cp_seq_len'] // world_size
+            start, end = rank * GLOBAL_CONFIG['non_text_seqlen'] // world_size, (rank + 1) * GLOBAL_CONFIG['non_text_seqlen'] // world_size
+            scores = scores[:, start:end]
+        else:
+            scores = scores[:, :GLOBAL_CONFIG['non_text_seqlen']]
+
         b, n = scores.shape
         
         # Initialize mask for token selection
         mask = torch.ones_like(scores, dtype=torch.bool)
         
         # Ensure spatial distribution by selecting top token in each chunk
-        chunks = rearrange(scores, 'b (nc c) -> b nc c', c=self.chunk_size)
+        n = scores.shape[1]
+        n_sliced = (n // self.chunk_size) * self.chunk_size
+        chunks = rearrange(scores[:, :n_sliced], 'b (nc c) -> b nc c', c=self.chunk_size)
         chunk_inds = torch.argmax(chunks, dim=-1, keepdim=True)
-        mask.view(chunks.shape).scatter_(-1, chunk_inds, False)
-
+        mask[..., :n_sliced].view(chunks.shape).scatter_(-1, chunk_inds, False)
+        
+        # Convert chunk indices to flat indices
+        flat_chunk_inds = chunk_inds + torch.arange(0, n // self.chunk_size, 
+                                                   device=scores.device).unsqueeze(0).unsqueeze(-1) * self.chunk_size
+        flat_chunk_inds = flat_chunk_inds.reshape(b, -1)
+        
         # Select top tokens based on importance scores
         topk = int(n * (1 - self.cache_ratio))
         top_inds = torch.topk(scores * mask, topk, dim=1).indices
 
-        self.inds = torch.cat([chunk_inds[..., 0], top_inds], dim=-1)
+        self.inds = torch.cat([flat_chunk_inds, top_inds], dim=-1)
         
     def gather(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -59,10 +79,17 @@ class TokenCache:
         """
         if not self.enabled or self.inds is None:
             return x
+
+        # Update indices if text tokens are present in MLP (i.e., for single stream blocks)
+        cp_seqlen = GLOBAL_CONFIG['non_text_seqlen'] // GLOBAL_CONFIG['world_size']
+        if x.shape[-2] > cp_seqlen and (self.inds[0, -1] != (x.shape[-2] - 1)):
+            txt_len = x.shape[-2] - cp_seqlen
+            txt_inds = torch.arange(txt_len, device=x.device).unsqueeze(0) + cp_seqlen
+            self.inds = torch.cat([self.inds, txt_inds], dim=-1)
             
         # Expand mask to match input dimensions
         expanded_inds = self.inds.unsqueeze(-1).expand(x.shape[0], -1, x.shape[-1])
-        out = x.gather(dim=-1, index=expanded_inds).contiguous()
+        out = x.gather(dim=-2, index=expanded_inds)
         return out
 
     def scatter(self, sparse_tokens: torch.Tensor, full_cache: torch.Tensor | None = None) -> torch.Tensor:
@@ -85,5 +112,6 @@ class TokenCache:
         
         # Update with newly computed tokens
         expanded_inds = self.inds.unsqueeze(-1).expand(result.shape[0], -1, result.shape[-1])
-        result.scatter_(-1, expanded_inds, sparse_tokens)
+        result.scatter_(-2, expanded_inds, sparse_tokens)
+
         return result

@@ -6,6 +6,7 @@ BASE_CONFIG = {
     'generation_index': 0,
     'steps': 50,
     # Multi-GPU currently only supported for Hunyuan
+    'model_name': 'hunyuan',
     'world_size': 1,
 
     'mlp': {
@@ -37,6 +38,8 @@ BASE_CONFIG = {
         'top_keys': 0.05,
         'random_keys': 0.01,
         'local_voxels': 0,
+        'full_attn_from_3d_tail': False,
+        'full_attn_to_3d_tail': False,
         'local_1d_window': 0,
 
         'first_n_dense_layers': 2,
@@ -82,6 +85,7 @@ BASE_CONFIG = {
         'is_enabled': False,
         'cache_ratio': 0.85,
         'full_every': 3,
+        'max_text_len': 256,
     },
     "offline_search": {
         'is_enabled': False,

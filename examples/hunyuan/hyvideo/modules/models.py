@@ -148,13 +148,13 @@ class MMDoubleStreamBlock(nn.Module):
         # )
 
     def sparsify(self) -> None:
-        is_mlp_sparse = GLOBAL_CONFIG['mlp']['is_enabled']
-        is_attn_sparse = GLOBAL_CONFIG['attn']['is_enabled']
+        # Set to True since new layers will increment step/layer even if not sparse
+        is_mlp_sparse = True
+        is_attn_sparse = True
         layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=is_mlp_sparse, is_attn_sparse=is_attn_sparse)
         token_cache = TokenCache()
         # Skip text inputs - it's only 512 tokens so quite fast already!
-        self.img_mlp = SparseDiffMlp(layer_num, layer_counter, self.img_mlp.fc1, self.img_mlp.act, self.img_mlp.fc2, 12, token_cache=token_cache)
-        # self.img_mlp = self.img_mlp
+        self.sparse_mlp = SparseDiffMlp(layer_num, layer_counter, self.img_mlp.fc1, self.img_mlp.act, self.img_mlp.fc2, 12, token_cache=token_cache)
         self.attention = SparseDiffAttn(layer_num, layer_counter, token_cache=token_cache)
 
     def enable_deterministic(self):
@@ -269,7 +269,7 @@ class MMDoubleStreamBlock(nn.Module):
         # Calculate the img bloks.
         img = img + apply_gate(self.img_attn_proj(img_attn), gate=img_mod1_gate)
         img = img + apply_gate(
-            self.img_mlp(
+            self.sparse_mlp(
                 modulate(
                     self.img_norm2(img), shift=img_mod2_shift, scale=img_mod2_scale
                 )
@@ -417,12 +417,13 @@ class MMSingleStreamBlock(nn.Module):
         del self.linear1, self.linear2
         torch.cuda.empty_cache()
 
-        # Initialize the sparse layers based on these weights
-        is_mlp_sparse = GLOBAL_CONFIG['mlp']['is_enabled']
-        is_attn_sparse = GLOBAL_CONFIG['attn']['is_enabled']
+        # Set to True since new layers will increment step/layer even if not sparse
+        is_mlp_sparse = True
+        is_attn_sparse = True
         layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=is_mlp_sparse, is_attn_sparse=is_attn_sparse)
         token_cache = TokenCache()
         self.attention = SparseDiffAttn(layer_num, layer_counter, token_cache=token_cache)
+        # Initialize the sparse layers based on these weights
         self.sparse_mlp = SparseDiffMlp(layer_num, layer_counter, self.fc1, self.mlp_act, self.fc2, 6, token_cache=token_cache)
 
     def enable_deterministic(self):
@@ -910,8 +911,10 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 # wait for this block's o_cache
                 if inference_step > 0 or i > 0:
                     self.all_blocks[i].attention.storage.load_async_wait()
+                    self.all_blocks[i].sparse_mlp.storage.load_async_wait()
                 # start load for next block
                 self.all_blocks[i + 1].attention.storage.load_async()
+                self.all_blocks[i + 1].sparse_mlp.storage.load_async()
 
             img, txt = block(*double_block_args)
 
@@ -936,9 +939,11 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                     # wait for this block's o_cache
                     if inference_step > 0 or i > 0:
                         self.all_blocks[i + len(self.double_blocks)].attention.storage.load_async_wait()
+                        self.all_blocks[i + len(self.double_blocks)].sparse_mlp.storage.load_async_wait()
                     # start load for next block
                     idx = (i + len(self.double_blocks) + 1) % len(self.all_blocks)
                     self.all_blocks[idx].attention.storage.load_async()
+                    self.all_blocks[idx].sparse_mlp.storage.load_async()
 
                 x = block(*single_block_args)
 

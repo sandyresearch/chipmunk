@@ -273,7 +273,7 @@ def head_parallel_attention(
     kit = torch.cat([ki, kt], dim=2)
     vit = torch.cat([vi, vt], dim=2)
 
-    oit = attn(qit, kit, vit, inference_step)
+    oit = attn(qit, kit, vit)
 
     oi = oit[:, :, :img_q_len * world_size]
     ot = oit[:, :, img_q_len * world_size:]
