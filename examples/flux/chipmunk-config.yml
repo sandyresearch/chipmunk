@@ -1,6 +1,6 @@
 mlp:
-  is_enabled: true
-  is_fp8: false
+  is_enabled: false
+  is_fp8: true
   top_keys: 0.3
   
   random_keys: 0.05
@@ -13,13 +13,13 @@ mlp:
   mbm: 128
 
 patchify:
-  is_enabled: true
+  is_enabled: false
   # To disable patching at any level, set that level's patch size to 1. To disable patching entirely, set all patch sizes to 1.
   chunk_size_1: 8
   chunk_size_2: 4
 
 attn:
-  is_enabled: true
+  is_enabled: false
   top_keys: 0.165
 
   full_step_every: 10

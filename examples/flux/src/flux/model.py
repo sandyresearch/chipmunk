@@ -105,6 +105,14 @@ class Flux(nn.Module):
                 raise ValueError("Didn't get guidance strength for guidance distilled model.")
             vec = vec + self.guidance_in(timestep_embedding(guidance, 256))
         vec = vec + self.vector_in(y)
+        inference_step = self.double_blocks[0].sparse_attn.layer_counter.cur_inference_step
+
+        if GLOBAL_CONFIG['step_caching']['is_enabled']:
+            if inference_step in GLOBAL_CONFIG['step_caching']['skip_step_schedule']:
+                img = self.step_caching
+                self.double_blocks[0].sparse_attn.layer_counter.cur_inference_step += 1
+                return self.final_layer(img, vec)
+    
         txt = self.txt_in(txt)
 
         if hasattr(self, 'pe_patchified'):
@@ -127,6 +135,9 @@ class Flux(nn.Module):
                 for storage in [     block.sparse_mlp.storage,      block.sparse_attn.storage]: storage.load_async_wait()
             img = block(img, vec=vec, pe=pe)
         img = img[:, txt.shape[1] :, ...]
+
+        if GLOBAL_CONFIG['step_caching']['is_enabled']:
+            self.step_caching = img.clone()
 
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
         return img

@@ -104,4 +104,4 @@ def load_from_file(config_file: str) -> None:
     if yaml_config:
         _deep_update(GLOBAL_CONFIG, yaml_config)
         # update_global_config(yaml_config)
-        print(f"CHIPMUNK: using config file {config_file}")
+        # print(f"CHIPMUNK: using config file {config_file}")

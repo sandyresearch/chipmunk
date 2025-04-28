@@ -711,7 +711,7 @@ class AsymmDiTJoint(nn.Module):
                     self.blocks[0].attn.attn.layer_counter.cur_inference_step += 1
                     self.blocks[0].attn.attn.layer_counter.cur_model_invocation_per_step = 0
                 
-                x = self.step_cache
+                x = self.step_caching
                 x = self.final_layer(x, c)
                 patch = x.size(2)
                 x = cp.all_gather(x)
@@ -780,7 +780,7 @@ class AsymmDiTJoint(nn.Module):
             x = rearrange(x, 'b1 b2 t h w d -> (b1 b2) (t h w) d')
 
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
-            self.step_cache = x
+            self.step_caching = x
         
         x = self.final_layer(x, c)  # (B, M, patch_size ** 2 * out_channels)
 

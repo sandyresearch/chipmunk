@@ -734,7 +734,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             if inference_step in GLOBAL_CONFIG['step_caching']['skip_step_schedule']:
                 # Increment singleton layer counter
                 self.all_blocks[0].attention.layer_counter.cur_inference_step += 1
-                img = self.step_cache
+                img = self.step_caching
 
                 vec = self.prepare_modulation(t, text_states_2, guidance)
                 return self.finish_layer(img, vec, gather_img, (tt, th, tw), return_dict)
@@ -832,7 +832,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         img = x[:, :img_seq_len, ...]
 
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
-            self.step_cache = img.clone()
+            self.step_caching = img.clone()
 
         return self.finish_layer(img, vec, gather_img, (tt, th, tw), return_dict)
 

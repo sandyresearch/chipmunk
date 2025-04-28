@@ -418,7 +418,7 @@ class HiDreamImageTransformer2DModel(
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
             if inference_step in GLOBAL_CONFIG['step_caching']['skip_step_schedule']:
                 self.double_stream_blocks[0].block.attn1.processor.sparse_attn.layer_counter.cur_inference_step += 1
-                hidden_states = self.step_cache
+                hidden_states = self.step_caching
                 output = self.final_layer(hidden_states, adaln_input)
                 output = self.unpatchify(output, img_sizes, self.training)
                 if image_tokens_masks is not None:
@@ -554,7 +554,7 @@ class HiDreamImageTransformer2DModel(
         
         hidden_states = hidden_states[:, :image_tokens_seq_len, ...]
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
-            self.step_cache = hidden_states.clone()
+            self.step_caching = hidden_states.clone()
         output = self.final_layer(hidden_states, adaln_input)
         output = self.unpatchify(output, img_sizes, self.training)
         if image_tokens_masks is not None:

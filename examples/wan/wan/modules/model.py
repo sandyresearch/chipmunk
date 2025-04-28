@@ -577,7 +577,7 @@ class WanModel(ModelMixin, ConfigMixin):
             if inference_step in GLOBAL_CONFIG['step_caching']['skip_step_schedule']:
                 # Increment singleton layer counter
                 self.blocks[0].self_attn.attn.layer_counter.cur_inference_step += 1
-                x = self.step_cache
+                x = self.step_caching
                 x = self.head(x, e)
 
                 x = self.unpatchify(x, grid_sizes)
@@ -616,7 +616,7 @@ class WanModel(ModelMixin, ConfigMixin):
         x = x.flatten(2).transpose(1, 2)
         
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
-            self.step_cache = x.clone()
+            self.step_caching = x.clone()
 
         x = self.head(x, e)
 
