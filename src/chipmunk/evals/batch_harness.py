@@ -279,12 +279,14 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
         "--node-rank",
         required=False,
         default=0,
+        type=int,   
         help="Node rank for multi-node inference.",
     )
     parser.add_argument(
         "--num-nodes",
         required=False,
         default=1,
+        type=int,
         help="Number of nodes for multi-node inference.",
     )
     
