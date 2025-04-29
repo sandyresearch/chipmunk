@@ -118,22 +118,23 @@ def generate_configs(model_name: str) -> List[Dict[str, Any]]:  # noqa: D401,E50
 
     cfgs: List[Dict[str, Any]] = []
     for attn_sparsity in [0.1, 0.165, 0.3]:
-        for mlp_sparsity in [0.3]:
+        for mlp_sparsity in [0.0, 0.3]:
             for mlp_rk in [0.05]:
                 for mlp_mbm in [16, 128]:
                     for recompute_mask in [False, True]:
-                        for mlp_is_fp8 in [False, True]:
-                            if mlp_is_fp8 and mlp_sparsity > 0: continue
+                        for mlp_is_fp8 in [True, False]:
+                            if mlp_is_fp8 != (mlp_sparsity == 0.0): continue
                             if mlp_is_fp8 and not recompute_mask: continue
                             
                             for w, h in [(1280, 768), (1536, 1536)]:
                                 # only large image sizes on fp8
-                                if w > 1280 and not mlp_is_fp8: continue
-                                if w == 1280 and mlp_is_fp8: continue
+                                if w == 1280 != (not mlp_is_fp8): continue
 
                                 for attn_full_step_every in [10, 20]:
                                     for mlp_full_step_every in [10, 20]:
+                                        if mlp_full_step_every > 10 and mlp_is_fp8: continue
                                         for mlp_block_mask_cache in [1, 2, 3]:
+                                            if mlp_block_mask_cache > 1 and mlp_is_fp8: continue
                                             for step_caching in [False, True]:
                                                 cfgs += make_config(
                                                     base_path="examples/flux/chipmunk-config.yml",

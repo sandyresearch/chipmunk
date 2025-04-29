@@ -1,46 +1,76 @@
-mlp:
-  is_enabled: false
-  is_fp8: true
-  top_keys: 0.3
-  
-  random_keys: 0.05
-  full_step_every: 10
-  block_mask_cache: 2
-  first_n_dense_layers: 2
-  # do not change below this line
-  counts_multiple_of: 256
-  bm: 128
-  mbm: 128
-
-patchify:
-  is_enabled: false
-  # To disable patching at any level, set that level's patch size to 1. To disable patching entirely, set all patch sizes to 1.
-  chunk_size_1: 8
-  chunk_size_2: 4
-
 attn:
-  is_enabled: false
-  top_keys: 0.165
-
-  full_step_every: 10
-  full_step_schedule: ~
+  counts_multiple_of: 112
   first_n_dense_layers: 2
+  full_step_every: 10
+  full_step_schedule: null
+  is_enabled: true
+  local_1d_window: 0
+  local_voxels: 0
+  mbm: 192
+  pad_qkv_before_kernel: false
+  random_keys: 0.01
   recompute_mask: false
   should_compress_indices: false
-  # do not change below this line
-  counts_multiple_of: 112
-  pad_qkv_before_kernel: false
-  mbm: 192
-
+  top_keys: 0.165
+generation_index: 0
+height: 768
+mlp:
+  block_mask_cache: 1
+  bm: 128
+  counts_multiple_of: 256
+  first_n_dense_layers: 2
+  full_step_every: 10
+  is_enabled: true
+  is_fp8: false
+  mbm: 128
+  random_keys: 0.05
+  top_keys: 0.3
+num_model_invocations_per_inference_step: 1
 offloading:
-  global_disable_offloading: true
-  mlp.out_cache: false
-  mlp.indices: false
-  mlp.counts: false
-  mlp.sparse_act_T: false
-  mlp.blockmean_mid_cache: false
-  attn.out_cache: false
-  attn.indices: false
   attn.counts: false
+  attn.indices: false
   attn.lse_constants: false
+  attn.out_cache: false
+  global_disable_offloading: true
+  mlp.blockmean_mid_cache: false
+  mlp.counts: false
+  mlp.indices: false
+  mlp.out_cache: false
+  mlp.sparse_act_T: false
   text_encoders: false
+patchify:
+  chunk_size_1: 8
+  chunk_size_2: 4
+  is_enabled: true
+should_profile: false
+step_caching:
+  is_enabled: false
+  skip_step_schedule: !!set
+    7: null
+    11: null
+    13: null
+    14: null
+    15: null
+    17: null
+    18: null
+    19: null
+    21: null
+    22: null
+    23: null
+    25: null
+    26: null
+    27: null
+    29: null
+    31: null
+    33: null
+    34: null
+    35: null
+    37: null
+    38: null
+    39: null
+    41: null
+    42: null
+    43: null
+steps: 50
+width: 1280
+world_size: 1

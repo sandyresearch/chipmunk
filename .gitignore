@@ -5,3 +5,4 @@ build/
 *.so
 outputs/
 output/
+*slurm*

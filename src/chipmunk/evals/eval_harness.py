@@ -47,7 +47,8 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
             print(f"[eval_harness] could not parse model name from {exp_dir}")
             continue
 
-        evals_dir = exp_dir / "evals"
+        media_dir = exp_dir / "media"
+        evals_dir = exp_dir
         evals_dir.mkdir(exist_ok=True)
 
         is_image_model = model_name in IMAGE_MODELS
@@ -62,22 +63,24 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
                     "-m",
                     "chipmunk.evals.imre",
                     "--experiment-dir",
-                    str(exp_dir.resolve()),
+                    str(media_dir.resolve()),
                     "--out-path",
                     str(imre_out.resolve()),
                 ])
+            else:
+                print(f"[eval_harness] IMRE already exists for {exp_dir}")
             # Geneval
-            geneval_out = evals_dir / "geneval.json"
-            if not geneval_out.exists():
-                cmds.append([
-                    sys.executable,
-                    "-m",
-                    "chipmunk.evals.geneval",
-                    "--experiment-dir",
-                    str(exp_dir.resolve()),
-                    "--out-path",
-                    str(geneval_out.resolve()),
-                ])
+            # geneval_out = evals_dir / "geneval.json"
+            # if not geneval_out.exists():
+            #     cmds.append([
+            #         sys.executable,
+            #         "-m",
+            #         "chipmunk.evals.geneval",
+            #         "--experiment-dir",
+            #         str(exp_dir.resolve()),
+            #         "--out-path",
+            #         str(geneval_out.resolve()),
+            #     ])
         else:
             vbench_out = evals_dir / "vbench.json"
             if not vbench_out.exists():
