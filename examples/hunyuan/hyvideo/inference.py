@@ -25,7 +25,7 @@ from hyvideo.modules.chipmunk.config import HUNYUAN_GLOBAL_CONFIG
 from hyvideo.modules.chipmunk.util import offload
 from hyvideo.modules.head_parallel import get_dist
 
-from chipmunk.util.config import GLOBAL_CONFIG
+from chipmunk.util.config import GLOBAL_CONFIG, update_global_config
 
 
 def parallelize_transformer(pipe):
@@ -59,6 +59,7 @@ def parallelize_transformer(pipe):
 
         # patch sizes for the temporal, height, and width dimensions are 1, 2, and 2.
         temporal_size, h, w = x.shape[2], x.shape[3] // 2, x.shape[4] // 2
+        update_global_config({ 'cp_seq_len': temporal_size * h * w })
 
         shard_img = lambda img, dim: torch.chunk(img, dist_world_size,dim=dim)[dist_rank]
         def gather_img(img, dim):
@@ -390,7 +391,7 @@ class HunyuanVideoSampler(Inference):
         )
 
         self.default_negative_prompt = NEGATIVE_PROMPT
-        if self.parallel_args['ulysses_degree'] > 1 or self.parallel_args['ring_degree'] > 1:
+        if GLOBAL_CONFIG['world_size'] > 1:
             parallelize_transformer(self.pipeline)
 
     def load_diffusion_pipeline(

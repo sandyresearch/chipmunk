@@ -8,16 +8,17 @@ mlp:
   is_enabled: false
 
 attn:
+  # Turn on debug to print sparsity levels
   # debug: true
-  is_enabled: true
+  is_enabled: false
+
+  # How much probability mass of the attention matrix to cover
   # coverage: 0.7
-  top_keys: 0.05
-  random_keys: 0.01
-  # top_keys: 0
-  # random_keys: 0
+  top_keys: 0
+  random_keys: 0
 
   # Number of local voxels to use for static local attention
-  local_voxels: 0
+  local_voxels: 5
   # Full attention from/to 3D padding when reordering into voxels
   full_attn_from_3d_tail: false
   full_attn_to_3d_tail: false
@@ -35,11 +36,10 @@ attn:
     ? 1
     ? 10
     ? 40
-  # full_step_every: 10
+  # full_step_every: 3
 
   # Do not change below this line -- kernel-specific business
   pad_qkv_before_kernel: true
-  counts_multiple_of: 128
 
 offloading:
   mlp.out_cache: false

@@ -3,7 +3,7 @@ from torch import Tensor
 from .offloaded_tensor import MaybeOffloadedTensor
 
 class MlpStorage:
-    def __init__(self, layer_num: int):
+    def __init__(self, layer_num: int, init_names: list[str]=[]):
         self.layer_num = layer_num
 
         self.sparse_act_T = None
@@ -11,6 +11,14 @@ class MlpStorage:
         self.indices = None
         self.counts = None
         self.blockmean_mid_cache = None
+
+        if 'out_cache' in init_names:
+            self.out_cache = MaybeOffloadedTensor(
+                f'mlp.out_cache',
+                self.layer_num, torch.bfloat16,
+                torch.device('cuda'),
+                cpu_buf_size=MaybeOffloadedTensor.LARGE_BUF_SIZE
+            )
     
     def complete_cur_layer(self):
         if self.blockmean_mid_cache is not None:

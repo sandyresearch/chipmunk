@@ -1,9 +1,22 @@
+model_name: flux
+world_size: 1
+
+mlp:
+  is_enabled: true
+  is_fp8: false
+  top_keys: 0.3
+  
+  random_keys: 0.05
+  full_step_every: 10
+  block_mask_cache: 2
+  first_n_dense_layers: 2
+
 attn:
+  is_enabled: true
   counts_multiple_of: 112
   first_n_dense_layers: 2
   full_step_every: 10
   full_step_schedule: null
-  is_enabled: true
   local_1d_window: 0
   local_voxels: 0
   mbm: 192

@@ -2,28 +2,25 @@ model_name: hunyuan
 world_size: 1
 
 patchify:
-  is_enabled: true
+  is_enabled: false
 
 mlp:
   is_enabled: false
 
 attn:
+  # Turn on debug to print sparsity levels
   # debug: true
-  is_enabled: true
-  # coverage: 0.7
-  top_keys: 0.05
-  random_keys: 0.01
-  # top_keys: 0
-  # random_keys: 0
+  is_enabled: false
 
-  # Number of local voxels to use for static local attention
+  # coverage: 0.7
+  top_keys: 0
+  random_keys: 0
+
+  # Number of local voxels to use for Sliding Tile Attention
   local_voxels: 0
-  # Full attention from/to 3D padding when reordering into voxels
-  full_attn_from_3d_tail: false
-  full_attn_to_3d_tail: false
 
   # Local 1D window in raster order for DiTFastAttn
-  local_1d_window: 0
+  local_1d_window: 0.25
 
   first_n_dense_layers: 2
   recompute_mask: true
@@ -35,11 +32,10 @@ attn:
     ? 1
     ? 10
     ? 40
-  # full_step_every: 10
+  # full_step_every: 3
 
   # Do not change below this line -- kernel-specific business
   pad_qkv_before_kernel: true
-  counts_multiple_of: 128
 
 offloading:
   mlp.out_cache: false

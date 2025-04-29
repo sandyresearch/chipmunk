@@ -2,29 +2,23 @@ model_name: hunyuan
 world_size: 1
 
 patchify:
-  is_enabled: true
+  is_enabled: false
 
 mlp:
   is_enabled: false
 
 attn:
   # debug: true
-  is_enabled: true
+  is_enabled: false
   # coverage: 0.7
   top_keys: 0.05
   random_keys: 0.01
   # top_keys: 0
   # random_keys: 0
-
   # Number of local voxels to use for static local attention
   local_voxels: 0
-  # Full attention from/to 3D padding when reordering into voxels
-  full_attn_from_3d_tail: false
-  full_attn_to_3d_tail: false
-
-  # Local 1D window in raster order for DiTFastAttn
   local_1d_window: 0
-
+  # local_1d_window: 0.25
   first_n_dense_layers: 2
   recompute_mask: true
   should_compress_indices: true
@@ -35,20 +29,19 @@ attn:
     ? 1
     ? 10
     ? 40
-  # full_step_every: 10
+  # full_step_every: 3
 
   # Do not change below this line -- kernel-specific business
   pad_qkv_before_kernel: true
-  counts_multiple_of: 128
 
 offloading:
   mlp.out_cache: false
-  attn.out_cache: true
-  attn.indices: true
+  attn.out_cache: false
+  attn.indices: false
   text_encoders: true
 
 tea_cache:
-  is_enabled: false
+  is_enabled: true
   threshold: 0.1
   debug: true
 
@@ -58,7 +51,7 @@ token_cache:
   full_every: 3
 
 step_caching:
-  is_enabled: true
+  is_enabled: false
   # Feel free to play with this -- it's pretty stable across different schedules!
   skip_step_schedule: !!set
     ? 7

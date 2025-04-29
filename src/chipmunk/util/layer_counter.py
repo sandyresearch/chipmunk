@@ -12,6 +12,10 @@ class LayerCounter:
         self.cur_layer = 0
         self.cur_layer_submodule = 0
 
+        # debug
+        self.attn_sparsity = 0
+        self.attn_sparsity_count = 0
+
     @staticmethod
     def build_for_layer(is_mlp_sparse: bool = False, is_attn_sparse: bool = False):
         old_layer_num = singleton.num_layers

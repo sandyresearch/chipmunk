@@ -28,8 +28,11 @@ from .chipmunk.chipmunk import (
     voxel_chunk_no_padding,
     bitpack,
 )
+from chipmunk.cache.tea_cache import TeaCache
 from chipmunk.modules.attn import SparseDiffAttn
+from chipmunk.modules.mlp import SparseDiffMlp
 from chipmunk.util.layer_counter import LayerCounter
+from chipmunk.cache.token_cache import TokenCache
 from chipmunk.util.config import GLOBAL_CONFIG
 
 class MMDoubleStreamBlock(nn.Module):
@@ -137,11 +140,22 @@ class MMDoubleStreamBlock(nn.Module):
             **factory_kwargs,
         )
         self.hybrid_seq_parallel_attn = None
-        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
-        self.attention = SparseDiffAttn(
-            layer_num=layer_num,
-            layer_counter=layer_counter,
-        )
+        # layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
+        # self.attention = SparseDiffAttn(
+        #     layer_num=layer_num,
+        #     layer_counter=layer_counter,
+        #     token_cache=TokenCache()
+        # )
+
+    def sparsify(self) -> None:
+        # Set to True since new layers will increment step/layer even if not sparse
+        is_mlp_sparse = True
+        is_attn_sparse = True
+        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=is_mlp_sparse, is_attn_sparse=is_attn_sparse)
+        token_cache = TokenCache()
+        # Skip text inputs - it's only 512 tokens so quite fast already!
+        self.sparse_mlp = SparseDiffMlp(layer_num, layer_counter, self.img_mlp.fc1, self.img_mlp.act, self.img_mlp.fc2, 12, token_cache=token_cache)
+        self.attention = SparseDiffAttn(layer_num, layer_counter, token_cache=token_cache)
 
     def enable_deterministic(self):
         self.deterministic = True
@@ -184,6 +198,7 @@ class MMDoubleStreamBlock(nn.Module):
         img_modulated = modulate(
             img_modulated, shift=img_mod1_shift, scale=img_mod1_scale
         )
+        # img_modulated = img * (1 + img_mod1_scale.unsqueeze(1)) + img_mod1_shift.unsqueeze(1)
         img_qkv = self.img_attn_qkv(img_modulated)
         img_q, img_k, img_v = rearrange(
             img_qkv, "B L (K H D) -> K B L H D", K=3, H=self.heads_num
@@ -254,7 +269,7 @@ class MMDoubleStreamBlock(nn.Module):
         # Calculate the img bloks.
         img = img + apply_gate(self.img_attn_proj(img_attn), gate=img_mod1_gate)
         img = img + apply_gate(
-            self.img_mlp(
+            self.sparse_mlp(
                 modulate(
                     self.img_norm2(img), shift=img_mod2_shift, scale=img_mod2_scale
                 )
@@ -343,12 +358,73 @@ class MMSingleStreamBlock(nn.Module):
             act_layer=get_activation_layer("silu"),
             **factory_kwargs,
         )
-        self.hybrid_seq_parallel_attn = None
-        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
-        self.attention = SparseDiffAttn(
-            layer_num=layer_num,
-            layer_counter=layer_counter,
-        )
+        # self.hybrid_seq_parallel_attn = None
+        # token_cache = TokenCache()
+        # layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
+        # self.attention = SparseDiffAttn(
+        #     layer_num=layer_num,
+        #     layer_counter=layer_counter,
+        #     token_cache=token_cache
+        # )
+
+    def sparsify(self) -> None:
+        """
+        Break the two fused Linear layers (``linear1`` and ``linear2``) into the
+        four logical sub‑layers used by the block.  
+
+        NOTE: These changes are not specific to Chipmunk! They just make it easier to understand the forward
+        pass code.
+        """
+
+        h = self.hidden_size           # for brevity
+        m = self.mlp_hidden_dim
+
+        # ------------------------------------------------------------------
+        # 1) Split linear1  ->  qkv  +  fc1
+        # ------------------------------------------------------------------
+        # --- attention Q K V projection -----------------------------------
+        self.qkv = nn.Linear(h, 3 * h, bias=True)
+        self.qkv.weight = nn.Parameter(self.linear1.weight[: 3 * h].detach(),
+                                    requires_grad=False)
+        self.qkv.bias   = nn.Parameter(self.linear1.bias  [: 3 * h].detach(),
+                                    requires_grad=False)
+
+        # --- MLP first projection -----------------------------------------
+        self.fc1 = nn.Linear(h, m, bias=True)
+        self.fc1.weight = nn.Parameter(self.linear1.weight[3 * h :].detach(),
+                                    requires_grad=False)
+        self.fc1.bias   = nn.Parameter(self.linear1.bias  [3 * h :].detach(),
+                                    requires_grad=False)
+
+        # ------------------------------------------------------------------
+        # 2) Split linear2  ->  o  +  fc2
+        # ------------------------------------------------------------------
+        # --- attention output projection ----------------------------------
+        self.o = nn.Linear(h, h, bias=True)
+        self.o.weight = nn.Parameter(self.linear2.weight[:, : h].detach(),
+                                    requires_grad=False)
+        self.o.bias   = nn.Parameter(self.linear2.bias.detach(),
+                                    requires_grad=False)
+
+        # --- MLP second projection ----------------------------------------
+        self.fc2 = nn.Linear(m, h, bias=True)
+        self.fc2.weight = nn.Parameter(self.linear2.weight[:, h :].detach(),
+                                    requires_grad=False)
+        self.fc2.bias   = nn.Parameter(self.linear2.bias.detach(),
+                                    requires_grad=False)
+
+        # Deallocate the original tensors
+        del self.linear1, self.linear2
+        torch.cuda.empty_cache()
+
+        # Set to True since new layers will increment step/layer even if not sparse
+        is_mlp_sparse = True
+        is_attn_sparse = True
+        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=is_mlp_sparse, is_attn_sparse=is_attn_sparse)
+        token_cache = TokenCache()
+        self.attention = SparseDiffAttn(layer_num, layer_counter, token_cache=token_cache)
+        # Initialize the sparse layers based on these weights
+        self.sparse_mlp = SparseDiffMlp(layer_num, layer_counter, self.fc1, self.mlp_act, self.fc2, 6, token_cache=token_cache)
 
     def enable_deterministic(self):
         self.deterministic = True
@@ -371,9 +447,10 @@ class MMSingleStreamBlock(nn.Module):
     ) -> torch.Tensor:
         mod_shift, mod_scale, mod_gate = self.modulation(vec).chunk(3, dim=-1)
         x_mod = modulate(self.pre_norm(x), shift=mod_shift, scale=mod_scale)
-        qkv, mlp = torch.split(
-            self.linear1(x_mod), [3 * self.hidden_size, self.mlp_hidden_dim], dim=-1
-        )
+        # qkv, mlp = torch.split(
+        #     self.linear1(x_mod), [3 * self.hidden_size, self.mlp_hidden_dim], dim=-1
+        # )
+        qkv = self.qkv(x_mod)
 
         q, k, v = rearrange(qkv, "B L (K H D) -> K B L H D", K=3, H=self.heads_num)
 
@@ -425,10 +502,13 @@ class MMSingleStreamBlock(nn.Module):
                 inference_step=inference_step,
             )
         # attention computation end
+        attn = self.o(attn)
+        mlp = self.sparse_mlp(x_mod)
+        return x + apply_gate(attn + mlp, gate=mod_gate)
 
-        # Compute activation in mlp stream, cat again and run second linear layer.
-        output = self.linear2(torch.cat((attn, self.mlp_act(mlp)), 2))
-        return x + apply_gate(output, gate=mod_gate)
+        # # Compute activation in mlp stream, cat again and run second linear layer.
+        # output = self.linear2(torch.cat((attn, self.mlp_act(mlp)), 2))
+        # return x + apply_gate(output, gate=mod_gate)
 
 
 class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
@@ -627,6 +707,14 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         self.attn_indices = None
         self.attn_counts = None
 
+        self.tea_cache = TeaCache()
+
+    def sparsify(self):
+        for block in self.double_blocks:
+            block.sparsify()
+        for block in self.single_blocks:
+            block.sparsify()
+
     def enable_deterministic(self):
         for block in self.double_blocks:
             block.enable_deterministic()
@@ -779,6 +867,32 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         max_seqlen_kv = max_seqlen_q
 
         freqs_cis = (freqs_cos, freqs_sin) if freqs_cos is not None else None
+
+        ### TeaCache ###
+        if GLOBAL_CONFIG['tea_cache']['is_enabled']:
+            orig_img = img.clone()
+            # Modulate
+            (
+                img_mod1_shift,
+                img_mod1_scale,
+                _,
+                _,
+                _,
+                _,
+            ) = self.all_blocks[0].img_mod(vec).chunk(6, dim=-1)
+            img_modulated = self.all_blocks[0].img_norm1(img)
+            img_modulated = img * (1 + img_mod1_scale.unsqueeze(1)) + img_mod1_shift.unsqueeze(1)
+
+            should_skip = self.tea_cache.step(img_modulated)
+            if should_skip:
+                # update inference step counter
+                self.all_blocks[0].attention.layer_counter.cur_inference_step += 1
+
+                img += self.tea_cache.load()
+                # img = img[:, :img_seq_len, ...]
+                return self.finish_layer(img, vec, gather_img, (tt, th, tw), return_dict)
+        ################
+
         # --------------------- Pass through DiT blocks ------------------------
         for i, block in enumerate(self.double_blocks):
             double_block_args = [
@@ -797,8 +911,10 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 # wait for this block's o_cache
                 if inference_step > 0 or i > 0:
                     self.all_blocks[i].attention.storage.load_async_wait()
+                    self.all_blocks[i].sparse_mlp.storage.load_async_wait()
                 # start load for next block
                 self.all_blocks[i + 1].attention.storage.load_async()
+                self.all_blocks[i + 1].sparse_mlp.storage.load_async()
 
             img, txt = block(*double_block_args)
 
@@ -823,13 +939,18 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                     # wait for this block's o_cache
                     if inference_step > 0 or i > 0:
                         self.all_blocks[i + len(self.double_blocks)].attention.storage.load_async_wait()
+                        self.all_blocks[i + len(self.double_blocks)].sparse_mlp.storage.load_async_wait()
                     # start load for next block
                     idx = (i + len(self.double_blocks) + 1) % len(self.all_blocks)
                     self.all_blocks[idx].attention.storage.load_async()
+                    self.all_blocks[idx].sparse_mlp.storage.load_async()
 
                 x = block(*single_block_args)
 
         img = x[:, :img_seq_len, ...]
+
+        if GLOBAL_CONFIG['tea_cache']['is_enabled']:
+            self.tea_cache.store(img - orig_img)
 
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
             self.step_caching = img.clone()

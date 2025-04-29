@@ -17,6 +17,10 @@ def setup_dist(dist_group, dist_rank, dist_world_size):
 def get_dist():
     return DIST_GROUP, DIST_RANK, DIST_WORLD_SIZE
 
+def all_reduce_sum(x: torch.Tensor):
+    dist.all_reduce(x, op=dist.ReduceOp.SUM, group=DIST_GROUP)
+    return x
+
 def all_gather_into_tensor(x: torch.Tensor, group: dist.ProcessGroup):
     group_size = dist.get_world_size(group)
 
