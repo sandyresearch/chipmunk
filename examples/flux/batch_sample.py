@@ -10,6 +10,7 @@ that state.
 """
 
 import torch
+torch._dynamo.config.cache_size_limit = 1 << 31
 import random
 from pathlib import Path
 from typing import Any

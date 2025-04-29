@@ -31,7 +31,7 @@ def main(args=None, local_rank=None, world_size=None):
     
     # Create save folder to save the samples
     # save_path = args.save_path if args.save_path_suffix=="" else f'{args.save_path}_{args.save_path_suffix}'
-    save_path = 'outputs/chipmunk'
+    save_path = 'outputs/chipmunk-test/'
     if not os.path.exists(save_path):
         os.makedirs(save_path, exist_ok=True)
 
@@ -60,7 +60,9 @@ def main(args=None, local_rank=None, world_size=None):
     # for prompt in prompts:
     # twice for torch compile warmup
     # for prompt in [args.prompt, args.prompt]:
-    prompt_cache = None
+    # prompt_cache = "A couple in formal evening wear, heading home, get caught in a heavy downpour and use umbrellas to shield themselves, featuring a steady and smooth perspective. Realistic, Night lighting, Humorous"
+    # prompt_cache = "A cute, happy Corgi playing in the park at sunset, the camera movement is Pan Left. Realistic, Nature"
+    # prompt_cache = "Iron Man in red and gold metallic armor is playing the electronic guitar, high electronic guitar. Realistic, Indoor lighting, Festive"
     while True:
         if prompt_cache is None:
             prompt = input("Enter a prompt: ")

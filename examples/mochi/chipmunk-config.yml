@@ -1,18 +1,20 @@
 num_model_invocations_per_inference_step: 2
 
 patchify:
-  is_enabled: true
+  is_enabled: false
 
 attn:
   is_enabled: true
   top_keys: 0.15
   random_keys: 0.01
   # Number of local voxels to use for static local attention
-  local_voxels: 1
+  local_voxels: 0
   local_1d_window: 0
   first_n_dense_layers: 2
   recompute_mask: true
   should_compress_indices: true
+  full_attn_from_3d_tail: false
+  full_attn_to_3d_tail: false
 
   # If schedule is not None, will override full_step_every
   full_step_schedule: !!set

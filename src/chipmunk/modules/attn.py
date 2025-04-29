@@ -145,7 +145,7 @@ class SparseDiffAttn(nn.Module):
                 self.storage.set_lse_constants(lse)
 
                 # Score tokens as a function of column sums
-                self.token_cache.score(bs)
+                if self.token_cache: self.token_cache.score(bs)
 
                 tk = int(multiple_of * round((attn_config['top_keys'] * k.shape[-2]) / multiple_of))
                 
@@ -249,7 +249,7 @@ class SparseDiffAttn(nn.Module):
                         print(f'Step {inference_step}: Computing Attention')
                     l = self.storage.get_lse_constants()
                     o, cs, _ = chipmunk.ops.dense_colsum_attn(q, k, v, l)
-                    self.token_cache.score(cs)
+                    if self.token_cache: self.token_cache.score(cs)
                     self.storage.set_out_cache(o)
                 else:
                     if layer == 0:
