@@ -25,6 +25,7 @@ from chipmunk.util.config import GLOBAL_CONFIG
 @ray.remote(num_gpus=1)
 def main(args=None, local_rank=None, world_size=None):
     chipmunk.util.config.load_from_file(args.chipmunk_config)
+    args.flow_reverse = True
     prompt_file = Path(args.prompt_file)
     if not prompt_file.exists():
         raise ValueError(f"`prompt_file` not exists: {prompt_file}")
