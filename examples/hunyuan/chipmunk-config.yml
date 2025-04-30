@@ -1,88 +1,68 @@
-model_name: hunyuan
-world_size: 1
-
-patchify:
-  is_enabled: true
-
-mlp:
-  is_enabled: false
-
 attn:
-  # debug: true
-  is_enabled: true
-  # coverage: 0.7
-  top_keys: 0.05
-  random_keys: 0.01
-  # top_keys: 0
-  # random_keys: 0
-
-  # Number of local voxels to use for static local attention
-  local_voxels: 0
-  # Full attention from/to 3D padding when reordering into voxels
+  counts_multiple_of: 128
+  coverage: null
+  debug: false
+  first_n_dense_layers: 2
   full_attn_from_3d_tail: false
   full_attn_to_3d_tail: false
-
-  # Local 1D window in raster order for DiTFastAttn
+  full_step_every: 1
+  full_step_schedule: null
+  is_enabled: false
   local_1d_window: 0
-
-  first_n_dense_layers: 2
-  recompute_mask: true
-  should_compress_indices: true
-
-  # If schedule is not None, will override full_step_every
-  full_step_schedule: !!set
-    ? 0
-    ? 1
-    ? 10
-    ? 40
-  # full_step_every: 10
-
-  # Do not change below this line -- kernel-specific business
+  local_voxels: 0
+  mbm: 192
   pad_qkv_before_kernel: true
-  counts_multiple_of: 128
-
+  random_keys: 0.01
+  recompute_mask: false
+  should_compress_indices: true
+  top_keys: 0.0
+generation_index: 0
+height: 820
+mlp:
+  block_mask_cache: 0
+  bm: 128
+  counts_multiple_of: 256
+  first_n_dense_layers: 2
+  full_step_every: 1
+  is_enabled: false
+  is_fp8: false
+  mbm: 0
+  random_keys: 0
+  top_keys: 0
+model_name: hunyuan
+num_model_invocations_per_inference_step: 1
+offline_search:
+  is_enabled: false
+  output_path: offline-search.json
 offloading:
-  mlp.out_cache: false
-  attn.out_cache: true
+  attn.counts: false
   attn.indices: true
+  attn.lse_constants: false
+  attn.out_cache: true
+  global_disable_offloading: true
+  mlp.blockmean_mid_cache: false
+  mlp.counts: false
+  mlp.indices: false
+  mlp.out_cache: false
+  mlp.sparse_act_T: false
   text_encoders: true
-
+patchify:
+  chunk_size_1: 8
+  chunk_size_2: 4
+  is_enabled: false
+should_profile: false
+step_caching:
+  is_enabled: false
+  skip_step_schedule: []
+steps: 50
 tea_cache:
-  is_enabled: false
-  threshold: 0.1
   debug: true
-
+  is_enabled: true
+  threshold: 0.65
 token_cache:
-  is_enabled: false
   cache_ratio: 0.85
   full_every: 3
-
-step_caching:
-  is_enabled: true
-  # Feel free to play with this -- it's pretty stable across different schedules!
-  skip_step_schedule: !!set
-    ? 7
-    ? 11
-    ? 13
-    ? 14
-    ? 15
-    ? 17
-    ? 18
-    ? 19
-    ? 21
-    ? 22
-    ? 23
-    ? 25
-    ? 26
-    ? 27
-    ? 29
-    ? 31
-    ? 33
-    ? 34
-    ? 35
-    ? 37
-    ? 38
-    ? 39
-    ? 41
-    ? 42
-    ? 43
+  is_enabled: false
+  max_text_len: 256
+width: 1280
+world_size: 8

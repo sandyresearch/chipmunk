@@ -19,10 +19,11 @@ def init() -> None:
     _model = object()
 
 
-def sample(prompt: str, out_file: str, seed: int) -> None:
+def sample(prompt: str, out_file: list[str], seed: int) -> None:
     if _model is None:
         raise RuntimeError("init() must be called before sample().")
-    Path(out_file).write_text(f"Stub (HiDream) {prompt} seed={seed} rnd={random.random()}\n")
+    for path in out_file:
+        Path(path).write_text(f"Stub (HiDream) {prompt} seed={seed} rnd={random.random()}\n")
 
 
 if __name__ == "__main__":

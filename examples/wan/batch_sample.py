@@ -94,7 +94,7 @@ def init() -> None:  # noqa: D401
 
 
 
-def sample(prompt: str, out_file: str, seed: int) -> None:  # noqa: D401
+def sample(prompt: str, out_file: list[str], seed: int) -> None:  # noqa: D401
     """Generate a video for *prompt* and save it to *out_file*."""
     if _model is None:
         raise RuntimeError("init() must be called before sample().")
@@ -108,17 +108,17 @@ def sample(prompt: str, out_file: str, seed: int) -> None:  # noqa: D401
         return  # Nothing to save on this rank
 
     # Ensure parent directory exists
-    out_path = Path(out_file)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    cache_video(
-        tensor=video[None],  # add batch dim expected by cache_video
-        save_file=str(out_path),
-        fps=_cfg.sample_fps,
-        nrow=1,
-        normalize=True,
-        value_range=(-1, 1),
-    )
+    for path in out_file:
+        out_path = Path(path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_video(
+            tensor=video[None],  # add batch dim expected by cache_video
+            save_file=str(path),
+            fps=_cfg.sample_fps,
+            nrow=1,
+            normalize=True,
+            value_range=(-1, 1),
+        )
 
 
 if __name__ == "__main__":

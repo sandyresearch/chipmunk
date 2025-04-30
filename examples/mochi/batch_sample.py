@@ -87,7 +87,7 @@ def init() -> None:
     print("[mochi/batch_sample] Pipeline initialised – ready to sample.")
 
 
-def sample(prompt: str, out_file: str, seed: int) -> None:
+def sample(prompt: str, out_file: list[str], seed: int) -> None:
     """Generate a video for *prompt* and save it to *out_file*.
 
     The generation parameters mirror the defaults used by the reference CLI

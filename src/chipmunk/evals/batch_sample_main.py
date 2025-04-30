@@ -15,19 +15,19 @@ import torch
 # -----------------------------------------------------------------------------
 
 def _get_world_size() -> int:
-    return int(os.environ.get("WORLD_SIZE", os.environ.get("SLURM_NTASKS", "1")))
+    return int(os.environ.get("CHIPMUNK_WORLD_SIZE", os.environ.get("SLURM_NTASKS", "1")))
 
 
 def _get_local_rank() -> int:
     # Torchrun sets LOCAL_RANK.  If running inside SLURM, you may only have RANK.
-    return int(os.environ.get("LOCAL_RANK", os.environ.get("RANK", "0")))
+    return int(os.environ.get("CHIPMUNK_LOCAL_RANK", os.environ.get("RANK", "0")))
 
 
 # -----------------------------------------------------------------------------
 # Main procedure
 # -----------------------------------------------------------------------------
 
-def main(init_fn: Callable[[], None], sample_fn: Callable[[str, str, int], None]) -> None:  # noqa: D401,E501
+def main(init_fn: Callable[[], None], sample_fn: Callable[[str, list[str], int], None]) -> None:  # noqa: D401,E501
     parser = argparse.ArgumentParser(description="Chipmunk batch sampling entrypoint")
     parser.add_argument("--prompt-file", required=True, help="JSON prompt file path")
     parser.add_argument("--chipmunk-config", required=True, help="Chipmunk config YAML path")
@@ -68,21 +68,25 @@ def main(init_fn: Callable[[], None], sample_fn: Callable[[str, str, int], None]
         prompt: str = item["prompt"]
         seed: int = int(item.get("seed", 0))
         out_name: str = item.get("output_path", f"{idx:06d}.png")
-
-        out_path = media_dir / out_name
-        if out_path.exists():
+        if type(out_name) == str:
+            out_name = [out_name]
+        out_path = []
+        for name in out_name:
+            out_path.append(media_dir / name)
+        if all(path.exists() for path in out_path):
             continue
 
         # Ensure deterministic ordering between processes
-        print(f"[batch_sample_main] RANK {local_rank}: generating {out_path.name}")
+        print(f"[batch_sample_main] RANK {local_rank}: generating {[x.name for x in out_path]}")
         start_t = time.time()
         try:
-            sample_fn(prompt, str(out_path), seed)
+            dur = sample_fn(prompt, [str(x) for x in out_path], seed)
         except Exception as exc:  # noqa: BLE001
             print(f"[batch_sample_main] ERROR while sampling {out_path}: {exc}")
             raise
-        dur = time.time() - start_t
-        print(f"[batch_sample_main] RANK {local_rank}: finished {out_path.name} in {dur:.2f}s")
+        if dur is None:
+            dur = time.time() - start_t
+        print(f"[batch_sample_main] RANK {local_rank}: finished in {dur:.2f}s")
 
     # Only primary rank writes done signal
     if local_rank == 0:

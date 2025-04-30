@@ -68,7 +68,8 @@ def make_config(
     width: int,
     height: int,
     global_disable_offloading: bool,
-
+    tea_cache_threshold: float = 0.0,
+    world_size: int = 1,
 ):
     """Return a **list** with a single deep‑copied GLOBAL_CONFIG variant."""
 
@@ -101,6 +102,13 @@ def make_config(
 
     GLOBAL_CONFIG["offloading"]["global_disable_offloading"] = global_disable_offloading
 
+    if tea_cache_threshold > 0.0:
+        GLOBAL_CONFIG["tea_cache"]["threshold"] = tea_cache_threshold
+        GLOBAL_CONFIG["tea_cache"]["is_enabled"] = True
+        GLOBAL_CONFIG["tea_cache"]["debug"] = True
+    
+    GLOBAL_CONFIG["world_size"] = world_size
+
     from copy import deepcopy
 
     return [deepcopy(GLOBAL_CONFIG)]
@@ -110,12 +118,7 @@ def make_config(
 # Example grid for flux (expand / modify for other models)
 # -----------------------------------------------------------------------------
 
-def generate_configs(model_name: str) -> List[Dict[str, Any]]:  # noqa: D401,E501
-    if model_name != "flux":
-        raise NotImplementedError(
-            f"generate_configs must be implemented by the user for model '{model_name}'"
-        )
-
+def generate_configs_flux() -> List[Dict[str, Any]]:
     cfgs: List[Dict[str, Any]] = []
     for attn_sparsity in [0.1, 0.165, 0.3]:
         for mlp_sparsity in [0.0, 0.3]:
@@ -159,6 +162,44 @@ def generate_configs(model_name: str) -> List[Dict[str, Any]]:  # noqa: D401,E50
                                                 )
     return cfgs
 
+def generate_configs_hunyuan() -> List[Dict[str, Any]]:
+    cfgs: List[Dict[str, Any]] = []
+    # Tea Cache Config
+    cfgs += make_config(
+        base_path="examples/hunyuan/chipmunk-config.yml",
+        patchify=False,
+        attn_sparsity=0.0,
+        attn_full_step_every=1,
+        attn_recompute_mask=False,
+        mlp_sparsity=0,
+        mlp_rk=0,
+        mlp_mbm=0,
+        mlp_is_fp8=False,
+        mlp_full_step_every=1,
+        mlp_block_mask_cache=0,
+        step_caching=False,
+        skip_step_schedule=[],
+        width=1280,
+        height=820,
+        global_disable_offloading=True,
+        attn_full_step_schedule=[],
+        attn_local_voxels=0,
+        attn_local_1d_window=0,
+        tea_cache_threshold=0.65,
+        world_size=8
+    )
+    return cfgs
+
+def generate_configs(model_name: str) -> List[Dict[str, Any]]:  # noqa: D401,E501
+    if model_name == "flux":
+        return generate_configs_flux()
+    elif model_name == "hunyuan":
+        return generate_configs_hunyuan()
+    else:
+        raise NotImplementedError(
+            f"generate_configs must be implemented by the user for model '{model_name}'"
+        )
+
 
 # -----------------------------------------------------------------------------
 # Harness helpers
@@ -199,6 +240,9 @@ def _shortname_from_cfg(cfg: Dict[str, Any], idx: int) -> str:
     for k_long, k_short in remaps.items():
         if k_long in keys:
             short.append(f"{k_short}={keys[k_long]}")
+    
+    if cfg['tea_cache']['is_enabled']:
+        short.insert(0, f"teacache={cfg['tea_cache']['threshold']}")
 
     return "_".join(short)
 
@@ -221,8 +265,13 @@ def _launch_process(
     """Spawn *num_gpus* processes and return their `Popen` handles."""
 
     procs: list[subprocess.Popen[bytes]] = []
+    world_size = yaml.safe_load(open(cfg_path, 'r'))['world_size']
+    num_processes = num_gpus // world_size
 
-    for gpu in range(num_gpus):
+    for proc_id in range(num_processes):
+        start_gpu = proc_id * world_size
+        end_gpu = start_gpu + world_size
+
         cmd = [
             sys.executable,
             "batch_sample.py",
@@ -232,13 +281,20 @@ def _launch_process(
             str(cfg_path),
         ]
         env = os.environ.copy()
-        env["CUDA_VISIBLE_DEVICES"] = str(gpu)
-        env["LOCAL_RANK"] = str(gpu)
-        env["WORLD_SIZE"] = str(num_gpus)
+        env["CUDA_VISIBLE_DEVICES"] = ",".join(str(gpu) for gpu in range(start_gpu, end_gpu))
+        env["CHIPMUNK_LOCAL_RANK"] = str(proc_id)
+        env["CHIPMUNK_WORLD_SIZE"] = str(num_processes)
 
-        stdout_f = (log_dir / f"gpu{gpu}.out").open("w")
-        stderr_f = (log_dir / f"gpu{gpu}.err").open("w")
-
+        stdout_f = (log_dir / f"gpu{proc_id}.out").open("w")
+        stderr_f = (log_dir / f"gpu{proc_id}.err").open("w")
+        
+        # Pretty print command for copy-paste
+        cmd_str = " ".join(cmd)
+        print(f"\n[batch_harness] Command to run:")
+        print("=" * 80)
+        print(f"CUDA_VISIBLE_DEVICES={env['CUDA_VISIBLE_DEVICES']} CHIPMUNK_LOCAL_RANK={env['CHIPMUNK_LOCAL_RANK']} CHIPMUNK_WORLD_SIZE={env['CHIPMUNK_WORLD_SIZE']} \\\n{cmd_str}")
+        print("=" * 80)
+        
         p = subprocess.Popen(
             cmd,
             cwd=example_dir,
@@ -346,7 +402,6 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
         with cfg_path.open("w") as f:
             yaml.safe_dump(cfg, f)
 
-        # launch one subprocess per GPU
         procs = _launch_process(
             model_name,
             example_dir,
@@ -354,9 +409,6 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
             prompt_file.resolve(),
             cfg_path.resolve(),
             exp_dir / "logs",
-        )
-        print(
-            f"[batch_harness] launched processes for '{shortname}' (GPUs={num_gpus})."
         )
 
         media_dir = exp_dir / "media" / eval_name
@@ -392,8 +444,9 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
                 )
                 sys.exit(code)
 
-        # mark experiment directory as finished
-        (exp_dir / "done.txt").write_text("finished\n")
+        # mark experiment directory as finished if all processes succeeded
+        if all(p.wait() == 0 for p in procs) and len(procs) > 0:
+            (exp_dir / "done.txt").write_text("finished\n")
 
 
 if __name__ == "__main__":

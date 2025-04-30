@@ -664,6 +664,6 @@ class HunyuanVideoSampler(Inference):
         out_dict["prompts"] = prompt
 
         gen_time = time.time() - start_time
-        logger.info(f"Success, time: {gen_time}")
+        out_dict["gen_time"] = gen_time
 
         return out_dict

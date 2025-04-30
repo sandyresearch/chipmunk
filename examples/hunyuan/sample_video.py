@@ -63,25 +63,28 @@ def main(args=None, local_rank=None, world_size=None):
     # prompt_cache = "A couple in formal evening wear, heading home, get caught in a heavy downpour and use umbrellas to shield themselves, featuring a steady and smooth perspective. Realistic, Night lighting, Humorous"
     # prompt_cache = "A cute, happy Corgi playing in the park at sunset, the camera movement is Pan Left. Realistic, Nature"
     # prompt_cache = "Iron Man in red and gold metallic armor is playing the electronic guitar, high electronic guitar. Realistic, Indoor lighting, Festive"
+    prompt_cache = "A stop sign. Realistic, Natural lighting, Casual"
     while True:
-        if prompt_cache is None:
-            prompt = input("Enter a prompt: ")
-            seed = input("Enter a seed (empty for random): ")
-            if seed == "":
-                seed = random.randint(0, 1000000)
-            else:
-                seed = int(seed)
-            prompt_cache = prompt
-        else:
-            prompt = input("Enter a prompt (empty for previous prompt): ")
-            if prompt == "":
-                prompt = prompt_cache
-            prompt_cache = prompt
-            seed = input("Enter a seed (empty for random): ")
-            if seed == "":
-                seed = random.randint(0, 1000000)
-            else:
-                seed = int(seed)
+        prompt = prompt_cache
+        seed = 0
+        # if prompt_cache is None:
+        #     prompt = input("Enter a prompt: ")
+        #     seed = input("Enter a seed (empty for random): ")
+        #     if seed == "":
+        #         seed = random.randint(0, 1000000)
+        #     else:
+        #         seed = int(seed)
+        #     prompt_cache = prompt
+        # else:
+        #     prompt = input("Enter a prompt (empty for previous prompt): ")
+        #     if prompt == "":
+        #         prompt = prompt_cache
+        #     prompt_cache = prompt
+        #     seed = input("Enter a seed (empty for random): ")
+        #     if seed == "":
+        #         seed = random.randint(0, 1000000)
+        #     else:
+        #         seed = int(seed)
         # prompt_ids = prompt['ids']
         # prompt_text = prompt['prompt']
         # seed = prompt['seed']

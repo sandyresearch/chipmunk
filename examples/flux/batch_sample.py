@@ -70,7 +70,7 @@ def init() -> None:  # noqa: D401
 
 
 @torch.inference_mode()
-def sample(prompt: str, out_file: str, seed: int) -> None:  # noqa: D401
+def sample(prompt: str, out_file: list[str], seed: int) -> None:  # noqa: D401
     """Generate an image for *prompt* and save it to *out_file*.
 
     The implementation follows the logic from the reference CLI (``flux/cli.py``)
@@ -104,7 +104,8 @@ def sample(prompt: str, out_file: str, seed: int) -> None:  # noqa: D401
         seed = random.randrange(1, 2**31 - 1)
 
     # Ensure output directory exists
-    Path(out_file).parent.mkdir(parents=True, exist_ok=True)
+    for path in out_file:
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
 
     torch_device = _device
 
@@ -158,7 +159,8 @@ def sample(prompt: str, out_file: str, seed: int) -> None:  # noqa: D401
     x = x.clamp(-1, 1)
     x = rearrange(x[0], "c h w -> h w c")
     img = Image.fromarray((127.5 * (x + 1.0)).cpu().byte().numpy())
-    img.save(out_file, quality=95, subsampling=0)
+    for path in out_file:
+        img.save(path, quality=95, subsampling=0)
 
 
 # -----------------------------------------------------------------------------
