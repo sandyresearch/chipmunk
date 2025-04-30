@@ -180,7 +180,7 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
         step_caching=False,
         skip_step_schedule=[],
         width=1280,
-        height=820,
+        height=720,
         global_disable_offloading=True,
         attn_full_step_schedule=[],
         attn_local_voxels=0,
