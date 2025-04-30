@@ -82,17 +82,39 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
             #         str(geneval_out.resolve()),
             #     ])
         else:
-            vbench_out = evals_dir / "vbench.json"
+            vbench_out = evals_dir / "vbench"
             if not vbench_out.exists():
-                cmds.append([
-                    sys.executable,
-                    "-m",
-                    "chipmunk.evals.vbench",
-                    "--experiment-dir",
-                    str(exp_dir.resolve()),
-                    "--out-path",
-                    str(vbench_out.resolve()),
-                ])
+                import torch
+                dimensions = [
+                    "object_class",
+                    "multiple_objects",
+                    "human_action", 
+                    "color",
+                    "spatial_relationship",
+                    "scene",
+                    "appearance_style",
+                    "temporal_style",
+                    "overall_consistency",
+                    "subject_consistency",
+                    "background_consistency",
+                    "temporal_flickering",
+                    "motion_smoothness",
+                    "aesthetic_quality",
+                    "imaging_quality",
+                    "dynamic_degree"
+                ]
+                for dimension in dimensions:
+                    cmds.append([
+                        "vbench",
+                        "evaluate",
+                        f"--ngpus={torch.cuda.device_count()}",
+                        "--dimension",
+                        dimension,
+                        "--videos_path",
+                        str(media_dir),
+                        '--output_path',
+                        str(vbench_out.resolve()),
+                    ])
 
         for cmd in cmds:
             ret = _launch(cmd)
