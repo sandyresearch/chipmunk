@@ -85,7 +85,11 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
             vbench_out = evals_dir / "vbench"
             if not vbench_out.exists():
                 import torch
-                dimensions = [
+                cmds.append([
+                    "vbench",
+                    "evaluate",
+                    f"--ngpus={torch.cuda.device_count()}",
+                    "--dimension",
                     "object_class",
                     "multiple_objects",
                     "human_action", 
@@ -102,19 +106,11 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
                     "aesthetic_quality",
                     "imaging_quality",
                     "dynamic_degree"
-                ]
-                for dimension in dimensions:
-                    cmds.append([
-                        "vbench",
-                        "evaluate",
-                        f"--ngpus={torch.cuda.device_count()}",
-                        "--dimension",
-                        dimension,
-                        "--videos_path",
-                        str(media_dir),
-                        '--output_path',
-                        str(vbench_out.resolve()),
-                    ])
+                    "--videos_path",
+                    str(media_dir),
+                    '--output_path',
+                    str(vbench_out.resolve()),
+                ])
 
         for cmd in cmds:
             ret = _launch(cmd)
