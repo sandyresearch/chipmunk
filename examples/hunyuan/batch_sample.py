@@ -65,6 +65,14 @@ def main(args=None, local_rank=None, world_size=None):
     for generation in prompts:
         prompt_text = generation['prompt']
         seed = random.randint(0, 1000000)
+        has_valid_output_path = False
+        for output_path in generation['output_path']:
+            cur_save_path = Path(args.chipmunk_config).parent / 'media' / output_path
+            if not cur_save_path.exists():
+                has_valid_output_path = True
+                break
+        if not has_valid_output_path: # skip if all output paths have been generated already
+            continue
 
         outputs = hunyuan_video_sampler.predict(
             prompt=prompt_text, 
