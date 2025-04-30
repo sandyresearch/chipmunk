@@ -83,7 +83,7 @@ class SparseDiffAttn(nn.Module):
         singleton_static_mask = mask
         singleton_video_query_groups = sparse_attn_query_groups
 
-    # @torch.compile(dynamic=False)
+    @torch.compile(dynamic=False)
     def random_and_topk(self, cs, topk):
         mask = torch.randint(0, 100, cs.shape, device=cs.device, dtype=torch.uint8) == 0
         mask.scatter_(-1, cs.topk(k=topk, dim=-1).indices, True)

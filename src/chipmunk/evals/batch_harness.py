@@ -185,8 +185,8 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
         attn_full_step_schedule=[],
         attn_local_voxels=0,
         attn_local_1d_window=0,
-        tea_cache_threshold=0.65,
-        world_size=8
+        tea_cache_threshold=0.75,
+        world_size=1
     )
     return cfgs
 
@@ -412,18 +412,13 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
         )
 
         media_dir = exp_dir / "media" / eval_name
-        bar = tqdm(
-            total=prompt_len,
-            desc=f"{shortname}:{eval_name}",
-            unit="file",
-            leave=False,
-            ncols=80,
-        )
-
+        produced = 0
         # poll once per second until done
         while True:
-            produced = len(list(media_dir.iterdir())) if media_dir.exists() else 0
-            bar.update(produced - bar.n)  # advance only by delta
+            new_produced = len(list(media_dir.iterdir())) if media_dir.exists() else 0
+            if new_produced != produced:
+                produced = new_produced
+                print(f"\r{shortname}:{eval_name} [{produced}/{prompt_len}]", end="", flush=True)
 
             if produced >= prompt_len:
                 break  # all prompts have outputs
@@ -433,7 +428,7 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
 
             time.sleep(1)
 
-        bar.close()
+        print()  # final newline
 
         # final sanity: check exit codes
         for p in procs:

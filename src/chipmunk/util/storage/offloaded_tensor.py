@@ -39,9 +39,9 @@ class MaybeOffloadedTensor:
     """
 
     # Default buffer sizes for pinned CPU memory, tuned for typical shape sizes
-    LARGE_BUF_SIZE  = 1 * 32 * 150000 * 128 * torch.finfo(torch.bfloat16).bits // 8
-    MEDIUM_BUF_SIZE = 1 * 32 * 50000 * 128 * torch.finfo(torch.bfloat16).bits // 8
-    SMALL_BUF_SIZE  = 1 * 32 * 15000 * 128 * torch.finfo(torch.bfloat16).bits // 8
+    LARGE_BUF_SIZE  = 1 * 24 * 120000 * 128 * torch.finfo(torch.bfloat16).bits // 8
+    MEDIUM_BUF_SIZE = 1 * 24 * 50000 * 128 * torch.finfo(torch.bfloat16).bits // 8
+    SMALL_BUF_SIZE  = 1 * 24 * 15000 * 128 * torch.finfo(torch.bfloat16).bits // 8
 
     @torch.compiler.disable # torch.compile fails to allocate pinned CPU memory :(
     def __init__(self, name: str, layer_num: int, dtype: torch.dtype,

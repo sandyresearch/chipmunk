@@ -22,6 +22,9 @@ from hyvideo.modules.head_parallel import setup_dist
 
 from chipmunk.util.config import GLOBAL_CONFIG
 
+chipmunk_world_size = int(os.environ.get('CHIPMUNK_WORLD_SIZE', 1))
+chipmunk_local_rank = int(os.environ.get('CHIPMUNK_LOCAL_RANK', 0))
+
 @ray.remote(num_gpus=1)
 def main(args=None, local_rank=None, world_size=None):
     chipmunk.util.config.load_from_file(args.chipmunk_config)
@@ -62,7 +65,9 @@ def main(args=None, local_rank=None, world_size=None):
     # Get the updated args
     args = hunyuan_video_sampler.args
 
-    for generation in prompts:
+    for i, generation in enumerate(prompts):
+        if i % chipmunk_world_size != int(chipmunk_local_rank):
+            continue
         prompt_text = generation['prompt']
         seed = random.randint(0, 1000000)
         has_valid_output_path = False

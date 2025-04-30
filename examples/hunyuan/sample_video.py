@@ -24,7 +24,7 @@ from chipmunk.util.config import GLOBAL_CONFIG
 
 @ray.remote(num_gpus=1)
 def main(args=None, local_rank=None, world_size=None):
-    chipmunk.util.config.load_from_file("chipmunk-config.yml")
+    chipmunk.util.config.load_from_file(args.chipmunk_config)
     models_root_path = Path(args.model_base)
     if not models_root_path.exists():
         raise ValueError(f"`models_root` not exists: {models_root_path}")
@@ -151,9 +151,9 @@ def run_all(args):
         sys.exit(1)
 
 if __name__ == "__main__":
-    chipmunk.util.config.load_from_file("chipmunk-config.yml")
     ray.init(_temp_dir='/tmp/ray-hunyuan')
     args = parse_args()
+    chipmunk.util.config.load_from_file(args.chipmunk_config)
     args.ulysses_degree = GLOBAL_CONFIG['world_size']
     results = run_all(args)
 
