@@ -1,151 +1,128 @@
-# batch_sample_ray.py
-from __future__ import annotations
-import os, sys, pickle, traceback
-from pathlib import Path
-from typing import Any
+import chipmunk.util.config
 
+import os
+import json
+import time
+import random
+from pathlib import Path
+from loguru import logger
+from datetime import datetime
+import ray
+import sys
 import torch
 import torch.distributed as dist
-import ray
+import torch._dynamo
 
-from chipmunk.evals.batch_sample_main import main as _batch_main
+from hyvideo.utils.file_utils import save_videos_grid
+from hyvideo.config import parse_args
+from hyvideo.inference import HunyuanVideoSampler
+from hyvideo.modules.chipmunk.config import update_global_config
 
-# --------------------------------------------------------------------------- #
-#                           model-level helpers                               #
-# --------------------------------------------------------------------------- #
+from hyvideo.modules.head_parallel import setup_dist
 
-_model: Any | None = None     # holds HunyuanVideoSampler
-_global_args: Any | None = None
-
-
-def init() -> None:
-    """Initialised once per Ray actor *after* dist PG is ready."""
-    global _model, _global_args
-    if _model is not None:           # already done on this rank
-        return
-
-    # ── sync all workers *before* heavy initialisation ──
-    if dist.is_initialized():
-        dist.barrier()
-
-    from hyvideo.config import parse_args
-    from hyvideo.inference import HunyuanVideoSampler
-
-    # parse Hunyuan CLI with defaults only
-    old_argv = sys.argv
-    sys.argv = [old_argv[0]]
-    try:
-        _global_args = parse_args()
-    finally:
-        sys.argv = old_argv
-    _global_args.flow_reverse = True                 # user default
-
-    device = torch.device("cuda")
-    models_root = Path(_global_args.model_base)
-    if not models_root.exists():
-        raise FileNotFoundError(f"Model base not found: {models_root}")
-
-    _model = HunyuanVideoSampler.from_pretrained(
-        models_root, args=_global_args, device=device
-    )
-    _model.pipeline.transformer.sparsify()
-
-    # ── optional sync so that all ranks finish loading together ──
-    dist.barrier()
-
-
-def sample(prompt: str, out_file: list[str], seed: int) -> None:
-    """Called repeatedly by the harness on each rank."""
-    if _model is None:
-        raise RuntimeError("init() must be called first")
-    from hyvideo.utils.file_utils import save_videos_grid
-    dist.barrier()
-
-    outs = _model.predict(
-        prompt                  = prompt,
-        height                  = _global_args.video_size[0],
-        width                   = _global_args.video_size[1],
-        video_length            = _global_args.video_length,
-        seed                    = seed,
-        negative_prompt         = _global_args.neg_prompt,
-        infer_steps             = _global_args.infer_steps,
-        guidance_scale          = _global_args.cfg_scale,
-        num_videos_per_prompt   = 1,
-        flow_shift              = _global_args.flow_shift,
-        batch_size              = _global_args.batch_size,
-        embedded_guidance_scale = _global_args.embedded_cfg_scale,
-    )
-
-    video = outs["samples"][0].unsqueeze(0)
-    for p in out_file:
-        Path(p).parent.mkdir(parents=True, exist_ok=True)
-        save_videos_grid(video, p, fps=24)
-
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()
-    
-    dist.barrier()
-    
-    return outs["gen_time"]
-
-# --------------------------------------------------------------------------- #
-#                     Ray actor wrapping the harness                          #
-# --------------------------------------------------------------------------- #
+from chipmunk.util.config import GLOBAL_CONFIG
 
 @ray.remote(num_gpus=1)
-def _ray_worker(argv_pickled: bytes, local_rank: int, world_size: int) -> None:
-    """Single-GPU worker: set up NCCL then run the harness loop."""
-    # re-inject CLI args the outer user supplied
-    sys.argv = pickle.loads(argv_pickled)
+def main(args=None, local_rank=None, world_size=None):
+    chipmunk.util.config.load_from_file(args.chipmunk_config)
+    prompt_file = Path(args.prompt_file)
+    if not prompt_file.exists():
+        raise ValueError(f"`prompt_file` not exists: {prompt_file}")
+    prompts = json.load(open(prompt_file, 'r'))
+    models_root_path = Path(args.model_base)
+    if not models_root_path.exists():
+        raise ValueError(f"`models_root` not exists: {models_root_path}")
+    
+    # Create save folder to save the samples
+    # save_path = args.save_path if args.save_path_suffix=="" else f'{args.save_path}_{args.save_path_suffix}'
+    save_path = 'outputs/chipmunk-test/'
+    if not os.path.exists(save_path):
+        os.makedirs(save_path, exist_ok=True)
 
-    # environment for NCCL
-    os.environ.setdefault("MASTER_ADDR", "127.0.0.1")
-    os.environ.setdefault("MASTER_PORT", "29500")
-    os.environ["LOCAL_RANK"] = str(local_rank)
-    os.environ["RANK"]       = str(local_rank)
-    os.environ["WORLD_SIZE"] = str(world_size)
+    # ==================== Initialize Distributed Environment ================
+    device = torch.device(f"cuda")
+    if world_size > 1:
+        os.environ["MASTER_ADDR"] = "127.0.0.1"
+        os.environ["MASTER_PORT"] = "29500"
+        os.environ['LOCAL_RANK'] = str(local_rank)
+        # Ray initializes each process to only have one visible GPU.
+        dist.init_process_group(
+            "nccl",
+            rank=local_rank,
+            world_size=world_size,
+        )
+        pg = dist.group.WORLD
+        setup_dist(pg, local_rank, world_size)
 
-    dist.init_process_group(
-        backend="nccl",
-        rank=local_rank,
-        world_size=world_size,
-    )
+    # Load models
+    hunyuan_video_sampler = HunyuanVideoSampler.from_pretrained(models_root_path, args=args, device=device)
+    hunyuan_video_sampler.pipeline.transformer.sparsify()
 
-    # Hunyuan’s head-parallel helper (same as in first file)
-    from hyvideo.modules.head_parallel import setup_dist
-    setup_dist(dist.group.WORLD, local_rank, world_size)
+    # Get the updated args
+    args = hunyuan_video_sampler.args
 
-    # start the evaluation harness – this calls our init()/sample()
-    _batch_main(init, sample)
+    for generation in prompts:
+        prompt_text = generation['prompt']
+        seed = random.randint(0, 1000000)
 
-# --------------------------------------------------------------------------- #
-#                       driver (mirrors first script)                         #
-# --------------------------------------------------------------------------- #
+        outputs = hunyuan_video_sampler.predict(
+            prompt=prompt_text, 
+            height=args.video_size[0],
+            width=args.video_size[1],
+            video_length=args.video_length,
+            seed=seed,
+            negative_prompt=args.neg_prompt,
+            infer_steps=args.infer_steps,
+            guidance_scale=args.cfg_scale,
+            num_videos_per_prompt=args.num_videos,
+            flow_shift=args.flow_shift,
+            batch_size=args.batch_size,
+            embedded_guidance_scale=args.embedded_cfg_scale
+        )
+        samples = outputs['samples']
+        logger.info(f'finished in {outputs["gen_time"]:.3f}s')
+        
+        # Save samples
+        if 'LOCAL_RANK' not in os.environ or int(os.environ['LOCAL_RANK']) == 0:
+            for i, sample in enumerate(samples):
+                sample = samples[i].unsqueeze(0)
+                for output_path in generation['output_path']:
+                    cur_save_path = Path(args.chipmunk_config).parent / 'media' / output_path
+                    Path(cur_save_path).parent.mkdir(parents=True, exist_ok=True)
+                    save_videos_grid(sample, cur_save_path, fps=24)
+                    logger.info(f'Sample save to: {cur_save_path}')
 
-def _spawn_all() -> None:
-    """Launch one Ray actor per visible GPU and wait for completion."""
-    # keep user CLI flags for the workers
-    argv_blob = pickle.dumps(sys.argv)
+def run_all(args):
+    import traceback
+    import sys
 
-    world = torch.cuda.device_count() or 1
+    # Create a list of all actors (tasks) you’ll run in parallel
+    actors = [main.remote(args=args, local_rank=gpu_id, world_size=args.ulysses_degree)
+              for gpu_id in range(args.ulysses_degree)]
 
-    actors = [
-        _ray_worker.remote(argv_blob, i, world)
-        for i in range(world)
-    ]
-    # block until all actors finish (or raise)
     try:
-        ray.get(actors)
-    except Exception:
+        # If one of these dies, ray.get will raise an exception
+        results = ray.get(actors)
+        return results
+    except Exception as e:
+        # Log what happened
         traceback.print_exc()
-        for a in actors:
-            ray.kill(a, no_restart=True)
-        raise
 
+        # Kill all actors to avoid “zombie” processes
+        for a in actors:
+            ray.kill(a)
+
+        # Optionally shut down Ray altogether
+        ray.shutdown()
+
+        # Now exit so that everything stops
+        sys.exit(1)
 
 if __name__ == "__main__":
-    import chipmunk.util.config
-    chipmunk.util.config.load_from_file("chipmunk-config.yml")
+    ray.init(_temp_dir='/tmp/ray-hunyuan')
+    args = parse_args()
+    chipmunk.util.config.load_from_file(args.chipmunk_config)
+    args.ulysses_degree = GLOBAL_CONFIG['world_size']
+    args.flow_reverse = True
+    results = run_all(args)
 
-    ray.init(_temp_dir="/tmp/ray-hunyuan-batch", ignore_reinit_error=True)
-    _spawn_all()
