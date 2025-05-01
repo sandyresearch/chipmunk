@@ -77,7 +77,7 @@ def make_config(
 
     GLOBAL_CONFIG["patchify"]["is_enabled"] = patchify
     GLOBAL_CONFIG["attn"]["top_keys"] = attn_sparsity
-    GLOBAL_CONFIG["attn"]["is_enabled"] = float(attn_sparsity) != 0.0
+    GLOBAL_CONFIG["attn"]["is_enabled"] = float(attn_sparsity) != 0.0 or float(attn_local_1d_window) != 0.0 or float(attn_local_voxels) != 0.0
     GLOBAL_CONFIG["attn"]["full_step_every"] = attn_full_step_every
     GLOBAL_CONFIG["attn"]["full_step_schedule"] = (
         attn_full_step_schedule if attn_full_step_schedule else None
@@ -170,6 +170,28 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
         patchify=False,
         attn_sparsity=0.0,
         attn_full_step_every=1,
+        attn_recompute_mask=True,
+        mlp_sparsity=0,
+        mlp_rk=0,
+        mlp_mbm=0,
+        mlp_is_fp8=False,
+        mlp_full_step_every=1,
+        mlp_block_mask_cache=0,
+        step_caching=True,
+        skip_step_schedule={7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43},
+        width=1280,
+        height=720,
+        global_disable_offloading=False,
+        attn_full_step_schedule=[],
+        attn_local_voxels=0,
+        attn_local_1d_window=0.25,
+        world_size=1
+    )
+    cfgs += make_config(
+        base_path="examples/hunyuan/chipmunk-config.yml",
+        patchify=False,
+        attn_sparsity=0.0,
+        attn_full_step_every=1,
         attn_recompute_mask=False,
         mlp_sparsity=0,
         mlp_rk=0,
@@ -185,7 +207,7 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
         attn_full_step_schedule=[],
         attn_local_voxels=0,
         attn_local_1d_window=0,
-        tea_cache_threshold=0.75,
+        tea_cache_threshold=0.65,
         world_size=1
     )
     return cfgs
@@ -284,6 +306,7 @@ def _launch_process(
         env["CUDA_VISIBLE_DEVICES"] = ",".join(str(gpu) for gpu in range(start_gpu, end_gpu))
         env["CHIPMUNK_LOCAL_RANK"] = str(proc_id)
         env["CHIPMUNK_WORLD_SIZE"] = str(num_processes)
+        env["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
         stdout_f = (log_dir / f"gpu{proc_id}.out").open("w")
         stderr_f = (log_dir / f"gpu{proc_id}.err").open("w")
