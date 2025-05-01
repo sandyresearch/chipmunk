@@ -14,6 +14,7 @@ from flux.modules.layers import (
     timestep_embedding,
 )
 from chipmunk.cache.tea_cache import TeaCache
+from chipmunk.cache.token_cache import TokenCache
 from flux.modules.lora import LinearLora, replace_linear_with_lora
 from einops import rearrange
 
@@ -86,6 +87,13 @@ class Flux(nn.Module):
         self.final_layer = LastLayer(self.hidden_size, 1, self.out_channels)
 
         self.tea_cache = TeaCache()
+
+    def sparsify(self):
+        token_cache = TokenCache()
+        for block in self.all_blocks:
+            block.sparsify()
+            block.sparse_attn.token_cache = token_cache
+            block.sparse_mlp.token_cache  = token_cache
 
     def forward(
         self,
