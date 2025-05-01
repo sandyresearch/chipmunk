@@ -16,7 +16,8 @@ rm -rf output
 python -m flux.cli --name flux-dev \
     --prompt "${prompts[0]}|${prompts[1]}|${prompts[2]}|${prompts[3]}|${prompts[4]}|${prompts[5]}|${prompts[6]}|${prompts[7]}" \
     --output_dir output \
-    --width 1360 \
+    --width 768 \
     --height 768 \
     --num_steps 50 \
-    --seed 42
+    --seed 42 \
+    --config configs/ditfastattn-flux-config.yml

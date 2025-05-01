@@ -358,7 +358,12 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
 
     # total number of prompts determines progress‑bar length
     with prompt_file.open() as fp:
-        prompt_len = len(json.load(fp))
+        num_output_files = 0
+        for generation in json.load(fp):
+            if type(generation['output_path']) == list:
+                num_output_files += len(generation['output_path'])
+            else:
+                num_output_files += 1
 
     import torch
 
@@ -415,12 +420,12 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
         produced = 0
         # poll once per second until done
         while True:
-            new_produced = len(list(media_dir.iterdir())) if media_dir.exists() else 0
+            new_produced = sum(1 for _ in media_dir.rglob('*') if _.is_file()) if media_dir.exists() else 0
             if new_produced != produced:
                 produced = new_produced
-                print(f"\r{shortname}:{eval_name} [{produced}/{prompt_len}]", end="", flush=True)
+                print(f"\r{shortname}:{eval_name} [{produced}/{num_output_files}]", end="", flush=True)
 
-            if produced >= prompt_len:
+            if produced >= num_output_files:
                 break  # all prompts have outputs
 
             if all(p.poll() is not None for p in procs):

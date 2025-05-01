@@ -13,6 +13,8 @@ from chipmunk.util import LayerCounter, GLOBAL_CONFIG
 from chipmunk.util.storage.offloaded_tensor import PIPELINE_DEPTH
 from chipmunk.ops.voxel import voxel_chunk_no_padding, reverse_voxel_chunk_no_padding
 from einops import rearrange
+from chipmunk.cache.tea_cache import TeaCache
+
 __all__ = ['WanModel']
 
 T5_CONTEXT_TOKEN_NUMBER = 512
@@ -505,6 +507,7 @@ class WanModel(ModelMixin, ConfigMixin):
 
         # initialize weights
         self.init_weights()
+        self.tea_cache = TeaCache()
 
     def forward(
         self,
@@ -583,6 +586,24 @@ class WanModel(ModelMixin, ConfigMixin):
                 x = self.unpatchify(x, grid_sizes)
                 return [u.float() for u in x]
         
+        ### TeaCache ###
+        if GLOBAL_CONFIG['tea_cache']['is_enabled']:
+            orig_img = x.clone()
+            should_skip = self.tea_cache.step(orig_img)
+            if should_skip:
+                # update inference step counter
+                self.blocks[0].self_attn.attn.layer_counter.cur_inference_step += 1
+
+                x += self.tea_cache.load()
+                # img = img[:, :img_seq_len, ...]
+                x = self.head(x, e)
+
+                # unpatchify
+                x = self.unpatchify(x, grid_sizes)
+
+                return [u.float() for u in x]
+        ################
+
         # context
         context_lens = None
         context = self.text_embedding(
@@ -617,6 +638,12 @@ class WanModel(ModelMixin, ConfigMixin):
         
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
             self.step_caching = x.clone()
+
+        ### TeaCache ###
+        if GLOBAL_CONFIG['tea_cache']['is_enabled']:
+            self.tea_cache.store(x - orig_img)
+        ################
+
 
         x = self.head(x, e)
 

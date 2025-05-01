@@ -13,6 +13,7 @@ from flux.modules.layers import (
     SingleStreamBlock,
     timestep_embedding,
 )
+from chipmunk.cache.tea_cache import TeaCache
 from flux.modules.lora import LinearLora, replace_linear_with_lora
 from einops import rearrange
 
@@ -84,6 +85,8 @@ class Flux(nn.Module):
 
         self.final_layer = LastLayer(self.hidden_size, 1, self.out_channels)
 
+        self.tea_cache = TeaCache()
+
     def forward(
         self,
         img: Tensor,
@@ -92,6 +95,8 @@ class Flux(nn.Module):
         txt_ids: Tensor,
         timesteps: Tensor,
         y: Tensor,
+        width: int,
+        height: int,
         guidance: Tensor | None = None,
     ) -> Tensor:
         if img.ndim != 3 or txt.ndim != 3:
@@ -112,7 +117,29 @@ class Flux(nn.Module):
                 img = self.step_caching
                 self.double_blocks[0].sparse_attn.layer_counter.cur_inference_step += 1
                 return self.final_layer(img, vec)
-    
+        
+        ### TeaCache ###
+        if GLOBAL_CONFIG['tea_cache']['is_enabled']:
+            orig_img = img.clone()
+            should_skip = self.tea_cache.step(orig_img)
+            if should_skip:
+                # update inference step counter
+                self.all_blocks[0].sparse_attn.layer_counter.cur_inference_step += 1
+                img += self.tea_cache.load()
+                # img = img[:, :img_seq_len, ...]
+                return self.final_layer(img, vec)
+        ################
+
+        ### STA ###
+        if GLOBAL_CONFIG['attn']['should_compress_indices']:
+            self.all_blocks[0].sparse_attn.initialize_static_mask(
+                seq_shape=(1, height // 2, width // 2),
+                txt_len=512,
+                local_heads_num=24,
+                device='cuda'
+            )
+        ################
+
         txt = self.txt_in(txt)
 
         if hasattr(self, 'pe_patchified'):
@@ -138,6 +165,12 @@ class Flux(nn.Module):
 
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
             self.step_caching = img.clone()
+
+        ### TeaCache ###
+        if GLOBAL_CONFIG['tea_cache']['is_enabled']:
+            self.tea_cache.store(img - orig_img)
+        ################
+
 
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
         return img

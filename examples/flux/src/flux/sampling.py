@@ -284,6 +284,8 @@ def _denoise_inner(
             y=vec,
             timesteps=t_vec,
             guidance=guidance_vec,
+            width=width,
+            height=height,
         )
 
         img = img + (t_prev - t_curr) * pred

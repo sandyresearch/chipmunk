@@ -55,6 +55,9 @@ class SparseDiffAttn(nn.Module):
             full_tail_to_attn=full_attn_to_3d_tail,
         )
 
+        if lv == 0 and GLOBAL_CONFIG['model_name'] == 'flux':
+            mask.fill_(0)
+
         # Apply local 1D window
         if lw1d > 0:
             window_size = int(lw1d * (tt * th * tw))
@@ -83,7 +86,6 @@ class SparseDiffAttn(nn.Module):
         singleton_static_mask = mask
         singleton_video_query_groups = sparse_attn_query_groups
 
-    @torch.compile(dynamic=False)
     def random_and_topk(self, cs, topk):
         mask = torch.randint(0, 100, cs.shape, device=cs.device, dtype=torch.uint8) == 0
         mask.scatter_(-1, cs.topk(k=topk, dim=-1).indices, True)
@@ -178,11 +180,11 @@ class SparseDiffAttn(nn.Module):
                 else:
                     inds   = self.storage.get_indices()
                     counts = self.storage.get_counts()
-
             if do_padding:
                 o_cache = o - chipmunk.ops.csp_attn(q, k, v, inds, counts)
             else:
                 o_cache = o.clone()
+                inds = inds[:, :, :, :q.shape[-2]].contiguous()
                 torch.ops.chipmunk.csp_attn(q, k, v, o_cache, inds, counts, -1)
             self.storage.set_out_cache(o_cache)
 
@@ -205,13 +207,13 @@ class SparseDiffAttn(nn.Module):
             counts = self.storage.get_counts()
         
         o = self.storage.get_out_cache()
-        
         if do_padding:
             o = o + chipmunk.ops.csp_attn(q, k, v, inds, counts)
         else:
             if not self.storage.out_cache.is_offload_enabled:
                 # Our kernel will write to o in place, so we need to clone it if it's not offloaded
                 o = o.clone()
+            inds = inds[:, :, :, :q.shape[-2]].contiguous()
             torch.ops.chipmunk.csp_attn(q, k, v, o, inds, counts, 1)
 
         if GLOBAL_CONFIG['attn']['debug']:

@@ -1,0 +1,58 @@
+model_name: flux
+world_size: 1
+steps: 50
+width: 1280
+height: 768
+
+mlp:
+  is_enabled: true
+  is_fp8: false
+  top_keys: 0.3
+  
+  random_keys: 0.05
+  full_step_every: 10
+  block_mask_cache: 2
+  first_n_dense_layers: 2
+
+attn:
+  is_enabled: true
+  debug: false
+  counts_multiple_of: 112
+  first_n_dense_layers: 2
+  full_step_every: 10
+  full_step_schedule: null
+  local_1d_window: 0
+  local_voxel: 1
+  pad_qkv_before_kernel: false
+  random_keys: 0.01
+  recompute_mask: false
+  should_compress_indices: true
+  top_keys: 0
+  full_attn_from_3d_tail: true
+  full_attn_to_3d_tail: true
+
+
+tea_cache:
+  is_enabled: false
+
+mlp:
+  block_mask_cache: 1
+  bm: 128
+  counts_multiple_of: 256
+  first_n_dense_layers: 2
+  full_step_every: 10
+  is_enabled: true
+  is_fp8: false
+  mbm: 128
+  random_keys: 0.05
+  top_keys: 0.3
+
+offloading:
+  global_disable_offloading: true
+
+patchify:
+  is_enabled: false
+
+step_caching:
+  is_enabled: false
+

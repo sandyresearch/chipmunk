@@ -13,20 +13,25 @@ mlp:
 
 attn:
   is_enabled: true
+  debug: false
   counts_multiple_of: 112
   first_n_dense_layers: 2
   full_step_every: 10
   full_step_schedule: null
-  local_1d_window: 0
-  local_voxels: 0
+  local_1d_window: 0.25
+  local_voxel: 0
   mbm: 192
   pad_qkv_before_kernel: false
   random_keys: 0.01
   recompute_mask: false
-  should_compress_indices: false
+  should_compress_indices: true
   top_keys: 0.165
 generation_index: 0
 height: 768
+tea_cache:
+  is_enabled: false
+  threshold: 0.1
+  debug: false
 mlp:
   block_mask_cache: 1
   bm: 128
@@ -54,7 +59,7 @@ offloading:
 patchify:
   chunk_size_1: 8
   chunk_size_2: 4
-  is_enabled: true
+  is_enabled: false
 should_profile: false
 step_caching:
   is_enabled: false

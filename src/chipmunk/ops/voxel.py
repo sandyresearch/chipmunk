@@ -215,7 +215,6 @@ def get_local_indices_with_text(
     device=torch.device('cuda')
 ):
     cdiv = lambda x, y: ((x + y - 1) // y)
-
     # square away our shapes
     tt, th, tw = vid_shape
     lt, lh, lw = local_shape
@@ -254,10 +253,7 @@ def get_local_indices_with_text(
     # print(f'local_mask[1, 2, 3]: {r_local_mask[1, 2, 3]}')
     # print(f'local_mask[2, 0, 3]: {r_local_mask[2, 0, 3]}')
     # print(f'local_mask[6, 4, 5]: {r_local_mask[6, 4, 5]}')
-    local_mask = rearrange(
-        local_mask[:, :, None].expand(-1, -1, voxel_size),
-        'm n r -> m (n r)'
-    )[:mask.shape[0], :mask.shape[-1]]
+    local_mask = rearrange(local_mask[:, :, None].expand(-1, -1, voxel_size), 'm n r -> m (n r)')[:mask.shape[0], :mask.shape[-1]]
     # print(f'reshaped local mask')
     # print(f'local mask shape after expand: {local_mask.shape}')
     pad0 = mask.shape[0] - local_indices.shape[0]
