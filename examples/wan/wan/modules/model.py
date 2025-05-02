@@ -14,7 +14,7 @@ from chipmunk.util.storage.offloaded_tensor import PIPELINE_DEPTH
 from chipmunk.ops.voxel import voxel_chunk_no_padding, reverse_voxel_chunk_no_padding
 from einops import rearrange
 from chipmunk.cache.tea_cache import TeaCache
-
+import numpy as np
 __all__ = ['WanModel']
 
 T5_CONTEXT_TOKEN_NUMBER = 512
@@ -66,9 +66,10 @@ def rope_apply(x, grid_sizes, freqs):
             freqs[2][:w].view(1, 1, w, -1).expand(f, h, w, -1)
         ],
                             dim=-1).reshape(seq_len, 1, -1)
-        freqs_i_viewed = rearrange(freqs_i, '(f h w) (b1 b2) d -> b1 b2 f h w d', f=f, h=h, w=w, b1=1)
-        freqs_i = voxel_chunk_no_padding(freqs_i_viewed, voxel_shape=(4, 6, 8)).squeeze(0)
-        freqs_i = freqs_i.transpose(0, 1)
+        if GLOBAL_CONFIG['patchify']['is_enabled']:
+            freqs_i_viewed = rearrange(freqs_i, '(f h w) (b1 b2) d -> b1 b2 f h w d', f=f, h=h, w=w, b1=1)
+            freqs_i = voxel_chunk_no_padding(freqs_i_viewed, voxel_shape=(4, 6, 8)).squeeze(0)
+            freqs_i = freqs_i.transpose(0, 1)
         # apply rotary embedding
         x_i = torch.view_as_real(x_i * freqs_i).flatten(2)
         x_i = torch.cat([x_i, x[i, seq_len:]])
@@ -135,7 +136,7 @@ class WanSelfAttention(nn.Module):
         self.norm_q = WanRMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
         self.norm_k = WanRMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
 
-        layer_num, layer_counter = LayerCounter.build_for_layer(is_attn_sparse=True, is_mlp_sparse=False)
+        layer_num, layer_counter = LayerCounter.build_for_layer(is_attn_sparse=True, is_mlp_sparse=False, num_layers=40)
         self.attn = SparseDiffAttn(layer_num, layer_counter)
 
     def forward(self, x, seq_lens, grid_sizes, freqs):
@@ -294,6 +295,7 @@ class WanAttentionBlock(nn.Module):
         # modulation
         self.modulation = nn.Parameter(torch.randn(1, 6, dim) / dim ** 0.5)
 
+    @torch.compile
     def forward(
         self,
         x,
@@ -488,6 +490,7 @@ class WanModel(ModelMixin, ConfigMixin):
                               window_size, qk_norm, cross_attn_norm, eps)
             for _ in range(num_layers)
         ])
+        LayerCounter.set_num_layers(40)
 
         # head
         self.head = Head(dim, out_dim, patch_size, eps)
@@ -507,7 +510,17 @@ class WanModel(ModelMixin, ConfigMixin):
 
         # initialize weights
         self.init_weights()
-        self.tea_cache = TeaCache()
+        self.tea_cache = [TeaCache() for _ in range(GLOBAL_CONFIG['num_model_invocations_per_inference_step'])]
+
+        self.previous_e0_even = None
+        self.previous_e0_odd = None
+        self.accumulated_rel_l1_distance_even = 0
+        self.accumulated_rel_l1_distance_odd = 0
+        self.coefficients = np.array([-5784.54975374,  5449.50911966, -1811.16591783,   256.27178429, -13.02252404])
+        self.ret_steps = 1
+        self.cutoff_steps = 50
+        self.teacache_thresh = GLOBAL_CONFIG['tea_cache']['threshold']
+        
 
     def forward(
         self,
@@ -542,6 +555,7 @@ class WanModel(ModelMixin, ConfigMixin):
         """
         ###############################
         voxel_shape = (4, 6, 8)
+        cur_model_invocation_per_step = self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step
         if self.model_type == 'i2v' or self.model_type == 'flf2v':
             assert clip_fea is not None and y is not None
         # params
@@ -557,10 +571,12 @@ class WanModel(ModelMixin, ConfigMixin):
         grid_sizes = torch.stack(
             [torch.tensor(u.shape[2:], dtype=torch.long) for u in x])
         
-        x[0] = x[0].unsqueeze(-1)
-        x_og_shape = x[0].shape
-        x[0] = voxel_chunk_no_padding(x[0], voxel_shape).squeeze(-1).transpose(1, 2)
-        # x = [u.flatten(2).transpose(1, 2) for u in x]
+        if GLOBAL_CONFIG['patchify']['is_enabled']:
+            x[0] = x[0].unsqueeze(-1)
+            x_og_shape = x[0].shape
+            x[0] = voxel_chunk_no_padding(x[0], voxel_shape).squeeze(-1).transpose(1, 2)
+        else:
+            x = [u.flatten(2).transpose(1, 2) for u in x]
 
         seq_lens = torch.tensor([u.size(1) for u in x], dtype=torch.long)
         assert seq_lens.max() <= seq_len
@@ -579,30 +595,15 @@ class WanModel(ModelMixin, ConfigMixin):
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
             if inference_step in GLOBAL_CONFIG['step_caching']['skip_step_schedule']:
                 # Increment singleton layer counter
-                self.blocks[0].self_attn.attn.layer_counter.cur_inference_step += 1
+                self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step += 1
+                if self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step == GLOBAL_CONFIG['num_model_invocations_per_inference_step']:
+                    self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step = 0
+                    self.blocks[0].self_attn.attn.layer_counter.cur_inference_step += 1
                 x = self.step_caching
                 x = self.head(x, e)
 
                 x = self.unpatchify(x, grid_sizes)
                 return [u.float() for u in x]
-        
-        ### TeaCache ###
-        if GLOBAL_CONFIG['tea_cache']['is_enabled']:
-            orig_img = x.clone()
-            should_skip = self.tea_cache.step(orig_img)
-            if should_skip:
-                # update inference step counter
-                self.blocks[0].self_attn.attn.layer_counter.cur_inference_step += 1
-
-                x += self.tea_cache.load()
-                # img = img[:, :img_seq_len, ...]
-                x = self.head(x, e)
-
-                # unpatchify
-                x = self.unpatchify(x, grid_sizes)
-
-                return [u.float() for u in x]
-        ################
 
         # context
         context_lens = None
@@ -626,24 +627,82 @@ class WanModel(ModelMixin, ConfigMixin):
             context=context,
             context_lens=context_lens)
 
-        for i, block in enumerate(self.blocks):
-            next_block = self.blocks[(i + PIPELINE_DEPTH - 1) % len(self.blocks)]
-            block.self_attn.attn.storage.load_async_wait()
-            next_block.self_attn.attn.storage.load_async()
-            x = block(x, **kwargs)
+        ### TeaCache ###
+        USE_REF_STEPS = False
+
+        if GLOBAL_CONFIG['tea_cache']['is_enabled']:
+            modulated_inp = e0 if USE_REF_STEPS else e
+            # teacache
+            if cur_model_invocation_per_step == 0: # even -> conditon
+                self.is_even = True
+                if inference_step < self.ret_steps or inference_step >= self.cutoff_steps:
+                        should_calc_even = True
+                        self.accumulated_rel_l1_distance_even = 0
+                else:
+                    rescale_func = np.poly1d(self.coefficients)
+                    self.accumulated_rel_l1_distance_even += rescale_func(((modulated_inp-self.previous_e0_even).abs().mean() / self.previous_e0_even.abs().mean()).cpu().item())
+                    if self.accumulated_rel_l1_distance_even < self.teacache_thresh:
+                        should_calc_even = False
+                    else:
+                        should_calc_even = True
+                        self.accumulated_rel_l1_distance_even = 0
+                self.previous_e0_even = modulated_inp.clone()
+
+            else: # odd -> unconditon
+                self.is_even = False
+                if inference_step < self.ret_steps or inference_step >= self.cutoff_steps:
+                        should_calc_odd = True
+                        self.accumulated_rel_l1_distance_odd = 0
+                else: 
+                    rescale_func = np.poly1d(self.coefficients)
+                    self.accumulated_rel_l1_distance_odd += rescale_func(((modulated_inp-self.previous_e0_odd).abs().mean() / self.previous_e0_odd.abs().mean()).cpu().item())
+                    if self.accumulated_rel_l1_distance_odd < self.teacache_thresh:
+                        should_calc_odd = False
+                    else:
+                        should_calc_odd = True
+                        self.accumulated_rel_l1_distance_odd = 0
+                self.previous_e0_odd = modulated_inp.clone()
+
+        if GLOBAL_CONFIG['tea_cache']['is_enabled']: 
+            if self.is_even:
+                if not should_calc_even:
+                    x += self.previous_residual_even
+                    self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step += 1
+                    if self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step == GLOBAL_CONFIG['num_model_invocations_per_inference_step']:
+                        self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step = 0
+                        self.blocks[0].self_attn.attn.layer_counter.cur_inference_step += 1
+                else:
+                    ori_x = x.clone()
+                    for i, block in enumerate(self.blocks):
+                        next_block = self.blocks[(i + PIPELINE_DEPTH - 1) % len(self.blocks)]
+                        block.self_attn.attn.storage.load_async_wait()
+                        next_block.self_attn.attn.storage.load_async()
+                        x = block(x, **kwargs)
+                    self.previous_residual_even = x - ori_x
+            else:
+                if not should_calc_odd:
+                    x += self.previous_residual_odd
+                    self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step += 1
+                    if self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step == GLOBAL_CONFIG['num_model_invocations_per_inference_step']:
+                        self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step = 0
+                        self.blocks[0].self_attn.attn.layer_counter.cur_inference_step += 1
+                else:
+                    ori_x = x.clone()
+                    for i, block in enumerate(self.blocks):
+                        next_block = self.blocks[(i + PIPELINE_DEPTH - 1) % len(self.blocks)]
+                        block.self_attn.attn.storage.load_async_wait()
+                        next_block.self_attn.attn.storage.load_async()
+                        x = block(x, **kwargs)
+                    self.previous_residual_odd = x - ori_x
+        ################
 
         # head
-        x = reverse_voxel_chunk_no_padding(x.transpose(1, 2).unsqueeze(-1), x_og_shape, voxel_shape).squeeze(-1)
-        x = x.flatten(2).transpose(1, 2)
+        if GLOBAL_CONFIG['patchify']['is_enabled']:
+            x = reverse_voxel_chunk_no_padding(x.transpose(1, 2).unsqueeze(-1), x_og_shape, voxel_shape).squeeze(-1)
+            x = x.flatten(2).transpose(1, 2)
         
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
             self.step_caching = x.clone()
-
-        ### TeaCache ###
-        if GLOBAL_CONFIG['tea_cache']['is_enabled']:
-            self.tea_cache.store(x - orig_img)
-        ################
-
 
         x = self.head(x, e)
 

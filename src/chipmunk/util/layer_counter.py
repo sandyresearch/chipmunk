@@ -17,9 +17,10 @@ class LayerCounter:
         self.attn_sparsity_count = 0
 
     @staticmethod
-    def build_for_layer(is_mlp_sparse: bool = False, is_attn_sparse: bool = False):
+    def build_for_layer(is_mlp_sparse: bool = False, is_attn_sparse: bool = False, num_layers: int = 100000):
         old_layer_num = singleton.num_layers
         singleton.num_layers += 1
+        singleton.num_layers %= num_layers
         if is_attn_sparse and not singleton.has_attn_sparsity:
             singleton.has_attn_sparsity = True
             singleton.num_submodules_per_layer += 1
@@ -27,6 +28,10 @@ class LayerCounter:
             singleton.has_mlp_sparsity = True
             singleton.num_submodules_per_layer += 1
         return old_layer_num, singleton
+
+    @staticmethod
+    def set_num_layers(num_layers: int):
+        singleton.num_layers = num_layers
 
     def should_do_full_mlp_step(self):
         return self.cur_inference_step % GLOBAL_CONFIG['mlp']['full_step_every'] == 0
@@ -41,7 +46,6 @@ class LayerCounter:
     def increment(self):
         # Current coordinate to be returned
         cur_coord = (self.cur_inference_step, self.cur_layer, self.cur_layer_submodule)
-
         # Increment coordinate
         self.cur_layer_submodule += 1
         if self.cur_layer_submodule == self.num_submodules_per_layer:
@@ -69,5 +73,8 @@ class LayerCounter:
 
     def get_cur_coord(self):
         return (self.cur_inference_step, self.cur_layer, self.cur_layer_submodule)
+    
+    def __repr__(self):
+        return f'LayerCounter(inference_step={self.cur_inference_step}/{GLOBAL_CONFIG["steps"]}, model_invocation={self.cur_model_invocation_per_step}/{GLOBAL_CONFIG["num_model_invocations_per_inference_step"]}, layer={self.cur_layer}/{self.num_layers}, submodule={self.cur_layer_submodule}/{self.num_submodules_per_layer})'
 
 singleton = LayerCounter(0, 0)
