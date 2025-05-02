@@ -10,7 +10,7 @@ mlp:
 attn:
   # Turn on debug to print sparsity levels
   # debug: true
-  is_enabled: false
+  is_enabled: true
 
   # coverage: 0.7
   top_keys: 0
