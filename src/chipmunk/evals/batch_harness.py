@@ -69,6 +69,7 @@ def make_config(
     height: int,
     global_disable_offloading: bool,
     tea_cache_threshold: float = 0.0,
+    attn_rk: float = 0.01,
     world_size: int = 1,
 ):
     """Return a **list** with a single deep‑copied GLOBAL_CONFIG variant."""
@@ -106,6 +107,8 @@ def make_config(
         GLOBAL_CONFIG["tea_cache"]["threshold"] = tea_cache_threshold
         GLOBAL_CONFIG["tea_cache"]["is_enabled"] = True
         GLOBAL_CONFIG["tea_cache"]["debug"] = True
+
+    GLOBAL_CONFIG["attn"]["random_keys"] = attn_rk
     
     GLOBAL_CONFIG["world_size"] = world_size
 
@@ -170,6 +173,7 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
         patchify=False,
         attn_sparsity=0.0,
         attn_full_step_every=1,
+        attn_full_step_schedule={0, 1, 10, 40}
         attn_recompute_mask=True,
         mlp_sparsity=0,
         mlp_rk=0,
@@ -184,8 +188,9 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
         global_disable_offloading=False,
         attn_full_step_schedule=[],
         attn_local_voxels=0,
-        attn_local_1d_window=0.25,
-        world_size=1
+        attn_local_1d_window=0.1,
+        world_size=1,
+        attn_rk=0.01
     )
     cfgs += make_config(
         base_path="examples/hunyuan/chipmunk-config.yml",

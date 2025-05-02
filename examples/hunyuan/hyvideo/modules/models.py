@@ -823,7 +823,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 # Increment singleton layer counter
                 self.all_blocks[0].attention.layer_counter.cur_inference_step += 1
                 img = self.step_caching
-
                 vec = self.prepare_modulation(t, text_states_2, guidance)
                 return self.finish_layer(img, vec, gather_img, (tt, th, tw), return_dict)
         ###############################
