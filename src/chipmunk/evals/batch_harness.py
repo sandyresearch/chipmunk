@@ -186,7 +186,6 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
         width=1280,
         height=720,
         global_disable_offloading=False,
-        attn_full_step_schedule={},
         attn_local_voxels=0,
         attn_local_1d_window=0.1,
         world_size=1,
