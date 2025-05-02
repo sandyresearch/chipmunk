@@ -259,7 +259,11 @@ class SparseDiffAttn(nn.Module):
                     o = self.storage.get_out_cache()
                 return o
             else:
-                return F.scaled_dot_product_attention(q, k, v)
+                if q.shape[-2] < 10000:
+                    # n < 10000 is the threshold for using F.scaled_dot_product_attention
+                    return F.scaled_dot_product_attention(q, k, v)
+                else:
+                    return chipmunk.ops.dense_attn(q, k, v)[0]
 
         o = self._fast_attention(q, k, v, inference_step, do_full_step)
 
