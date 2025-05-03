@@ -81,6 +81,7 @@ BASE_CONFIG = {
     "tea_cache": {
         'is_enabled': False,
         'threshold': 1e-5,
+        'debug': False,
     },
     "token_cache": {
         'is_enabled': False,
@@ -95,6 +96,8 @@ BASE_CONFIG = {
 }
 
 GLOBAL_CONFIG = copy.deepcopy(BASE_CONFIG)
+
+def 
 
 def update_global_config(config):
     global GLOBAL_CONFIG

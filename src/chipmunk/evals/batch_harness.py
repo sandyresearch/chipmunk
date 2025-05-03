@@ -123,6 +123,28 @@ def make_config(
 
 def generate_configs_flux() -> List[Dict[str, Any]]:
     cfgs: List[Dict[str, Any]] = []
+    for local_voxels in [3, 1, 5]:
+        cfgs += make_config(
+            base_path="examples/flux/chipmunk-config.yml",
+            patchify=True,
+            attn_sparsity=0,
+            attn_full_step_every=1,
+            attn_full_step_schedule={},
+            attn_recompute_mask=False,
+            mlp_sparsity=0,
+            mlp_rk=0,
+            mlp_mbm=0,
+            mlp_is_fp8=False,
+            mlp_full_step_every=1,
+            mlp_block_mask_cache=1,
+            step_caching=False,
+            skip_step_schedule={},
+            width=1280,
+            height=768,
+            global_disable_offloading=True,
+            attn_local_voxels=local_voxels,
+            attn_local_1d_window=0,
+        )
     for attn_sparsity in [0.165, 0.3]:
         for mlp_sparsity in [0.3, 0.0]:
             for mlp_rk in [0.05]:
@@ -371,7 +393,7 @@ def _shortname_from_cfg(cfg: Dict[str, Any], idx: int) -> str:
         if k_long in keys:
             short.append(f"{k_short}={keys[k_long]}")
     
-    if cfg['tea_cache']['is_enabled']:
+    if cfg.get("tea_cache", {}).get("is_enabled"):
         short.insert(0, f"teacache={cfg['tea_cache']['threshold']}")
 
     return "_".join(short)
@@ -561,7 +583,7 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
         )
 
         media_dir = exp_dir / "media" / eval_name
-        produced = 0
+        produced = -1
         # poll once per second until done
         while True:
             new_produced = sum(1 for _ in media_dir.rglob('*') if _.is_file() and _.suffix.lower() in ['.png', '.mp4', '.webp']) if media_dir.exists() else 0
