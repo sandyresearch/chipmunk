@@ -295,7 +295,7 @@ class WanAttentionBlock(nn.Module):
         # modulation
         self.modulation = nn.Parameter(torch.randn(1, 6, dim) / dim ** 0.5)
 
-    @torch.compile
+    # @torch.compile
     def forward(
         self,
         x,
@@ -663,7 +663,6 @@ class WanModel(ModelMixin, ConfigMixin):
                         self.accumulated_rel_l1_distance_odd = 0
                 self.previous_e0_odd = modulated_inp.clone()
 
-        if GLOBAL_CONFIG['tea_cache']['is_enabled']: 
             if self.is_even:
                 if not should_calc_even:
                     x += self.previous_residual_even
@@ -694,6 +693,12 @@ class WanModel(ModelMixin, ConfigMixin):
                         next_block.self_attn.attn.storage.load_async()
                         x = block(x, **kwargs)
                     self.previous_residual_odd = x - ori_x
+        else:
+            for i, block in enumerate(self.blocks):
+                next_block = self.blocks[(i + PIPELINE_DEPTH - 1) % len(self.blocks)]
+                block.self_attn.attn.storage.load_async_wait()
+                next_block.self_attn.attn.storage.load_async()
+                x = block(x, **kwargs)
         ################
 
         # head

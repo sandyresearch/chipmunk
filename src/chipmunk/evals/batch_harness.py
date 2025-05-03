@@ -167,7 +167,6 @@ def generate_configs_flux() -> List[Dict[str, Any]]:
 
 def generate_configs_hunyuan() -> List[Dict[str, Any]]:
     cfgs: List[Dict[str, Any]] = []
-    # Tea Cache Config
     cfgs += make_config(
         base_path="examples/hunyuan/chipmunk-config.yml",
         patchify=False,
@@ -191,6 +190,7 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
         world_size=1,
         attn_rk=0.01
     )
+    # Tea Cache Config
     cfgs += make_config(
         base_path="examples/hunyuan/chipmunk-config.yml",
         patchify=False,
@@ -216,11 +216,91 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
     )
     return cfgs
 
+def generate_configs_wan() -> List[Dict[str, Any]]:
+    cfgs: List[Dict[str, Any]] = []
+    # Tea Cache Config
+    cfgs += make_config(
+        base_path="examples/wan/chipmunk-config.yml",
+        patchify=False,
+        attn_sparsity=0.0,
+        attn_full_step_every=1,
+        attn_recompute_mask=False,
+        mlp_sparsity=0,
+        mlp_rk=0,
+        mlp_mbm=0,
+        mlp_is_fp8=False,
+        mlp_full_step_every=1,
+        mlp_block_mask_cache=0,
+        step_caching=False,
+        skip_step_schedule={},
+        width=1280,
+        height=720,
+        global_disable_offloading=True,
+        attn_full_step_schedule={},
+        attn_local_voxels=0,
+        attn_local_1d_window=0,
+        tea_cache_threshold=0.2,
+        world_size=1
+    )
+    # STA
+    cfgs += make_config(
+        base_path="examples/wan/chipmunk-config.yml",
+        patchify=True,
+        attn_sparsity=0,
+        attn_full_step_every=1,
+        attn_full_step_schedule={0, 1},
+        attn_recompute_mask=True,
+        mlp_sparsity=0,
+        mlp_rk=0,
+        mlp_mbm=0,
+        mlp_is_fp8=False,
+        mlp_full_step_every=1,
+        mlp_block_mask_cache=0,
+        step_caching=False,
+        skip_step_schedule={},
+        width=1280,
+        height=720,
+        global_disable_offloading=False,
+        attn_local_voxels=5,
+        attn_local_1d_window=0,
+        world_size=1,
+        attn_rk=0
+    )
+    # Chipmunk + TeaCache
+    # cfgs += make_config(
+    #     base_path="examples/wan/chipmunk-config.yml",
+    #     patchify=True,
+    #     attn_sparsity=0.1,
+    #     attn_full_step_every=1,
+    #     attn_full_step_schedule={0, 1, 10, 40},
+    #     attn_recompute_mask=True,
+    #     mlp_sparsity=0,
+    #     mlp_rk=0,
+    #     mlp_mbm=0,
+    #     mlp_is_fp8=False,
+    #     mlp_full_step_every=1,
+    #     mlp_block_mask_cache=0,
+    #     step_caching=False,
+    #     skip_step_schedule={},
+    #     width=1280,
+    #     height=720,
+    #     global_disable_offloading=False,
+    #     attn_local_voxels=3,
+    #     attn_local_1d_window=0,
+    #     tea_cache_threshold=0.2,
+    #     world_size=1,
+    #     attn_rk=0.01
+    # )
+    return cfgs
+
+
 def generate_configs(model_name: str) -> List[Dict[str, Any]]:  # noqa: D401,E501
     if model_name == "flux":
         return generate_configs_flux()
     elif model_name == "hunyuan":
         return generate_configs_hunyuan()
+    elif model_name == "wan":
+        return generate_configs_wan()
     else:
         raise NotImplementedError(
             f"generate_configs must be implemented by the user for model '{model_name}'"
@@ -375,6 +455,9 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
     )
     
     args = parser.parse_args(argv)
+
+    args.num_nodes = int(args.num_nodes)
+    args.node_rank = int(args.node_rank)
 
     model_name: str = args.model
     eval_name: str = args.eval

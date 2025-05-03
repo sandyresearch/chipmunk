@@ -48,11 +48,11 @@ _GEN_KWARGS = {
 # -----------------------------------------------------------------------------
 
 def _get_world_size() -> int:
-    return int(os.environ.get("WORLD_SIZE", os.environ.get("SLURM_NTASKS", "1")))
+    return 1
 
 
 def _get_local_rank() -> int:
-    return int(os.environ.get("LOCAL_RANK", os.environ.get("RANK", "0")))
+    return 0
 
 
 # -----------------------------------------------------------------------------
