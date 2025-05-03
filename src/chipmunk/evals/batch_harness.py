@@ -71,6 +71,7 @@ def make_config(
     tea_cache_threshold: float = 0.0,
     attn_rk: float = 0.01,
     world_size: int = 1,
+    delta_cache: bool = True,
 ):
     """Return a **list** with a single deep‑copied GLOBAL_CONFIG variant."""
 
@@ -109,7 +110,7 @@ def make_config(
         GLOBAL_CONFIG["tea_cache"]["debug"] = True
 
     GLOBAL_CONFIG["attn"]["random_keys"] = attn_rk
-    
+    GLOBAL_CONFIG["attn"]["delta_cache"] = delta_cache
     GLOBAL_CONFIG["world_size"] = world_size
 
     from copy import deepcopy
@@ -493,6 +494,13 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
         help="Node rank for multi-node inference.",
     )
     parser.add_argument(
+        "--num-gpus",
+        required=False,
+        default=torch.cuda.device_count(),
+        type=int,   
+        help="Number of GPUs to use for inference.",
+    )
+    parser.add_argument(
         "--num-nodes",
         required=False,
         default=1,
@@ -544,7 +552,7 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
     # ---------------------------------------------------------------------
     # Iterate over configs
     # ---------------------------------------------------------------------
-    num_gpus = torch.cuda.device_count()
+    num_gpus = int(args.num_gpus)
 
     for idx, cfg in enumerate(cfgs):
         if idx % args.num_nodes != args.node_rank:

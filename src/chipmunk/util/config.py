@@ -42,7 +42,7 @@ BASE_CONFIG = {
         'full_attn_from_3d_tail': False,
         'full_attn_to_3d_tail': False,
         'local_1d_window': 0,
-
+        'delta_cache': False,
         'first_n_dense_layers': 2,
         'full_step_every': 10,
         # If not None, will override full_step_every
@@ -97,7 +97,6 @@ BASE_CONFIG = {
 
 GLOBAL_CONFIG = copy.deepcopy(BASE_CONFIG)
 
-def 
 
 def update_global_config(config):
     global GLOBAL_CONFIG
