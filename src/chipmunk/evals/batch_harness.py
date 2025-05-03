@@ -134,7 +134,7 @@ def generate_configs_flux() -> List[Dict[str, Any]]:
                             
                             for w, h in [(1280, 768), (1536, 1536)]:
                                 # only large image sizes on fp8
-                                if w == 1280 != (not mlp_is_fp8): continue
+                                if (w == 1280) != (not mlp_is_fp8): continue
 
                                 for attn_full_step_every in [10, 20]:
                                     for mlp_full_step_every in [10, 20]:

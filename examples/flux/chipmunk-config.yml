@@ -24,7 +24,7 @@ attn:
   pad_qkv_before_kernel: false
   random_keys: 0.01
   recompute_mask: false
-  should_compress_indices: true
+  should_compress_indices: false 
   top_keys: 0.165
 generation_index: 0
 height: 768
