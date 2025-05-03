@@ -221,7 +221,7 @@ def generate_configs_wan() -> List[Dict[str, Any]]:
     # Dit Fast Attention
     cfgs += make_config(
         base_path="examples/wan/chipmunk-config.yml",
-        patchify=True,
+        patchify=False,
         attn_sparsity=0,
         attn_full_step_every=1,
         attn_full_step_schedule={0, 1},
