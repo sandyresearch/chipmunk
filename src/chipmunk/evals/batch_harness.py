@@ -123,12 +123,12 @@ def make_config(
 
 def generate_configs_flux() -> List[Dict[str, Any]]:
     cfgs: List[Dict[str, Any]] = []
-    for attn_sparsity in [0.1, 0.165, 0.3]:
-        for mlp_sparsity in [0.0, 0.3]:
+    for attn_sparsity in [0.165, 0.3]:
+        for mlp_sparsity in [0.3, 0.0]:
             for mlp_rk in [0.05]:
                 for mlp_mbm in [16, 128]:
                     for recompute_mask in [False, True]:
-                        for mlp_is_fp8 in [True, False]:
+                        for mlp_is_fp8 in [False, True]:
                             if mlp_is_fp8 != (mlp_sparsity == 0.0): continue
                             if mlp_is_fp8 and not recompute_mask: continue
                             
@@ -381,7 +381,7 @@ def _ensure_dirs(base: Path, eval_name: str) -> None:
     """Create `media/` and `logs/` directories for *exp_dir* if missing."""
 
     (base / "media" / eval_name).mkdir(parents=True, exist_ok=True)
-    (base / "logs").mkdir(parents=True, exist_ok=True)
+    (base / "logs" / eval_name).mkdir(parents=True, exist_ok=True)
 
 
 def _launch_process(
@@ -527,12 +527,13 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
     for idx, cfg in enumerate(cfgs):
         if idx % args.num_nodes != args.node_rank:
             continue
-
+        
         shortname = _shortname_from_cfg(cfg, idx)
         exp_dir = MODEL_DIR / model_name / shortname
         _ensure_dirs(exp_dir, eval_name)
-
-        if (exp_dir / "done.txt").exists():
+        done_txt = "done.txt" if eval_name != "geneval" else "done_geneval.txt"
+        done_file = exp_dir / done_txt
+        if done_file.exists():
             print(f"[batch_harness] skipping {shortname} (already done)")
             continue
 
@@ -541,20 +542,29 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
         with cfg_path.open("w") as f:
             yaml.safe_dump(cfg, f)
 
+        if eval_name == "geneval":
+            eval_metadata = open('evals/prompts/geneval_evaluation_metadata.jsonl', 'r')
+            for i, line in enumerate(eval_metadata):
+                subfolder_name = str(i).zfill(5)
+                subfolder_path = exp_dir / "media" / "geneval" / subfolder_name
+                subfolder_path.mkdir(parents=True, exist_ok=True)
+                with open(subfolder_path / "metadata.jsonl", 'w') as f:
+                    f.write(line)
+        
         procs = _launch_process(
             model_name,
             example_dir,
             num_gpus,
             prompt_file.resolve(),
             cfg_path.resolve(),
-            exp_dir / "logs",
+            exp_dir / "logs" / eval_name,
         )
 
         media_dir = exp_dir / "media" / eval_name
         produced = 0
         # poll once per second until done
         while True:
-            new_produced = sum(1 for _ in media_dir.rglob('*') if _.is_file()) if media_dir.exists() else 0
+            new_produced = sum(1 for _ in media_dir.rglob('*') if _.is_file() and _.suffix.lower() in ['.png', '.mp4', '.webp']) if media_dir.exists() else 0
             if new_produced != produced:
                 produced = new_produced
                 print(f"\r{shortname}:{eval_name} [{produced}/{num_output_files}]", end="", flush=True)
@@ -580,7 +590,7 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
 
         # mark experiment directory as finished if all processes succeeded
         if all(p.wait() == 0 for p in procs) and len(procs) > 0:
-            (exp_dir / "done.txt").write_text("finished\n")
+            done_file.write_text("finished\n")
 
 
 if __name__ == "__main__":
