@@ -23,7 +23,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List
-
+import torch
 import yaml
 from tqdm.auto import tqdm
 
@@ -128,12 +128,12 @@ def generate_configs_flux() -> List[Dict[str, Any]]:
         cfgs += make_config(
             base_path="examples/flux/chipmunk-config.yml",
             patchify=True,
-            attn_sparsity=0,
+            attn_sparsity=0.0,
             attn_full_step_every=1,
-            attn_full_step_schedule={},
+            attn_full_step_schedule={0,1},
             attn_recompute_mask=False,
-            mlp_sparsity=0,
-            mlp_rk=0,
+            mlp_sparsity=0.0,
+            mlp_rk=0.0,
             mlp_mbm=0,
             mlp_is_fp8=False,
             mlp_full_step_every=1,
@@ -145,6 +145,7 @@ def generate_configs_flux() -> List[Dict[str, Any]]:
             global_disable_offloading=True,
             attn_local_voxels=local_voxels,
             attn_local_1d_window=0,
+            delta_cache=False,
         )
     for attn_sparsity in [0.165, 0.3]:
         for mlp_sparsity in [0.3, 0.0]:
@@ -496,7 +497,7 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
     parser.add_argument(
         "--num-gpus",
         required=False,
-        default=torch.cuda.device_count(),
+        default=0,
         type=int,   
         help="Number of GPUs to use for inference.",
     )
@@ -529,8 +530,6 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
             else:
                 num_output_files += 1
 
-    import torch
-
     # ---------------------------------------------------------------------
     # Build configs (grid or user‑supplied)
     # ---------------------------------------------------------------------
@@ -553,6 +552,8 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
     # Iterate over configs
     # ---------------------------------------------------------------------
     num_gpus = int(args.num_gpus)
+    if num_gpus == 0:
+        num_gpus = torch.cuda.device_count()
 
     for idx, cfg in enumerate(cfgs):
         if idx % args.num_nodes != args.node_rank:
