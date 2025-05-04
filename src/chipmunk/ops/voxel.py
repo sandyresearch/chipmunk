@@ -1,6 +1,6 @@
 import torch
 from einops import rearrange
-
+from chipmunk.util.config import GLOBAL_CONFIG
 # x: [b, ah, t, h, w, d]
 #
 # return
@@ -133,7 +133,7 @@ def get_local_voxel_indices(full_shape, local_shape):
 
     # BASE COORDS
     for bt in range(t): 
-        toffs = offsets(bt, t, lt // 2)
+        toffs = offsets(bt, t, lt // 2) if GLOBAL_CONFIG['model_name'] != 'flux' else [0]
         for bh in range(h):
             hoffs = offsets(bh, h, lh // 2)
             for bw in range(w):
@@ -229,8 +229,11 @@ def get_local_indices_with_text(
     # Text attends to everything (rounded down to the nearest multiple of voxel_size)
     # mask[-1 * (txt_len // voxel_size + 1):, -1 * ((vid_txt_seqlen // kv_tile_size) * kv_tile_size):] = True
     # All queries attend to text.
-    mask[:, vid_seqlen:] = True
-
+    if GLOBAL_CONFIG['model_name'] != 'flux':
+        mask[:, vid_seqlen:] = True
+    else:
+        mask[:, :-vid_seqlen] = True
+        
     # [lt, lh, lw] cube of (lt * lh * lw) voxels with the query voxel in the center.
     # vtt, vth, vtw = cdiv(tt, vt), cdiv(th, vh), cdiv(tw, vw)
     vtt, vth, vtw = tt // vt, th // vh, tw // vw

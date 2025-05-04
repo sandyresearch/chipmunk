@@ -19,5 +19,6 @@ python -m flux.cli --name flux-dev \
     --width 768 \
     --height 768 \
     --num_steps 50 \
-    --seed 42 \
-    --config configs/ditfastattn-flux-config.yml
+    --seed 42
+    --config chipmunk-config.yml
+    # --config configs/ditfastattn-flux-config.yml

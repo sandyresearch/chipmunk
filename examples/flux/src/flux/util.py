@@ -347,7 +347,7 @@ def load_flow_model(
     model.sparsify()
     if GLOBAL_CONFIG['mlp']['is_fp8']:
         model = quantize_fp8(model, device=device)
-    model.compile()
+    # model.compile()
     if configs[name].lora_path is not None:
         print("Loading LoRA")
         lora_sd = load_sft(configs[name].lora_path, device=str(device))

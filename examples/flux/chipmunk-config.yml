@@ -18,14 +18,17 @@ attn:
   first_n_dense_layers: 2
   full_step_every: 10
   full_step_schedule: null
-  local_1d_window: 0.25
-  local_voxel: 0
+  local_1d_window: 0
+  local_voxels: 5
   mbm: 192
   pad_qkv_before_kernel: false
   random_keys: 0.01
   recompute_mask: false
-  should_compress_indices: false 
-  top_keys: 0.165
+  should_compress_indices: true 
+  top_keys: 0.01
+  full_attn_from_3d_tail: true
+  full_attn_to_3d_tail: true
+
 generation_index: 0
 height: 768
 tea_cache:
@@ -59,7 +62,7 @@ offloading:
 patchify:
   chunk_size_1: 8
   chunk_size_2: 4
-  is_enabled: false
+  is_enabled: true
 should_profile: false
 step_caching:
   is_enabled: false

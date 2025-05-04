@@ -47,7 +47,7 @@ class SparseDiffAttn(nn.Module):
         mask, _, _ = get_local_indices_with_text(
             vid_shape=(tt, th, tw),
             txt_len=txt_len,
-            voxel_shape=(4, 6, 8),
+            voxel_shape=(4, 6, 8) if GLOBAL_CONFIG['model_name'] != 'flux' else (1, 8, 8),
             local_shape=(lv, lv, lv),
             rk=rk,
             device=device,
@@ -76,7 +76,6 @@ class SparseDiffAttn(nn.Module):
                 # For the current query group, allow attention to tokens within the window
                 mask[qg, window_start:window_end] = True
                 # mask[0, 0, qg, tt * th * tw:total_seq_len] = True  # Always attend to text tokens
-
         mask = mask[None, None, :, :].expand(1, local_heads_num, -1, -1).contiguous()
         sparse_attn_query_groups = ((mask.sum(dim=-1, keepdim=True) + topk) < (tt * th * tw + txt_len))
 
@@ -181,7 +180,8 @@ class SparseDiffAttn(nn.Module):
                     inds   = self.storage.get_indices()
                     counts = self.storage.get_counts()
 
-            if attn_config['delta_cache']:
+            # add a "or True" here for debugging
+            if attn_config['delta_cache'] or True:
                 if do_padding:
                     o_cache = o - chipmunk.ops.csp_attn(q, k, v, inds, counts)
                 else:
