@@ -11,7 +11,7 @@ mlp:
 attn:
   # Turn on debug to print sparsity levels
   # debug: true
-  is_enabled: false
+  is_enabled: true
 
   # How much probability mass of the attention matrix to cover
   # coverage: 0.7
@@ -20,9 +20,10 @@ attn:
 
   # Number of local voxels to use for static local attention
   local_voxels: 5
+  delta_cache: false
   # Full attention from/to 3D padding when reordering into voxels
-  full_attn_from_3d_tail: false
-  full_attn_to_3d_tail: false
+  full_attn_from_3d_tail: true
+  full_attn_to_3d_tail: true
 
   # Local 1D window in raster order for DiTFastAttn
   local_1d_window: 0

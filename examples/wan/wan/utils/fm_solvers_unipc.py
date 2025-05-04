@@ -13,6 +13,8 @@ from diffusers.schedulers.scheduling_utils import (KarrasDiffusionSchedulers,
                                                    SchedulerOutput)
 from diffusers.utils import deprecate, is_scipy_available
 
+torch.backends.cuda.preferred_linalg_library(backend='magma')
+
 if is_scipy_available():
     import scipy.stats
 
