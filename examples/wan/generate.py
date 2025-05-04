@@ -43,6 +43,21 @@ EXAMPLE_PROMPT = {
     },
 }
 
+# A list of text prompts with rich motion content that we will cycle through in an
+# endless loop when the script is run. Feel free to tweak or extend this list.
+CYCLIC_PROMPTS = [
+    "A playful dog chasing a ball through a sunny park, dynamic camera movement.",
+    "Two energetic kittens leaping and wrestling in a cozy living room.",
+    "A high-speed sports car drifting around a sharp mountain bend at dusk.",
+    "A flock of pigeons swooping across a busy city square with quick pans.",
+    "A surfer riding a towering wave, water splashing in slow motion.",
+    "A happy golden retriever running toward the camera on a beach at sunrise.",
+    "Colorful hot-air balloons ascending and rotating against a clear blue sky.",
+    "A sleek motorcycle speeding down a neon-lit highway at night.",
+    "A bustling intersection full of moving cars and pedestrians under the rain.",
+    "A fast passenger train rushing through a scenic countryside with cinematic motion."
+]
+
 
 def _validate_args(args):
     # Basic check
@@ -335,18 +350,92 @@ def generate(args):
             t5_cpu=args.t5_cpu,
         )
 
-        logging.info(
-            f"Generating {'image' if 't2i' in args.task else 'video'} ...")
-        video = wan_t2v.generate(
-            args.prompt,
-            size=SIZE_CONFIGS[args.size],
-            frame_num=args.frame_num,
-            shift=args.sample_shift,
-            sample_solver=args.sample_solver,
-            sampling_steps=args.sample_steps,
-            guide_scale=args.sample_guide_scale,
-            seed=args.base_seed,
-            offload_model=args.offload_model)
+        # ------------------------------------------------------------------
+        # Repeated generation loop: cycle through prompts indefinitely.
+        # ------------------------------------------------------------------
+        prompt_idx = 0
+        while True:
+            # Cycle through the predefined list of prompts.
+            args.prompt = CYCLIC_PROMPTS[prompt_idx % len(CYCLIC_PROMPTS)]
+            prompt_idx += 1
+
+            logging.info(f"Input prompt: {args.prompt}")
+
+            # Optionally extend the prompt every iteration (if requested by user).
+            if args.use_prompt_extend:
+                logging.info("Extending prompt ...")
+                if rank == 0:
+                    prompt_output = prompt_expander(
+                        args.prompt,
+                        tar_lang=args.prompt_extend_target_lang,
+                        seed=args.base_seed,
+                    )
+                    if prompt_output.status is False:
+                        logging.info(
+                            f"Extending prompt failed: {prompt_output.message}")
+                        logging.info("Falling back to original prompt.")
+                        input_prompt = args.prompt
+                    else:
+                        input_prompt = prompt_output.prompt
+                    input_prompt = [input_prompt]
+                else:
+                    input_prompt = [None]
+                if dist.is_initialized():
+                    dist.broadcast_object_list(input_prompt, src=0)
+                args.prompt = input_prompt[0]
+                logging.info(f"Extended prompt: {args.prompt}")
+
+            # Use a fresh seed for each sample so that outputs differ.
+            current_seed = random.randint(0, sys.maxsize)
+            logging.info(
+                f"Generating {'image' if 't2i' in args.task else 'video'} with seed {current_seed} ...")
+            video = wan_t2v.generate(
+                args.prompt,
+                size=SIZE_CONFIGS[args.size],
+                frame_num=args.frame_num,
+                shift=args.sample_shift,
+                sample_solver=args.sample_solver,
+                sampling_steps=args.sample_steps,
+                guide_scale=args.sample_guide_scale,
+                seed=current_seed,
+                offload_model=args.offload_model,
+            )
+
+            # ------------------------------------------------------------------
+            # Save the result (only on rank 0 to avoid duplicated writes).
+            # ------------------------------------------------------------------
+            if rank == 0:
+                formatted_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+                formatted_prompt = (
+                    args.prompt.replace(" ", "_").replace("/", "_")[:50]
+                )
+                suffix = ".png" if "t2i" in args.task else ".mp4"
+                save_file = (
+                    f"{args.task}_{args.size.replace('*','x') if sys.platform=='win32' else args.size}"
+                    f"_{args.ulysses_size}_{args.ring_size}_{formatted_prompt}_{formatted_time}" + suffix
+                )
+
+                if "t2i" in args.task:
+                    logging.info(f"Saving generated image to {save_file}")
+                    cache_image(
+                        tensor=video.squeeze(1)[None],
+                        save_file=save_file,
+                        nrow=1,
+                        normalize=True,
+                        value_range=(-1, 1),
+                    )
+                else:
+                    logging.info(f"Saving generated video to {save_file}")
+                    cache_video(
+                        tensor=video[None],
+                        save_file=save_file,
+                        fps=cfg.sample_fps,
+                        nrow=1,
+                        normalize=True,
+                        value_range=(-1, 1),
+                    )   
+
+            logging.info("Finished one generation cycle. Waiting for next prompt ...")
 
     elif "i2v" in args.task:
         if args.prompt is None:
@@ -465,31 +554,6 @@ def generate(args):
             offload_model=args.offload_model
         )
 
-    if rank == 0:
-        if args.save_file is None:
-            formatted_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-            formatted_prompt = args.prompt.replace(" ", "_").replace("/",
-                                                                     "_")[:50]
-            suffix = '.png' if "t2i" in args.task else '.mp4'
-            args.save_file = f"{args.task}_{args.size.replace('*','x') if sys.platform=='win32' else args.size}_{args.ulysses_size}_{args.ring_size}_{formatted_prompt}_{formatted_time}" + suffix
-
-        if "t2i" in args.task:
-            logging.info(f"Saving generated image to {args.save_file}")
-            cache_image(
-                tensor=video.squeeze(1)[None],
-                save_file=args.save_file,
-                nrow=1,
-                normalize=True,
-                value_range=(-1, 1))
-        else:
-            logging.info(f"Saving generated video to {args.save_file}")
-            cache_video(
-                tensor=video[None],
-                save_file=args.save_file,
-                fps=cfg.sample_fps,
-                nrow=1,
-                normalize=True,
-                value_range=(-1, 1))
     logging.info("Finished.")
 
 

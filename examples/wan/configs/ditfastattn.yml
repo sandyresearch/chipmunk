@@ -21,7 +21,7 @@ attn:
   local_voxels: 0
 
   # Local 1D window in raster order for DiTFastAttn
-  local_1d_window: 0.25
+  local_1d_window: 0.5
 
   first_n_dense_layers: 2
   recompute_mask: true
@@ -31,8 +31,6 @@ attn:
   full_step_schedule: !!set
     ? 0
     ? 1
-    ? 10
-    ? 40
   # full_step_every: 3
 
   # Do not change below this line -- kernel-specific business

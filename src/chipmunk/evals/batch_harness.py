@@ -72,6 +72,7 @@ def make_config(
     attn_rk: float = 0.01,
     world_size: int = 1,
     delta_cache: bool = True,
+    attn_tail: bool = False,
 ):
     """Return a **list** with a single deep‑copied GLOBAL_CONFIG variant."""
 
@@ -87,7 +88,10 @@ def make_config(
     GLOBAL_CONFIG["attn"]["local_voxels"] = attn_local_voxels
     GLOBAL_CONFIG["attn"]["local_1d_window"] = attn_local_1d_window
     GLOBAL_CONFIG["attn"]["recompute_mask"] = attn_recompute_mask
-
+    GLOBAL_CONFIG["attn"]["random_keys"] = attn_rk
+    GLOBAL_CONFIG["attn"]["delta_cache"] = delta_cache
+    GLOBAL_CONFIG["attn"]["full_attn_from_3d_tail"] = attn_tail
+    GLOBAL_CONFIG["attn"]["full_attn_to_3d_tail"] = attn_tail
     GLOBAL_CONFIG["mlp"]["is_enabled"] = float(mlp_sparsity) != 0.0
     GLOBAL_CONFIG["mlp"]["top_keys"] = mlp_sparsity
     GLOBAL_CONFIG["mlp"]["random_keys"] = mlp_rk
@@ -109,8 +113,6 @@ def make_config(
         GLOBAL_CONFIG["tea_cache"]["is_enabled"] = True
         GLOBAL_CONFIG["tea_cache"]["debug"] = True
 
-    GLOBAL_CONFIG["attn"]["random_keys"] = attn_rk
-    GLOBAL_CONFIG["attn"]["delta_cache"] = delta_cache
     GLOBAL_CONFIG["world_size"] = world_size
 
     from copy import deepcopy
@@ -256,13 +258,14 @@ def generate_configs_wan() -> List[Dict[str, Any]]:
         mlp_is_fp8=False,
         mlp_full_step_every=1,
         mlp_block_mask_cache=0,
-        step_caching=False,
-        skip_step_schedule={},
+        step_caching=True,
+        skip_step_schedule={7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43},
         width=1280,
         height=720,
         global_disable_offloading=False,
         attn_local_voxels=0,
-        attn_local_1d_window=0.1,
+        attn_local_1d_window=0.5,
+        delta_cache=False,
         world_size=1,
         attn_rk=0
     )
@@ -309,6 +312,7 @@ def generate_configs_wan() -> List[Dict[str, Any]]:
         width=1280,
         height=720,
         global_disable_offloading=False,
+        delta_cache=False,
         attn_local_voxels=5,
         attn_local_1d_window=0,
         world_size=1,

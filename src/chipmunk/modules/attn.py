@@ -63,7 +63,7 @@ class SparseDiffAttn(nn.Module):
             window_size = int(lw1d * (tt * th * tw))
             # Each query group (dim=0, a chunk of 192 queries) in [qg, n] attends to a local 1D window
             total_seq_len = tt * th * tw + txt_len
-            query_groups = (tt * th * tw) // 192  # Assuming 192 queries per group
+            query_groups = (tt * th * tw + 191) // 192  # Assuming 192 queries per group
             
             for qg in range(query_groups):
                 # Calculate the center position for this query group
@@ -74,8 +74,11 @@ class SparseDiffAttn(nn.Module):
                 window_end = min(tt * th * tw, center_pos + window_size // 2)
                 
                 # For the current query group, allow attention to tokens within the window
+                mask[qg, :] = False
                 mask[qg, window_start:window_end] = True
                 # mask[0, 0, qg, tt * th * tw:total_seq_len] = True  # Always attend to text tokens
+            # breakpoint()
+
         mask = mask[None, None, :, :].expand(1, local_heads_num, -1, -1).contiguous()
         sparse_attn_query_groups = ((mask.sum(dim=-1, keepdim=True) + topk) < (tt * th * tw + txt_len))
 
@@ -109,6 +112,9 @@ class SparseDiffAttn(nn.Module):
     ) -> Tensor:
         attn_config = GLOBAL_CONFIG['attn']
         bm = attn_config['mbm']
+        assert q.shape[-2] == 75600
+        assert k.shape[-2] == 75600
+        assert v.shape[-2] == 75600
         assert bm == 192, "The kernel was written for BM=192. You may need to change the kernel."
         layer = self.layer_num
         multiple_of = attn_config['counts_multiple_of'] if not attn_config['pad_qkv_before_kernel'] else 128
