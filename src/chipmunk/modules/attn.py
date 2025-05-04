@@ -112,9 +112,6 @@ class SparseDiffAttn(nn.Module):
     ) -> Tensor:
         attn_config = GLOBAL_CONFIG['attn']
         bm = attn_config['mbm']
-        assert q.shape[-2] == 75600
-        assert k.shape[-2] == 75600
-        assert v.shape[-2] == 75600
         assert bm == 192, "The kernel was written for BM=192. You may need to change the kernel."
         layer = self.layer_num
         multiple_of = attn_config['counts_multiple_of'] if not attn_config['pad_qkv_before_kernel'] else 128

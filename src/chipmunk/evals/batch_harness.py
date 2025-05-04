@@ -193,6 +193,32 @@ def generate_configs_flux() -> List[Dict[str, Any]]:
 
 def generate_configs_hunyuan() -> List[Dict[str, Any]]:
     cfgs: List[Dict[str, Any]] = []
+    # Dit Fast Attention
+    cfgs += make_config(
+        base_path="examples/hunyuan/chipmunk-config.yml",
+        patchify=False,
+        attn_sparsity=0,
+        attn_full_step_every=1,
+        attn_full_step_schedule={0, 1},
+        attn_recompute_mask=True,
+        mlp_sparsity=0,
+        mlp_rk=0,
+        mlp_mbm=0,
+        mlp_is_fp8=False,
+        mlp_full_step_every=1,
+        mlp_block_mask_cache=0,
+        step_caching=True,
+        skip_step_schedule={7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43},
+        width=1280,
+        height=720,
+        global_disable_offloading=False,
+        attn_local_voxels=0,
+        attn_local_1d_window=0.5,
+        delta_cache=False,
+        world_size=1,
+        attn_rk=0
+    )
+    # Dit Fast Attention
     cfgs += make_config(
         base_path="examples/hunyuan/chipmunk-config.yml",
         patchify=False,
