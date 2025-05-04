@@ -19,9 +19,9 @@ attn:
 
   # Number of local voxels to use for static local attention
   local_voxels: 5
-  # Full attention from/to 3D padding when reordering into voxels
-  full_attn_from_3d_tail: false
-  full_attn_to_3d_tail: false
+  full_attn_from_3d_tail: true
+  full_attn_to_3d_tail: true
+  delta_cache: false
 
   # Local 1D window in raster order for DiTFastAttn
   local_1d_window: 0
