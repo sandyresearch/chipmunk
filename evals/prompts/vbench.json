@@ -1,0 +1,1588 @@
+[
+    {
+      "underlying_prompt": "a bird and a cat",
+      "prompt": "A bird and a cat. Realistic, Natural lighting, Tense",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a bird and a cat-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a cat and a dog",
+      "prompt": "A cat and a dog. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a cat and a dog-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a dog and a horse",
+      "prompt": "A dog and a horse. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a dog and a horse-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a horse and a sheep",
+      "prompt": "A horse and a sheep. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a horse and a sheep-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a sheep and a cow",
+      "prompt": "A sheep and a cow. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a sheep and a cow-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a cow and an elephant",
+      "prompt": "A cow and an elephant. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a cow and an elephant-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "an elephant and a bear",
+      "prompt": "An elephant and a bear. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/an elephant and a bear-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a bear and a zebra",
+      "prompt": "A bear and a zebra. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a bear and a zebra-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a zebra and a giraffe",
+      "prompt": "A zebra with black and white stripes and a giraffe with brown spotted pattern stand side by side. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a zebra and a giraffe-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a giraffe and a bird",
+      "prompt": "A giraffe and a small bird. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a giraffe and a bird-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a chair and a couch",
+      "prompt": "A chair and a couch. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a chair and a couch-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a couch and a potted plant",
+      "prompt": "A couch and a potted plant. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a couch and a potted plant-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a potted plant and a tv",
+      "prompt": "A potted plant and a television set. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a potted plant and a tv-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a tv and a laptop",
+      "prompt": "A TV and a laptop. Realistic, Indoor lighting, Professional",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a tv and a laptop-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a laptop and a remote",
+      "prompt": "A laptop and a remote control. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a laptop and a remote-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a remote and a keyboard",
+      "prompt": "A small remote and a computer keyboard. Realistic, Indoor lighting, Professional",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a remote and a keyboard-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a keyboard and a cell phone",
+      "prompt": "A keyboard and a smartphone. Realistic, Indoor lighting, Professional",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a keyboard and a cell phone-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a cell phone and a book",
+      "prompt": "A rectangular smartphone with a black screen and a book with a brown cover. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a cell phone and a book-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a book and a clock",
+      "prompt": "A book and a clock. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a book and a clock-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a clock and a backpack",
+      "prompt": "A round clock with black hands and a red backpack with straps. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a clock and a backpack-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a backpack and an umbrella",
+      "prompt": "A backpack and an umbrella. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a backpack and an umbrella-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "an umbrella and a handbag",
+      "prompt": "A black umbrella and a red handbag. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/an umbrella and a handbag-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a handbag and a tie",
+      "prompt": "A handbag and a tie. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a handbag and a tie-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a tie and a suitcase",
+      "prompt": "A necktie and a suitcase. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a tie and a suitcase-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a suitcase and a vase",
+      "prompt": "A suitcase and a vase. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a suitcase and a vase-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a vase and scissors",
+      "prompt": "A vase with a floral pattern and a pair of silver scissors. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a vase and scissors-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "scissors and a teddy bear",
+      "prompt": "A pair of scissors and a teddy bear. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/scissors and a teddy bear-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a teddy bear and a frisbee",
+      "prompt": "A teddy bear and a frisbee. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a teddy bear and a frisbee-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a frisbee and skis",
+      "prompt": "A frisbee and a pair of skis. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a frisbee and skis-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "skis and a snowboard",
+      "prompt": "A pair of skis and a snowboard. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/skis and a snowboard-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a snowboard and a sports ball",
+      "prompt": "A snowboard and a sports ball. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a snowboard and a sports ball-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a sports ball and a kite",
+      "prompt": "A sports ball and a kite. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a sports ball and a kite-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a kite and a baseball bat",
+      "prompt": "A kite with colorful patterns and a wooden baseball bat. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a kite and a baseball bat-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a baseball bat and a baseball glove",
+      "prompt": "A wooden baseball bat and a leather baseball glove. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a baseball bat and a baseball glove-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a baseball glove and a skateboard",
+      "prompt": "A brown baseball glove and a colorful skateboard. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a baseball glove and a skateboard-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a skateboard and a surfboard",
+      "prompt": "A skateboard with four wheels and a surfboard with a smooth, waxed surface. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a skateboard and a surfboard-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a surfboard and a tennis racket",
+      "prompt": "A surfboard and a tennis racket. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a surfboard and a tennis racket-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a tennis racket and a bottle",
+      "prompt": "A tennis racket and a bottle. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a tennis racket and a bottle-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a bottle and a chair",
+      "prompt": "A bottle and a chair. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a bottle and a chair-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "an airplane and a train",
+      "prompt": "An airplane and a train. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/an airplane and a train-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a train and a boat",
+      "prompt": "A train and a boat. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a train and a boat-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a boat and an airplane",
+      "prompt": "A boat and an airplane. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a boat and an airplane-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a bicycle and a car",
+      "prompt": "A bicycle and a car. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a bicycle and a car-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a car and a motorcycle",
+      "prompt": "A car and a motorcycle. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a car and a motorcycle-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a motorcycle and a bus",
+      "prompt": "A motorcycle and a bus. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a motorcycle and a bus-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a bus and a traffic light",
+      "prompt": "A bus and a traffic light. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a bus and a traffic light-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a traffic light and a fire hydrant",
+      "prompt": "A traffic light and a fire hydrant. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a traffic light and a fire hydrant-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a fire hydrant and a stop sign",
+      "prompt": "A red fire hydrant and a stop sign with white letters. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a fire hydrant and a stop sign-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a stop sign and a parking meter",
+      "prompt": "A stop sign and a parking meter. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a stop sign and a parking meter-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a parking meter and a truck",
+      "prompt": "A parking meter and a large truck. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a parking meter and a truck-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a truck and a bicycle",
+      "prompt": "a truck and a bicycle. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a truck and a bicycle-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a toilet and a hair drier",
+      "prompt": "A toilet and a hair dryer. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a toilet and a hair drier-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a hair drier and a toothbrush",
+      "prompt": "A hair dryer and a toothbrush. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a hair drier and a toothbrush-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a toothbrush and a sink",
+      "prompt": "A toothbrush and a sink. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a toothbrush and a sink-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a sink and a toilet",
+      "prompt": "A sink and a toilet. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a sink and a toilet-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a wine glass and a chair",
+      "prompt": "A stemmed wine glass and a wooden chair. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a wine glass and a chair-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a cup and a couch",
+      "prompt": "A cup and a couch. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a cup and a couch-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a fork and a potted plant",
+      "prompt": "A fork and a potted plant. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a fork and a potted plant-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a knife and a tv",
+      "prompt": "A knife and a television set. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a knife and a tv-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a spoon and a laptop",
+      "prompt": "A spoon and a laptop. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a spoon and a laptop-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a bowl and a remote",
+      "prompt": "A bowl and a remote control. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a bowl and a remote-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a banana and a keyboard",
+      "prompt": "A yellow banana and a black keyboard. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a banana and a keyboard-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "an apple and a cell phone",
+      "prompt": "An apple and a black rectangular smartphone. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/an apple and a cell phone-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a sandwich and a book",
+      "prompt": "A sandwich and a book with a clear cover. Realistic, Natural indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a sandwich and a book-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "an orange and a clock",
+      "prompt": "An orange and a clock. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/an orange and a clock-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "broccoli and a backpack",
+      "prompt": "A green broccoli and a blue backpack are placed next to each other. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/broccoli and a backpack-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a carrot and an umbrella",
+      "prompt": "A bright orange carrot and a black umbrella. Realistic, Bright lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a carrot and an umbrella-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a hot dog and a handbag",
+      "prompt": "A hot dog and a handbag. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a hot dog and a handbag-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a pizza and a tie",
+      "prompt": "A round pizza with various toppings and a person in a necktie. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a pizza and a tie-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a donut and a suitcase",
+      "prompt": "A donut and a suitcase. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a donut and a suitcase-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a cake and a vase",
+      "prompt": "A cake and a vase. Realistic, Indoor lighting, Festive",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a cake and a vase-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "an oven and scissors",
+      "prompt": "An oven and scissors. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/an oven and scissors-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a toaster and a teddy bear",
+      "prompt": "A small chrome toaster and a brown teddy bear with a red bow. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a toaster and a teddy bear-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a microwave and a frisbee",
+      "prompt": "A microwave and a frisbee. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a microwave and a frisbee-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a refrigerator and skis",
+      "prompt": "A white refrigerator and a pair of long, narrow skis. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a refrigerator and skis-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a bicycle and an airplane",
+      "prompt": "A bicycle and an airplane. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a bicycle and an airplane-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a car and a train",
+      "prompt": "A car and a train. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a car and a train-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a motorcycle and a boat",
+      "prompt": "A motorcycle and a boat. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a motorcycle and a boat-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a person and a toilet",
+      "prompt": "A person and a toilet. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a person and a toilet-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a person and a hair drier",
+      "prompt": "An adult and a hair dryer. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a person and a hair drier-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a person and a toothbrush",
+      "prompt": "An adult and a small toothbrush. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a person and a toothbrush-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a person and a sink",
+      "prompt": "A person and a white porcelain sink. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/multiple_objects/a person and a sink-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Close up of grapes on a rotating table.",
+      "prompt": "Close up of grapes on a rotating table. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Close up of grapes on a rotating table.-0.mp4",
+        "vbench/aesthetic_quality/Close up of grapes on a rotating table.-0.mp4",
+        "vbench/imaging_quality/Close up of grapes on a rotating table.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Turtle swimming in ocean.",
+      "prompt": "A turtle swimming in the ocean. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Turtle swimming in ocean.-0.mp4",
+        "vbench/aesthetic_quality/Turtle swimming in ocean.-0.mp4",
+        "vbench/imaging_quality/Turtle swimming in ocean.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A storm trooper vacuuming the beach.",
+      "prompt": "A storm trooper is vacuuming the beach. Realistic, Natural lighting, Humorous",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A storm trooper vacuuming the beach.-0.mp4",
+        "vbench/aesthetic_quality/A storm trooper vacuuming the beach.-0.mp4",
+        "vbench/imaging_quality/A storm trooper vacuuming the beach.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A panda standing on a surfboard in the ocean in sunset.",
+      "prompt": "A panda stands on a surfboard in the ocean during sunset. Realistic, Warm lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A panda standing on a surfboard in the ocean in sunset.-0.mp4",
+        "vbench/aesthetic_quality/A panda standing on a surfboard in the ocean in sunset.-0.mp4",
+        "vbench/imaging_quality/A panda standing on a surfboard in the ocean in sunset.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "An astronaut feeding ducks on a sunny afternoon, reflection from the water.",
+      "prompt": "An astronaut feeds ducks on a sunny afternoon, with a reflection on the water. Realistic, Sunny day, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/An astronaut feeding ducks on a sunny afternoon, reflection from the water.-0.mp4",
+        "vbench/aesthetic_quality/An astronaut feeding ducks on a sunny afternoon, reflection from the water.-0.mp4",
+        "vbench/imaging_quality/An astronaut feeding ducks on a sunny afternoon, reflection from the water.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Two pandas discussing an academic paper.",
+      "prompt": "Two pandas discussing an academic paper. Realistic, Natural lighting, Professional",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Two pandas discussing an academic paper.-0.mp4",
+        "vbench/aesthetic_quality/Two pandas discussing an academic paper.-0.mp4",
+        "vbench/imaging_quality/Two pandas discussing an academic paper.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Sunset time lapse at the beach with moving clouds and colors in the sky.",
+      "prompt": "Sunset time lapse at the beach with moving clouds and colors in the sky. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Sunset time lapse at the beach with moving clouds and colors in the sky.-0.mp4",
+        "vbench/aesthetic_quality/Sunset time lapse at the beach with moving clouds and colors in the sky.-0.mp4",
+        "vbench/imaging_quality/Sunset time lapse at the beach with moving clouds and colors in the sky.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A fat rabbit wearing a purple robe walking through a fantasy landscape.",
+      "prompt": "A plump rabbit in a violet robe walks through a magical terrain. Fantastical, Soft lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A fat rabbit wearing a purple robe walking through a fantasy landscape.-0.mp4",
+        "vbench/aesthetic_quality/A fat rabbit wearing a purple robe walking through a fantasy landscape.-0.mp4",
+        "vbench/imaging_quality/A fat rabbit wearing a purple robe walking through a fantasy landscape.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A koala bear playing piano in the forest.",
+      "prompt": "A koala bear playing piano in the forest. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A koala bear playing piano in the forest.-0.mp4",
+        "vbench/aesthetic_quality/A koala bear playing piano in the forest.-0.mp4",
+        "vbench/imaging_quality/A koala bear playing piano in the forest.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "An astronaut flying in space.",
+      "prompt": "An astronaut flying in space. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/An astronaut flying in space.-0.mp4",
+        "vbench/aesthetic_quality/An astronaut flying in space.-0.mp4",
+        "vbench/imaging_quality/An astronaut flying in space.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Fireworks.",
+      "prompt": "Fireworks light up the sky. Realistic, Night lighting, Festive",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Fireworks.-0.mp4",
+        "vbench/aesthetic_quality/Fireworks.-0.mp4",
+        "vbench/imaging_quality/Fireworks.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "An animated painting of fluffy white clouds moving in sky.",
+      "prompt": "Fluffy white clouds drift across the sky in an animation. Animated, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/An animated painting of fluffy white clouds moving in sky.-0.mp4",
+        "vbench/aesthetic_quality/An animated painting of fluffy white clouds moving in sky.-0.mp4",
+        "vbench/imaging_quality/An animated painting of fluffy white clouds moving in sky.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Flying through fantasy landscapes.",
+      "prompt": "Flying through magical, dreamlike terrains. Fantasy, Soft lighting",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Flying through fantasy landscapes.-0.mp4",
+        "vbench/aesthetic_quality/Flying through fantasy landscapes.-0.mp4",
+        "vbench/imaging_quality/Flying through fantasy landscapes.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A bigfoot walking in the snowstorm.",
+      "prompt": "A large, hairy creature walks through a heavy snowstorm. Realistic, Natural lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A bigfoot walking in the snowstorm.-0.mp4",
+        "vbench/aesthetic_quality/A bigfoot walking in the snowstorm.-0.mp4",
+        "vbench/imaging_quality/A bigfoot walking in the snowstorm.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A squirrel eating a burger.",
+      "prompt": "A squirrel eating a burger. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A squirrel eating a burger.-0.mp4",
+        "vbench/aesthetic_quality/A squirrel eating a burger.-0.mp4",
+        "vbench/imaging_quality/A squirrel eating a burger.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A cat wearing sunglasses and working as a lifeguard at a pool.",
+      "prompt": "A cat wearing sunglasses works as a lifeguard at a pool. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A cat wearing sunglasses and working as a lifeguard at a pool.-0.mp4",
+        "vbench/aesthetic_quality/A cat wearing sunglasses and working as a lifeguard at a pool.-0.mp4",
+        "vbench/imaging_quality/A cat wearing sunglasses and working as a lifeguard at a pool.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Snow rocky mountains peaks canyon. snow blanketed rocky mountains surround and shadow deep canyons. the canyons twist and bend through the high elevated mountain peaks.",
+      "prompt": "Snow-covered rocky mountains and deep canyons. The mountains, with snow blankets, surround and cast shadows over the canyons, which twist and bend through the high elevated peaks. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Snow rocky mountains peaks canyon. snow blanketed rocky mountains surround and shadow deep canyons. the canyons twist and bend through the high elevated mountain peaks.-0.mp4",
+        "vbench/aesthetic_quality/Snow rocky mountains peaks canyon. snow blanketed rocky mountains surround and shadow deep canyons. the canyons twist and bend through the high elevated mountain peaks.-0.mp4",
+        "vbench/imaging_quality/Snow rocky mountains peaks canyon. snow blanketed rocky mountains surround and shadow deep canyons. the canyons twist and bend through the high elevated mountain peaks.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Splash of turquoise water in extreme slow motion, alpha channel included.",
+      "prompt": "Turquoise water splashes in extreme slow motion, alpha channel included. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Splash of turquoise water in extreme slow motion, alpha channel included.-0.mp4",
+        "vbench/aesthetic_quality/Splash of turquoise water in extreme slow motion, alpha channel included.-0.mp4",
+        "vbench/imaging_quality/Splash of turquoise water in extreme slow motion, alpha channel included.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "an ice cream is melting on the table.",
+      "prompt": "An ice cream is melting on the table. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/an ice cream is melting on the table.-0.mp4",
+        "vbench/aesthetic_quality/an ice cream is melting on the table.-0.mp4",
+        "vbench/imaging_quality/an ice cream is melting on the table.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a drone flying over a snowy forest.",
+      "prompt": "A drone flying over a snowy forest. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/a drone flying over a snowy forest.-0.mp4",
+        "vbench/aesthetic_quality/a drone flying over a snowy forest.-0.mp4",
+        "vbench/imaging_quality/a drone flying over a snowy forest.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a shark is swimming in the ocean.",
+      "prompt": "A shark is swimming in the ocean. Realistic, Natural lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/a shark is swimming in the ocean.-0.mp4",
+        "vbench/aesthetic_quality/a shark is swimming in the ocean.-0.mp4",
+        "vbench/imaging_quality/a shark is swimming in the ocean.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Aerial panoramic video from a drone of a fantasy land.",
+      "prompt": "Aerial panoramic shot from a drone of a fantasy land. Natural lighting, Majestic",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Aerial panoramic video from a drone of a fantasy land.-0.mp4",
+        "vbench/aesthetic_quality/Aerial panoramic video from a drone of a fantasy land.-0.mp4",
+        "vbench/imaging_quality/Aerial panoramic video from a drone of a fantasy land.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a teddy bear is swimming in the ocean.",
+      "prompt": "A teddy bear is swimming in the ocean. Realistic, Natural lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/a teddy bear is swimming in the ocean.-0.mp4",
+        "vbench/aesthetic_quality/a teddy bear is swimming in the ocean.-0.mp4",
+        "vbench/imaging_quality/a teddy bear is swimming in the ocean.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "time lapse of sunrise on mars.",
+      "prompt": "Time lapse of the sun rising on Mars. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/time lapse of sunrise on mars.-0.mp4",
+        "vbench/aesthetic_quality/time lapse of sunrise on mars.-0.mp4",
+        "vbench/imaging_quality/time lapse of sunrise on mars.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "golden fish swimming in the ocean.",
+      "prompt": "A golden fish swimming in the ocean. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/golden fish swimming in the ocean.-0.mp4",
+        "vbench/aesthetic_quality/golden fish swimming in the ocean.-0.mp4",
+        "vbench/imaging_quality/golden fish swimming in the ocean.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "An artist brush painting on a canvas close up.",
+      "prompt": "An artist's brush strokes are visible on a canvas in a close-up. Realistic, Indoor lighting, Intimate",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/An artist brush painting on a canvas close up.-0.mp4",
+        "vbench/aesthetic_quality/An artist brush painting on a canvas close up.-0.mp4",
+        "vbench/imaging_quality/An artist brush painting on a canvas close up.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A drone view of celebration with Christmas tree and fireworks, starry sky - background.",
+      "prompt": "An aerial shot of a celebration with a Christmas tree and fireworks, starry sky in the background. Realistic, Night lighting, Festive",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A drone view of celebration with Christmas tree and fireworks, starry sky - background.-0.mp4",
+        "vbench/aesthetic_quality/A drone view of celebration with Christmas tree and fireworks, starry sky - background.-0.mp4",
+        "vbench/imaging_quality/A drone view of celebration with Christmas tree and fireworks, starry sky - background.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "happy dog wearing a yellow turtleneck, studio, portrait, facing camera, dark background",
+      "prompt": "A happy dog wearing a yellow turtleneck, in a studio portrait facing the camera, with a dark background. Realistic, Studio lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/happy dog wearing a yellow turtleneck, studio, portrait, facing camera, dark background-0.mp4",
+        "vbench/aesthetic_quality/happy dog wearing a yellow turtleneck, studio, portrait, facing camera, dark background-0.mp4",
+        "vbench/imaging_quality/happy dog wearing a yellow turtleneck, studio, portrait, facing camera, dark background-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Origami dancers in white paper, 3D render, on white background, studio shot, dancing modern dance.",
+      "prompt": "Origami dancers in white paper, 3D render, dancing modern dance on a white background in a studio shot. Studio lighting, Artistic",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Origami dancers in white paper, 3D render, on white background, studio shot, dancing modern dance.-0.mp4",
+        "vbench/aesthetic_quality/Origami dancers in white paper, 3D render, on white background, studio shot, dancing modern dance.-0.mp4",
+        "vbench/imaging_quality/Origami dancers in white paper, 3D render, on white background, studio shot, dancing modern dance.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Campfire at night in a snowy forest with starry sky in the background.",
+      "prompt": "A campfire burns at night in a snowy forest, with a starry sky visible in the background. Realistic, Night lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Campfire at night in a snowy forest with starry sky in the background.-0.mp4",
+        "vbench/aesthetic_quality/Campfire at night in a snowy forest with starry sky in the background.-0.mp4",
+        "vbench/imaging_quality/Campfire at night in a snowy forest with starry sky in the background.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "a fantasy landscape",
+      "prompt": "A fantasy landscape with mythical creatures and enchanted forests. Natural lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/a fantasy landscape-0.mp4",
+        "vbench/aesthetic_quality/a fantasy landscape-0.mp4",
+        "vbench/imaging_quality/a fantasy landscape-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A 3D model of a 1800s victorian house.",
+      "prompt": "A 3D model of an 1800s Victorian house. Realistic, Natural lighting, Formal",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A 3D model of a 1800s victorian house.-0.mp4",
+        "vbench/aesthetic_quality/A 3D model of a 1800s victorian house.-0.mp4",
+        "vbench/imaging_quality/A 3D model of a 1800s victorian house.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "this is how I do makeup in the morning.",
+      "prompt": "This is how I do makeup in the morning. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/this is how I do makeup in the morning.-0.mp4",
+        "vbench/aesthetic_quality/this is how I do makeup in the morning.-0.mp4",
+        "vbench/imaging_quality/this is how I do makeup in the morning.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A raccoon that looks like a turtle, digital art.",
+      "prompt": "A raccoon that looks like a turtle, digital art. Natural lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A raccoon that looks like a turtle, digital art.-0.mp4",
+        "vbench/aesthetic_quality/A raccoon that looks like a turtle, digital art.-0.mp4",
+        "vbench/imaging_quality/A raccoon that looks like a turtle, digital art.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Robot dancing in Times Square.",
+      "prompt": "A robot is dancing in Times Square. Realistic, Indoor lighting, Festive",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Robot dancing in Times Square.-0.mp4",
+        "vbench/aesthetic_quality/Robot dancing in Times Square.-0.mp4",
+        "vbench/imaging_quality/Robot dancing in Times Square.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Busy freeway at night.",
+      "prompt": "A busy freeway at night, lit by headlights and taillights of many vehicles. Realistic, Night lighting",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Busy freeway at night.-0.mp4",
+        "vbench/aesthetic_quality/Busy freeway at night.-0.mp4",
+        "vbench/imaging_quality/Busy freeway at night.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Balloon full of water exploding in extreme slow motion.",
+      "prompt": "A balloon filled with water bursts in extreme slow motion. Realistic, Natural lighting, Dramatic",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Balloon full of water exploding in extreme slow motion.-0.mp4",
+        "vbench/aesthetic_quality/Balloon full of water exploding in extreme slow motion.-0.mp4",
+        "vbench/imaging_quality/Balloon full of water exploding in extreme slow motion.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "An astronaut is riding a horse in the space in a photorealistic style.",
+      "prompt": "An astronaut is riding a horse in space, in a photorealistic style. Soft lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/An astronaut is riding a horse in the space in a photorealistic style.-0.mp4",
+        "vbench/aesthetic_quality/An astronaut is riding a horse in the space in a photorealistic style.-0.mp4",
+        "vbench/imaging_quality/An astronaut is riding a horse in the space in a photorealistic style.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Macro slo-mo. Slow motion cropped closeup of roasted coffee beans falling into an empty bowl.",
+      "prompt": "Slow motion, macro shot of roasted coffee beans falling into an empty bowl, cropped closeup. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Macro slo-mo. Slow motion cropped closeup of roasted coffee beans falling into an empty bowl.-0.mp4",
+        "vbench/aesthetic_quality/Macro slo-mo. Slow motion cropped closeup of roasted coffee beans falling into an empty bowl.-0.mp4",
+        "vbench/imaging_quality/Macro slo-mo. Slow motion cropped closeup of roasted coffee beans falling into an empty bowl.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Sewing machine, old sewing machine working.",
+      "prompt": "An old sewing machine works, stitching fabric. Realistic, Indoor lighting, Professional",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Sewing machine, old sewing machine working.-0.mp4",
+        "vbench/aesthetic_quality/Sewing machine, old sewing machine working.-0.mp4",
+        "vbench/imaging_quality/Sewing machine, old sewing machine working.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Motion colour drop in water, ink swirling in water, colourful ink in water, abstraction fancy dream cloud of ink.",
+      "prompt": "Colorful ink swirls and spreads in water, creating an abstract, dreamy cloud. Soft lighting",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Motion colour drop in water, ink swirling in water, colourful ink in water, abstraction fancy dream cloud of ink.-0.mp4",
+        "vbench/aesthetic_quality/Motion colour drop in water, ink swirling in water, colourful ink in water, abstraction fancy dream cloud of ink.-0.mp4",
+        "vbench/imaging_quality/Motion colour drop in water, ink swirling in water, colourful ink in water, abstraction fancy dream cloud of ink.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Few big purple plums rotating on the turntable. water drops appear on the skin during rotation. isolated on the white background. close-up. macro.",
+      "prompt": "Large purple plums rotate on a turntable, water drops appear on their skin during the rotation, isolated on a white background. Close-up. Macro. Realistic, Soft lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Few big purple plums rotating on the turntable. water drops appear on the skin during rotation. isolated on the white background. close-up. macro.-0.mp4",
+        "vbench/aesthetic_quality/Few big purple plums rotating on the turntable. water drops appear on the skin during rotation. isolated on the white background. close-up. macro.-0.mp4",
+        "vbench/imaging_quality/Few big purple plums rotating on the turntable. water drops appear on the skin during rotation. isolated on the white background. close-up. macro.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Vampire makeup face of beautiful girl, red contact lenses.",
+      "prompt": "A beautiful girl with vampire makeup on her face and red contact lenses. Realistic, Soft lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Vampire makeup face of beautiful girl, red contact lenses.-0.mp4",
+        "vbench/aesthetic_quality/Vampire makeup face of beautiful girl, red contact lenses.-0.mp4",
+        "vbench/imaging_quality/Vampire makeup face of beautiful girl, red contact lenses.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Ashtray full of butts on table, smoke flowing on black background, close-up",
+      "prompt": "An ashtray filled with cigarette butts sits on a table, smoke drifting against a black background, close-up. Realistic, Dark, Tense",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Ashtray full of butts on table, smoke flowing on black background, close-up-0.mp4",
+        "vbench/aesthetic_quality/Ashtray full of butts on table, smoke flowing on black background, close-up-0.mp4",
+        "vbench/imaging_quality/Ashtray full of butts on table, smoke flowing on black background, close-up-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Pacific coast, carmel by the sea ocean and waves.",
+      "prompt": "Pacific coast at Carmel by the sea, ocean waves crashing. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Pacific coast, carmel by the sea ocean and waves.-0.mp4",
+        "vbench/aesthetic_quality/Pacific coast, carmel by the sea ocean and waves.-0.mp4",
+        "vbench/imaging_quality/Pacific coast, carmel by the sea ocean and waves.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A teddy bear is playing drum kit in NYC Times Square.",
+      "prompt": "A teddy bear is playing a drum kit in NYC Times Square. Realistic, Indoor lighting, Festive",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A teddy bear is playing drum kit in NYC Times Square.-0.mp4",
+        "vbench/aesthetic_quality/A teddy bear is playing drum kit in NYC Times Square.-0.mp4",
+        "vbench/imaging_quality/A teddy bear is playing drum kit in NYC Times Square.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A corgi is playing drum kit.",
+      "prompt": "A corgi is playing drum kit. Realistic, Indoor lighting, Cheerful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A corgi is playing drum kit.-0.mp4",
+        "vbench/aesthetic_quality/A corgi is playing drum kit.-0.mp4",
+        "vbench/imaging_quality/A corgi is playing drum kit.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "An Iron man is playing the electronic guitar, high electronic guitar.",
+      "prompt": "Iron Man in red and gold metallic armor is playing the electronic guitar, high electronic guitar. Realistic, Indoor lighting, Festive",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/An Iron man is playing the electronic guitar, high electronic guitar.-0.mp4",
+        "vbench/aesthetic_quality/An Iron man is playing the electronic guitar, high electronic guitar.-0.mp4",
+        "vbench/imaging_quality/An Iron man is playing the electronic guitar, high electronic guitar.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A raccoon is playing the electronic guitar.",
+      "prompt": "A raccoon is playing the electronic guitar. Realistic, Indoor lighting, Humorous",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A raccoon is playing the electronic guitar.-0.mp4",
+        "vbench/aesthetic_quality/A raccoon is playing the electronic guitar.-0.mp4",
+        "vbench/imaging_quality/A raccoon is playing the electronic guitar.-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A boat sailing leisurely along the Seine River with the Eiffel Tower in background by Vincent van Gogh",
+      "prompt": "A boat sails leisurely on the Seine River with the Eiffel Tower in the background, in Vincent van Gogh style. Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A boat sailing leisurely along the Seine River with the Eiffel Tower in background by Vincent van Gogh-0.mp4",
+        "vbench/aesthetic_quality/A boat sailing leisurely along the Seine River with the Eiffel Tower in background by Vincent van Gogh-0.mp4",
+        "vbench/imaging_quality/A boat sailing leisurely along the Seine River with the Eiffel Tower in background by Vincent van Gogh-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A corgi's head depicted as an explosion of a nebula",
+      "prompt": "A corgi's head looks like an explosion of a nebula. Realistic, Natural lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A corgi's head depicted as an explosion of a nebula-0.mp4",
+        "vbench/aesthetic_quality/A corgi's head depicted as an explosion of a nebula-0.mp4",
+        "vbench/imaging_quality/A corgi's head depicted as an explosion of a nebula-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A fantasy landscape",
+      "prompt": "A fantasy landscape. Soft lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A fantasy landscape-0.mp4",
+        "vbench/aesthetic_quality/A fantasy landscape-0.mp4",
+        "vbench/imaging_quality/A fantasy landscape-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A future where humans have achieved teleportation technology",
+      "prompt": "A future where humans have achieved teleportation technology. Realistic, Blue ambient lighting, Futuristic",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A future where humans have achieved teleportation technology-0.mp4",
+        "vbench/aesthetic_quality/A future where humans have achieved teleportation technology-0.mp4",
+        "vbench/imaging_quality/A future where humans have achieved teleportation technology-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A jellyfish floating through the ocean, with bioluminescent tentacles",
+      "prompt": "A jellyfish floating through the ocean, with bioluminescent tentacles. Realistic, Dark, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A jellyfish floating through the ocean, with bioluminescent tentacles-0.mp4",
+        "vbench/aesthetic_quality/A jellyfish floating through the ocean, with bioluminescent tentacles-0.mp4",
+        "vbench/imaging_quality/A jellyfish floating through the ocean, with bioluminescent tentacles-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A Mars rover moving on Mars",
+      "prompt": "A Mars rover moves on the Martian surface. Realistic, Natural lighting, Scientific",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A Mars rover moving on Mars-0.mp4",
+        "vbench/aesthetic_quality/A Mars rover moving on Mars-0.mp4",
+        "vbench/imaging_quality/A Mars rover moving on Mars-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A panda drinking coffee in a cafe in Paris",
+      "prompt": "A panda drinking coffee in a cafe in Paris. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A panda drinking coffee in a cafe in Paris-0.mp4",
+        "vbench/aesthetic_quality/A panda drinking coffee in a cafe in Paris-0.mp4",
+        "vbench/imaging_quality/A panda drinking coffee in a cafe in Paris-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A space shuttle launching into orbit, with flames and smoke billowing out from the engines",
+      "prompt": "A space shuttle launches into orbit, with flames and smoke billowing out from the engines. Realistic, Natural lighting, Dramatic",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A space shuttle launching into orbit, with flames and smoke billowing out from the engines-0.mp4",
+        "vbench/aesthetic_quality/A space shuttle launching into orbit, with flames and smoke billowing out from the engines-0.mp4",
+        "vbench/imaging_quality/A space shuttle launching into orbit, with flames and smoke billowing out from the engines-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A steam train moving on a mountainside",
+      "prompt": "A steam train moves along a track on a mountainside. Realistic, Natural lighting, Scenic",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A steam train moving on a mountainside-0.mp4",
+        "vbench/aesthetic_quality/A steam train moving on a mountainside-0.mp4",
+        "vbench/imaging_quality/A steam train moving on a mountainside-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A super cool giant robot in Cyberpunk Beijing",
+      "prompt": "A super cool giant robot in Cyberpunk Beijing. Neon lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A super cool giant robot in Cyberpunk Beijing-0.mp4",
+        "vbench/aesthetic_quality/A super cool giant robot in Cyberpunk Beijing-0.mp4",
+        "vbench/imaging_quality/A super cool giant robot in Cyberpunk Beijing-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A tropical beach at sunrise, with palm trees and crystal-clear water in the foreground",
+      "prompt": "A tropical beach at sunrise, with palm trees and crystal-clear water in the foreground. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A tropical beach at sunrise, with palm trees and crystal-clear water in the foreground-0.mp4",
+        "vbench/aesthetic_quality/A tropical beach at sunrise, with palm trees and crystal-clear water in the foreground-0.mp4",
+        "vbench/imaging_quality/A tropical beach at sunrise, with palm trees and crystal-clear water in the foreground-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Cinematic shot of Van Gogh's selfie, Van Gogh style",
+      "prompt": "Cinematic shot of Van Gogh's selfie, Van Gogh style. Warm lighting, Intense",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Cinematic shot of Van Gogh's selfie, Van Gogh style-0.mp4",
+        "vbench/aesthetic_quality/Cinematic shot of Van Gogh's selfie, Van Gogh style-0.mp4",
+        "vbench/imaging_quality/Cinematic shot of Van Gogh's selfie, Van Gogh style-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Gwen Stacy reading a book",
+      "prompt": "Gwen Stacy reading a book. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Gwen Stacy reading a book-0.mp4",
+        "vbench/aesthetic_quality/Gwen Stacy reading a book-0.mp4",
+        "vbench/imaging_quality/Gwen Stacy reading a book-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Iron Man flying in the sky",
+      "prompt": "Iron Man in red and gold metallic armor flying in the sky. Realistic, Natural lighting, Dramatic",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Iron Man flying in the sky-0.mp4",
+        "vbench/aesthetic_quality/Iron Man flying in the sky-0.mp4",
+        "vbench/imaging_quality/Iron Man flying in the sky-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "The bund Shanghai, oil painting",
+      "prompt": "The Bund in Shanghai, in an oil painting style. Natural lighting, Formal",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/The bund Shanghai, oil painting-0.mp4",
+        "vbench/aesthetic_quality/The bund Shanghai, oil painting-0.mp4",
+        "vbench/imaging_quality/The bund Shanghai, oil painting-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Yoda playing guitar on the stage",
+      "prompt": "Yoda, the small green alien with pointy ears, is on the stage playing a guitar. Realistic, Stage lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Yoda playing guitar on the stage-0.mp4",
+        "vbench/aesthetic_quality/Yoda playing guitar on the stage-0.mp4",
+        "vbench/imaging_quality/Yoda playing guitar on the stage-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A beautiful coastal beach in spring, waves lapping on sand by Hokusai, in the style of Ukiyo",
+      "prompt": "A beautiful coastal beach in spring, waves gently lapping on the sand, in the style of Ukiyo, inspired by Hokusai. Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A beautiful coastal beach in spring, waves lapping on sand by Hokusai, in the style of Ukiyo-0.mp4",
+        "vbench/aesthetic_quality/A beautiful coastal beach in spring, waves lapping on sand by Hokusai, in the style of Ukiyo-0.mp4",
+        "vbench/imaging_quality/A beautiful coastal beach in spring, waves lapping on sand by Hokusai, in the style of Ukiyo-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A beautiful coastal beach in spring, waves lapping on sand by Vincent van Gogh",
+      "prompt": "A beautiful coastal beach in spring, waves lapping on sand. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A beautiful coastal beach in spring, waves lapping on sand by Vincent van Gogh-0.mp4",
+        "vbench/aesthetic_quality/A beautiful coastal beach in spring, waves lapping on sand by Vincent van Gogh-0.mp4",
+        "vbench/imaging_quality/A beautiful coastal beach in spring, waves lapping on sand by Vincent van Gogh-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A boat sailing leisurely along the Seine River with the Eiffel Tower in background",
+      "prompt": "A boat sailing leisurely along the Seine River with the Eiffel Tower in the background. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A boat sailing leisurely along the Seine River with the Eiffel Tower in background-0.mp4",
+        "vbench/aesthetic_quality/A boat sailing leisurely along the Seine River with the Eiffel Tower in background-0.mp4",
+        "vbench/imaging_quality/A boat sailing leisurely along the Seine River with the Eiffel Tower in background-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A car moving slowly on an empty street, rainy evening",
+      "prompt": "A car moves slowly on an empty street during a rainy evening. Realistic, Night lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A car moving slowly on an empty street, rainy evening-0.mp4",
+        "vbench/aesthetic_quality/A car moving slowly on an empty street, rainy evening-0.mp4",
+        "vbench/imaging_quality/A car moving slowly on an empty street, rainy evening-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A cat eating food out of a bowl",
+      "prompt": "A cat eating food out of a bowl. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A cat eating food out of a bowl-0.mp4",
+        "vbench/aesthetic_quality/A cat eating food out of a bowl-0.mp4",
+        "vbench/imaging_quality/A cat eating food out of a bowl-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A cat wearing sunglasses at a pool",
+      "prompt": "A cat wearing sunglasses at a pool. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A cat wearing sunglasses at a pool-0.mp4",
+        "vbench/aesthetic_quality/A cat wearing sunglasses at a pool-0.mp4",
+        "vbench/imaging_quality/A cat wearing sunglasses at a pool-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A confused panda in calculus class",
+      "prompt": "A confused panda in a calculus class. Realistic, Indoor lighting",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A confused panda in calculus class-0.mp4",
+        "vbench/aesthetic_quality/A confused panda in calculus class-0.mp4",
+        "vbench/imaging_quality/A confused panda in calculus class-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A cute fluffy panda eating Chinese food in a restaurant",
+      "prompt": "A cute, fluffy panda eating Chinese food in a restaurant. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A cute fluffy panda eating Chinese food in a restaurant-0.mp4",
+        "vbench/aesthetic_quality/A cute fluffy panda eating Chinese food in a restaurant-0.mp4",
+        "vbench/imaging_quality/A cute fluffy panda eating Chinese food in a restaurant-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A cute happy Corgi playing in park, sunset",
+      "prompt": "A cute, happy Corgi playing in the park during sunset. Realistic, Warm lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A cute happy Corgi playing in park, sunset-0.mp4",
+        "vbench/aesthetic_quality/A cute happy Corgi playing in park, sunset-0.mp4",
+        "vbench/imaging_quality/A cute happy Corgi playing in park, sunset-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A cute raccoon playing guitar in a boat on the ocean",
+      "prompt": "A cute raccoon playing guitar in a boat on the ocean. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A cute raccoon playing guitar in a boat on the ocean-0.mp4",
+        "vbench/aesthetic_quality/A cute raccoon playing guitar in a boat on the ocean-0.mp4",
+        "vbench/imaging_quality/A cute raccoon playing guitar in a boat on the ocean-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A happy fuzzy panda playing guitar nearby a campfire, snow mountain in the background",
+      "prompt": "A happy, fuzzy panda plays a guitar close to a campfire, with a snow-covered mountain in the background. Realistic, Warm lighting, Cheerful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A happy fuzzy panda playing guitar nearby a campfire, snow mountain in the background-0.mp4",
+        "vbench/aesthetic_quality/A happy fuzzy panda playing guitar nearby a campfire, snow mountain in the background-0.mp4",
+        "vbench/imaging_quality/A happy fuzzy panda playing guitar nearby a campfire, snow mountain in the background-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A lightning striking atop of eiffel tower, dark clouds in the sky",
+      "prompt": "A lightning bolt strikes the top of the Eiffel Tower, dark clouds fill the sky. Realistic, Night lighting, Tense",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A lightning striking atop of eiffel tower, dark clouds in the sky-0.mp4",
+        "vbench/aesthetic_quality/A lightning striking atop of eiffel tower, dark clouds in the sky-0.mp4",
+        "vbench/imaging_quality/A lightning striking atop of eiffel tower, dark clouds in the sky-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A modern art museum, with colorful paintings",
+      "prompt": "A modern art museum, with colorful paintings. Realistic, Indoor lighting, Professional",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A modern art museum, with colorful paintings-0.mp4",
+        "vbench/aesthetic_quality/A modern art museum, with colorful paintings-0.mp4",
+        "vbench/imaging_quality/A modern art museum, with colorful paintings-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A panda cooking in the kitchen",
+      "prompt": "A panda cooking in the kitchen. Realistic, Indoor lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A panda cooking in the kitchen-0.mp4",
+        "vbench/aesthetic_quality/A panda cooking in the kitchen-0.mp4",
+        "vbench/imaging_quality/A panda cooking in the kitchen-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A panda playing on a swing set",
+      "prompt": "A panda playing on a swing set. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A panda playing on a swing set-0.mp4",
+        "vbench/aesthetic_quality/A panda playing on a swing set-0.mp4",
+        "vbench/imaging_quality/A panda playing on a swing set-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A polar bear is playing guitar",
+      "prompt": "A polar bear is playing guitar. Realistic, Natural lighting, Casual",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A polar bear is playing guitar-0.mp4",
+        "vbench/aesthetic_quality/A polar bear is playing guitar-0.mp4",
+        "vbench/imaging_quality/A polar bear is playing guitar-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A raccoon dressed in suit playing the trumpet, stage background",
+      "prompt": "A raccoon in a suit plays the trumpet on stage, stage background. Realistic, Stage lighting, Theatrical",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A raccoon dressed in suit playing the trumpet, stage background-0.mp4",
+        "vbench/aesthetic_quality/A raccoon dressed in suit playing the trumpet, stage background-0.mp4",
+        "vbench/imaging_quality/A raccoon dressed in suit playing the trumpet, stage background-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A robot DJ is playing the turntable, in heavy raining futuristic tokyo rooftop cyberpunk night, sci-fi, fantasy",
+      "prompt": "A robot DJ plays the turntable, in heavy rain on a futuristic Tokyo rooftop, cyberpunk night, sci-fi, fantasy. Night lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A robot DJ is playing the turntable, in heavy raining futuristic tokyo rooftop cyberpunk night, sci-fi, fantasy-0.mp4",
+        "vbench/aesthetic_quality/A robot DJ is playing the turntable, in heavy raining futuristic tokyo rooftop cyberpunk night, sci-fi, fantasy-0.mp4",
+        "vbench/imaging_quality/A robot DJ is playing the turntable, in heavy raining futuristic tokyo rooftop cyberpunk night, sci-fi, fantasy-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A shark swimming in clear Caribbean ocean",
+      "prompt": "A shark swimming in clear Caribbean ocean. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A shark swimming in clear Caribbean ocean-0.mp4",
+        "vbench/aesthetic_quality/A shark swimming in clear Caribbean ocean-0.mp4",
+        "vbench/imaging_quality/A shark swimming in clear Caribbean ocean-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A super robot protecting city",
+      "prompt": "A large robot protecting the city. Realistic, Natural lighting, Tense",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A super robot protecting city-0.mp4",
+        "vbench/aesthetic_quality/A super robot protecting city-0.mp4",
+        "vbench/imaging_quality/A super robot protecting city-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "A teddy bear washing the dishes",
+      "prompt": "A teddy bear washing the dishes. Realistic, Indoor lighting, Humorous",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/A teddy bear washing the dishes-0.mp4",
+        "vbench/aesthetic_quality/A teddy bear washing the dishes-0.mp4",
+        "vbench/imaging_quality/A teddy bear washing the dishes-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "An epic tornado attacking above a glowing city at night, the tornado is made of smoke",
+      "prompt": "An epic tornado, made of smoke, attacks above a glowing city at night. Realistic, Night lighting, Tense",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/An epic tornado attacking above a glowing city at night, the tornado is made of smoke-0.mp4",
+        "vbench/aesthetic_quality/An epic tornado attacking above a glowing city at night, the tornado is made of smoke-0.mp4",
+        "vbench/imaging_quality/An epic tornado attacking above a glowing city at night, the tornado is made of smoke-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "An oil painting of a couple in formal evening wear going home get caught in a heavy downpour with umbrellas",
+      "prompt": "In an oil painting, a couple in formal evening wear are caught in a heavy downpour, holding umbrellas as they walk home. Night lighting, Intimate",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/An oil painting of a couple in formal evening wear going home get caught in a heavy downpour with umbrellas-0.mp4",
+        "vbench/aesthetic_quality/An oil painting of a couple in formal evening wear going home get caught in a heavy downpour with umbrellas-0.mp4",
+        "vbench/imaging_quality/An oil painting of a couple in formal evening wear going home get caught in a heavy downpour with umbrellas-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Clown fish swimming through the coral reef",
+      "prompt": "Clown fish swimming through the coral reef. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Clown fish swimming through the coral reef-0.mp4",
+        "vbench/aesthetic_quality/Clown fish swimming through the coral reef-0.mp4",
+        "vbench/imaging_quality/Clown fish swimming through the coral reef-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Hyper-realistic spaceship landing on Mars",
+      "prompt": "Hyper-realistic spaceship landing on Mars. Natural lighting, Mysterious",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Hyper-realistic spaceship landing on Mars-0.mp4",
+        "vbench/aesthetic_quality/Hyper-realistic spaceship landing on Mars-0.mp4",
+        "vbench/imaging_quality/Hyper-realistic spaceship landing on Mars-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "The bund Shanghai, vibrant color",
+      "prompt": "The Bund in Shanghai, vibrant colors. Realistic, Warm lighting",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/The bund Shanghai, vibrant color-0.mp4",
+        "vbench/aesthetic_quality/The bund Shanghai, vibrant color-0.mp4",
+        "vbench/imaging_quality/The bund Shanghai, vibrant color-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Vincent van Gogh is painting in the room",
+      "prompt": "Vincent van Gogh is painting in the room. Realistic, Indoor lighting, Professional",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Vincent van Gogh is painting in the room-0.mp4",
+        "vbench/aesthetic_quality/Vincent van Gogh is painting in the room-0.mp4",
+        "vbench/imaging_quality/Vincent van Gogh is painting in the room-0.mp4"
+      ]
+    },
+    {
+      "underlying_prompt": "Yellow flowers swing in the wind",
+      "prompt": "Yellow flowers sway in the wind. Realistic, Natural lighting, Peaceful",
+      "seed": 0,
+      "output_path": [
+        "vbench/overall_consistency/Yellow flowers swing in the wind-0.mp4",
+        "vbench/aesthetic_quality/Yellow flowers swing in the wind-0.mp4",
+        "vbench/imaging_quality/Yellow flowers swing in the wind-0.mp4"
+      ]
+    }
+  ]

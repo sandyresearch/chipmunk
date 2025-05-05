@@ -5,3 +5,5 @@ build/
 *.so
 outputs/
 output/
+evals/models/
+*slurm*
