@@ -191,7 +191,7 @@ class SparseDiffAttn(nn.Module):
                     o_cache = o.clone()
                     inds = inds[:, :, :, :q.shape[-2]].contiguous()
                     torch.ops.chipmunk.csp_attn(q, k, v, o_cache, inds, counts, -1)
-                    self.storage.set_out_cache(o_cache)
+                self.storage.set_out_cache(o_cache)
 
             if attn_config['debug']:
                 sparsity = torch.sum(counts) / inds.numel()

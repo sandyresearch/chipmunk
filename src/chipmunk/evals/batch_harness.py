@@ -198,8 +198,9 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
         base_path="examples/hunyuan/chipmunk-config.yml",
         patchify=False,
         attn_sparsity=0,
-        attn_full_step_every=1,
-        attn_full_step_schedule={0, 1},
+        attn_full_step_every=10,
+        attn_full_step_schedule={},
+        attn_tail=True,
         attn_recompute_mask=True,
         mlp_sparsity=0,
         mlp_rk=0,
@@ -216,7 +217,7 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
         attn_local_1d_window=0.5,
         delta_cache=False,
         world_size=1,
-        attn_rk=0
+        attn_rk=0.3
     )
     # Dit Fast Attention
     cfgs += make_config(
@@ -270,6 +271,31 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
 
 def generate_configs_wan() -> List[Dict[str, Any]]:
     cfgs: List[Dict[str, Any]] = []
+    # Chipmunk + Cache
+    cfgs += make_config(
+        base_path="examples/wan/chipmunk-config.yml",
+        patchify=True,
+        attn_sparsity=0.1,
+        attn_full_step_every=1,
+        attn_full_step_schedule={0, 1, 10, 40},
+        attn_recompute_mask=True,
+        mlp_sparsity=0,
+        mlp_rk=0,
+        mlp_mbm=0,
+        mlp_is_fp8=False,
+        mlp_full_step_every=1,
+        mlp_block_mask_cache=0,
+        step_caching=True,
+        skip_step_schedule={7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43},
+        width=1280,
+        height=720,
+        global_disable_offloading=False,
+        attn_local_voxels=3,
+        attn_local_1d_window=0,
+        tea_cache_threshold=0,
+        world_size=1,
+        attn_rk=0.01
+    )
     # Dit Fast Attention
     cfgs += make_config(
         base_path="examples/wan/chipmunk-config.yml",
@@ -344,31 +370,7 @@ def generate_configs_wan() -> List[Dict[str, Any]]:
         world_size=1,
         attn_rk=0
     )
-    # Chipmunk + TeaCache
-    # cfgs += make_config(
-    #     base_path="examples/wan/chipmunk-config.yml",
-    #     patchify=True,
-    #     attn_sparsity=0.1,
-    #     attn_full_step_every=1,
-    #     attn_full_step_schedule={0, 1, 10, 40},
-    #     attn_recompute_mask=True,
-    #     mlp_sparsity=0,
-    #     mlp_rk=0,
-    #     mlp_mbm=0,
-    #     mlp_is_fp8=False,
-    #     mlp_full_step_every=1,
-    #     mlp_block_mask_cache=0,
-    #     step_caching=False,
-    #     skip_step_schedule={},
-    #     width=1280,
-    #     height=720,
-    #     global_disable_offloading=False,
-    #     attn_local_voxels=3,
-    #     attn_local_1d_window=0,
-    #     tea_cache_threshold=0.2,
-    #     world_size=1,
-    #     attn_rk=0.01
-    # )
+    
     return cfgs
 
 
