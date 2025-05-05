@@ -271,13 +271,14 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
 
 def generate_configs_wan() -> List[Dict[str, Any]]:
     cfgs: List[Dict[str, Any]] = []
+    
     # Chipmunk + Step Cache
     cfgs += make_config(
         base_path="examples/wan/chipmunk-config.yml",
         patchify=True,
         attn_sparsity=0.2,
-        attn_full_step_every=1,
-        attn_full_step_schedule={0, 1, 10, 40},
+        attn_full_step_every=10,
+        attn_full_step_schedule={},
         attn_recompute_mask=True,
         mlp_sparsity=0,
         mlp_rk=0,
@@ -293,7 +294,37 @@ def generate_configs_wan() -> List[Dict[str, Any]]:
         attn_local_voxels=2,
         attn_local_1d_window=0,
         world_size=1,
-        attn_rk=0.01
+        attn_rk=0.05
+    )
+    # STA
+    cfgs += make_config(
+        base_path="examples/wan/chipmunk-config.yml",
+        patchify=False,
+        
+        attn_sparsity=0,
+        attn_full_step_every=1,
+        attn_full_step_schedule={0,1},
+        attn_recompute_mask=True,
+        attn_rk=0,
+        attn_tail=True,
+        attn_local_voxels=5,
+        attn_local_1d_window=0,
+
+        mlp_sparsity=0,
+        mlp_rk=0,
+        mlp_mbm=0,
+        mlp_is_fp8=False,
+        mlp_full_step_every=1,
+        mlp_block_mask_cache=0,
+        
+        step_caching=False,
+        skip_step_schedule={},
+        
+        width=1280,
+        height=720,
+        
+        global_disable_offloading=False,
+        world_size=1,
     )
     return cfgs
 

@@ -34,13 +34,17 @@ class SparseDiffAttn(nn.Module):
         topk = int(topk * (tt * th * tw))
 
         # Apply local 3D window
+        full_attn_from_3d_tail = GLOBAL_CONFIG['attn']['full_attn_from_3d_tail']
+        full_attn_to_3d_tail = GLOBAL_CONFIG['attn']['full_attn_to_3d_tail']
         mask, _, _ = get_local_indices_with_text(
             vid_shape=(tt, th, tw),
             txt_len=txt_len,
             voxel_shape=(4, 6, 8),
             local_shape=(lv, lv, lv),
             rk=rk,
-            device=device
+            device=device,
+            full_tail_from_attn=full_attn_from_3d_tail,
+            full_tail_to_attn=full_attn_to_3d_tail
         )
 
         # Apply local 1D window
@@ -157,12 +161,18 @@ class SparseDiffAttn(nn.Module):
                     inds   = self.storage.get_indices()
                     counts = self.storage.get_counts()
 
-            if do_padding:
-                o_cache = o - chipmunk.ops.csp_attn(q, k, v, inds, counts)
-            else:
-                o_cache = o.clone()
-                torch.ops.chipmunk.csp_attn(q, k, v, o_cache, inds, counts, -1)
-            self.storage.set_out_cache(o_cache)
+            if attn_config['delta_cache']:
+                if do_padding:
+                    o_cache = o - chipmunk.ops.csp_attn(q, k, v, inds, counts)
+                else:
+                    o_cache = o.clone()
+                    torch.ops.chipmunk.csp_attn(q, k, v, o_cache, inds, counts, -1)
+                self.storage.set_out_cache(o_cache)
+
+            if attn_config['debug']:
+                sparsity = torch.sum(counts) / inds.numel()
+                print(f'step {inference_step:02} layer {self.layer_num:02} sparsity: {sparsity:.4f}')
+            
             return o
 
         # ─────────── SPARSE STEP ───────────
@@ -173,20 +183,29 @@ class SparseDiffAttn(nn.Module):
         else:
             inds   = self.storage.get_indices()
             counts = self.storage.get_counts()
-        o      = self.storage.get_out_cache()
         if do_padding:
-            o = o + chipmunk.ops.csp_attn(q, k, v, inds, counts)
+            if attn_config['delta_cache']:
+                o = self.storage.get_out_cache()
+                o = o + chipmunk.ops.csp_attn(q, k, v, inds, counts)
+            else:
+                o = chipmunk.ops.csp_attn(q, k, v, inds, counts)
         else:
-            if not self.storage.out_cache.is_offload_enabled:
-                # Our kernel will write to o in place, so we need to clone it if it's not offloaded
-                o = o.clone()
+            if attn_config['delta_cache']:
+                o = self.storage.get_out_cache()
+                if not self.storage.out_cache.is_offload_enabled:
+                    # Our kernel will write to o in place, so we need to clone it if it's not offloaded
+                    o = o.clone()
+            else:
+                o = torch.zeros_like(q)
+            inds = inds[:, :, :, :q.shape[-2]].contiguous()
             torch.ops.chipmunk.csp_attn(q, k, v, o, inds, counts, 1)
         return o
     
     def forward(self, q: Tensor, k: Tensor, v: Tensor) -> Tensor:
         do_full_step = self.layer_counter.should_do_full_attn_step()
         if not GLOBAL_CONFIG['attn']['is_enabled']:
-            return F.scaled_dot_product_attention(q, k, v)
+            # return F.scaled_dot_product_attention(q, k, v)
+            return chipmunk.ops.dense_attn(q, k, v)[0]
 
         inference_step, layer, submodule = self.layer_counter.increment()
 

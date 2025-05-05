@@ -9,10 +9,11 @@ mlp:
 attn:
   is_enabled: true
   debug: false
-  top_keys: 0.2
-  random_keys: 0.05
+  delta_cache: false
+  top_keys: 0
+  random_keys: 0
   # Number of local voxels to use for static local attention
-  local_voxels: 2
+  local_voxels: 5
   local_1d_window: 0
   first_n_dense_layers: 2
   recompute_mask: true
@@ -20,10 +21,16 @@ attn:
 
   # If schedule is not None, will override full_step_every
   full_step_every: 10
+  full_step_schedule: !!set
+    ? 0
+    ? 1
 
   # Do not change below this line -- kernel-specific business
   pad_qkv_before_kernel: true
   counts_multiple_of: 128
+
+  full_attn_from_3d_tail: true
+  full_attn_to_3d_tail: true
 
 offloading:
   global_disable_offloading: false

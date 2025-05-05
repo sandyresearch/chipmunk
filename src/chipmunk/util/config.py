@@ -37,7 +37,8 @@ BASE_CONFIG = {
         'random_keys': 0.01,
         'local_voxels': 0,
         'local_1d_window': 0,
-
+        'delta_cache': True,
+        'debug': False,
         'first_n_dense_layers': 2,
         'full_step_every': 10,
         # If not None, will override full_step_every
