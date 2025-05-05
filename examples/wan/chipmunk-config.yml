@@ -1,13 +1,13 @@
 num_model_invocations_per_inference_step: 2
 
 patchify:
-  is_enabled: true
+  is_enabled: false
 
 mlp:
   is_enabled: false
 
 attn:
-  is_enabled: true
+  is_enabled: false
   top_keys: 0.2
   random_keys: 0.05
   # Number of local voxels to use for static local attention
@@ -32,7 +32,7 @@ offloading:
   text_encoders: true
 
 step_caching:
-  is_enabled: true
+  is_enabled: false
   # Feel free to play with this -- it's pretty stable across different schedules!
   skip_step_schedule: !!set
     ? 7

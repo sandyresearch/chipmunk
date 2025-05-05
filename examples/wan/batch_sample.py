@@ -6,7 +6,7 @@ import os
 import random
 from pathlib import Path
 from typing import Any
-
+import time
 import torch
 import torch.distributed as dist
 
@@ -94,14 +94,16 @@ def init() -> None:  # noqa: D401
 
 
 
-def sample(prompt: str, out_file: list[str], seed: int) -> None:  # noqa: D401
+def sample(prompt: str, out_file: list[str], seed: int):
     """Generate a video for *prompt* and save it to *out_file*."""
     if _model is None:
         raise RuntimeError("init() must be called before sample().")
 
     # The WanT2V.generate method expects a negative seed of -1 to mean random.
     # We pass the provided seed directly.
+    time_begin = time.time()
     video = _model.generate(prompt, seed=seed, **_GEN_KWARGS)
+    time_end = time.time()
 
     # In multi-process runs, only rank 0 returns a tensor; other ranks get None.
     if video is None:
@@ -119,6 +121,8 @@ def sample(prompt: str, out_file: list[str], seed: int) -> None:  # noqa: D401
             normalize=True,
             value_range=(-1, 1),
         )
+    
+    return time_end - time_begin
 
 
 if __name__ == "__main__":

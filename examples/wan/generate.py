@@ -11,7 +11,7 @@ warnings.filterwarnings('ignore')
 import torch, random
 import torch.distributed as dist
 from PIL import Image
-
+import time
 import wan
 from wan.configs import WAN_CONFIGS, SIZE_CONFIGS, MAX_AREA_CONFIGS, SUPPORTED_SIZES
 from wan.utils.prompt_extend import DashScopePromptExpander, QwenPromptExpander
@@ -337,6 +337,8 @@ def generate(args):
 
         logging.info(
             f"Generating {'image' if 't2i' in args.task else 'video'} ...")
+        
+        time_begin = time.time()
         video = wan_t2v.generate(
             args.prompt,
             size=SIZE_CONFIGS[args.size],
@@ -347,6 +349,8 @@ def generate(args):
             guide_scale=args.sample_guide_scale,
             seed=args.base_seed,
             offload_model=args.offload_model)
+        time_end = time.time()
+        print(f"Time taken: {time_end - time_begin} seconds")
 
     elif "i2v" in args.task:
         if args.prompt is None:
@@ -451,6 +455,7 @@ def generate(args):
         )
 
         logging.info("Generating video ...")
+        time_begin = time.time()
         video = wan_flf2v.generate(
             args.prompt,
             first_frame,
@@ -464,6 +469,8 @@ def generate(args):
             seed=args.base_seed,
             offload_model=args.offload_model
         )
+        time_end = time.time()
+        print(f"Time taken: {time_end - time_begin} seconds")
 
     if rank == 0:
         if args.save_file is None:
