@@ -68,6 +68,8 @@ def make_config(
     width: int,
     height: int,
     global_disable_offloading: bool,
+    offload_attn_out_cache: bool = True,
+    offload_attn_counts: bool = True,
     tea_cache_threshold: float = 0.0,
     attn_rk: float = 0.01,
     world_size: int = 1,
@@ -107,6 +109,8 @@ def make_config(
     GLOBAL_CONFIG["height"] = height
 
     GLOBAL_CONFIG["offloading"]["global_disable_offloading"] = global_disable_offloading
+    GLOBAL_CONFIG["offloading"]["attn.out_cache"] = offload_attn_out_cache
+    GLOBAL_CONFIG["offloading"]["attn.counts"] = offload_attn_counts
 
     # if tea_cache_threshold > 0.0:
     #     GLOBAL_CONFIG["tea_cache"]["threshold"] = tea_cache_threshold
@@ -300,6 +304,8 @@ def generate_configs_wan() -> List[Dict[str, Any]]:
         height=720,
         
         global_disable_offloading=False, 
+        offload_attn_out_cache=False,
+        offload_attn_counts=False,
     )
 
     # Chipmunk + Step Cache
