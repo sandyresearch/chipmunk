@@ -1,4 +1,5 @@
 import torch
+import sys
 from chipmunk.util import GLOBAL_CONFIG
 
 # Global config for whether offloading is enabled
@@ -20,6 +21,12 @@ global_load_stream = torch.cuda.Stream()
 #  gpu_tensors[name] -> [gpu_tensor_for_slot_0, gpu_tensor_for_slot_1, ...]
 gpu_tensors = {}
 
+
+def _get_tensor_size(tensor: torch.Tensor):
+    if tensor.dtype.is_floating_point:
+        return tensor.numel() * torch.finfo(tensor.dtype).bits // 8
+    else:
+        return tensor.numel() * torch.iinfo(tensor.dtype).bits // 8
 
 class MaybeOffloadedTensor:
     """
@@ -43,8 +50,8 @@ class MaybeOffloadedTensor:
     """
 
     # Default buffer sizes for pinned CPU memory, tuned for typical shape sizes
-    LARGE_BUF_SIZE  = 1 * 32 * 150000 * 128 * torch.finfo(torch.bfloat16).bits // 8
-    MEDIUM_BUF_SIZE = 1 * 32 * 50000 * 128 * torch.finfo(torch.bfloat16).bits // 8
+    LARGE_BUF_SIZE  = 1 * 32 * int(150000*0.375) * 128 * torch.finfo(torch.bfloat16).bits // 8
+    MEDIUM_BUF_SIZE = 1 * 32 * int(50000*0.375) * 128 * torch.finfo(torch.bfloat16).bits // 8
     SMALL_BUF_SIZE  = 1 * 32 * 15000 * 128 * torch.finfo(torch.bfloat16).bits // 8
 
     @torch.compiler.disable # torch.compile fails to allocate pinned CPU memory :(
@@ -102,9 +109,13 @@ class MaybeOffloadedTensor:
             self.gpu_tensor[self.get_cur_model_invocation_key()] = gpu_tensor
             return
         # Validate that our pinned buffer is large enough
-        assert gpu_tensor.numel() <= self.cpu_buf[self.get_cur_model_invocation_key()].numel(), (
-            "Tensor is too large to offload - try adjusting MaybeOffloadedTensor.LARGE_BUF_SIZE"
+        assert _get_tensor_size(gpu_tensor) <= _get_tensor_size(self.cpu_buf[self.get_cur_model_invocation_key()]), (
+            f"Tensor is too large to offload - try adjusting MaybeOffloadedTensor.LARGE_BUF_SIZE. Got GPU tensor of size={_get_tensor_size(gpu_tensor)} bytes, but CPU tensor is only size={_get_tensor_size(self.cpu_buf[self.get_cur_model_invocation_key()])} bytes"
         )
+        # if gpu_tensor.dtype.is_floating_point:
+        #     print(f"Offloading tensor {self.name} for layer {self.layer_num} with size={_get_tensor_size(gpu_tensor)} bytes (on allocation of size={_get_tensor_size(self.cpu_buf[self.get_cur_model_invocation_key()])} bytes)", file=sys.stderr)
+        # else:
+        #     print(f"Offloading tensor {self.name} for layer {self.layer_num} with size={_get_tensor_size(gpu_tensor)} bytes (on allocation of size={_get_tensor_size(self.cpu_buf[self.get_cur_model_invocation_key()])} bytes)", file=sys.stderr)
         # Record the original shape so we can create a matching GPU tensor on load
         self.real_shape = gpu_tensor.shape
 
