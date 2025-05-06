@@ -271,57 +271,32 @@ def generate_configs_hunyuan() -> List[Dict[str, Any]]:
 
 def generate_configs_wan() -> List[Dict[str, Any]]:
     cfgs: List[Dict[str, Any]] = []
-    # Chipmunk + Cache
-    cfgs += make_config(
-        base_path="examples/wan/chipmunk-config.yml",
-        patchify=True,
-        attn_sparsity=0.1,
-        attn_full_step_every=1,
-        attn_full_step_schedule={0, 1, 10, 40},
-        attn_recompute_mask=True,
-        mlp_sparsity=0,
-        mlp_rk=0,
-        mlp_mbm=0,
-        mlp_is_fp8=False,
-        mlp_full_step_every=1,
-        mlp_block_mask_cache=0,
-        step_caching=True,
-        skip_step_schedule={7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43},
-        width=1280,
-        height=720,
-        global_disable_offloading=False,
-        attn_local_voxels=3,
-        attn_local_1d_window=0,
-        tea_cache_threshold=0,
-        world_size=1,
-        attn_rk=0.01
-    )
-    # Dit Fast Attention
+    # Tea Cache Config (2.7x)
     cfgs += make_config(
         base_path="examples/wan/chipmunk-config.yml",
         patchify=False,
-        attn_sparsity=0,
+        attn_sparsity=0.0,
         attn_full_step_every=1,
-        attn_full_step_schedule={0, 1},
-        attn_recompute_mask=True,
+        attn_recompute_mask=False,
         mlp_sparsity=0,
         mlp_rk=0,
         mlp_mbm=0,
         mlp_is_fp8=False,
         mlp_full_step_every=1,
         mlp_block_mask_cache=0,
-        step_caching=True,
-        skip_step_schedule={7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43},
+        step_caching=False,
+        skip_step_schedule={},
         width=1280,
         height=720,
-        global_disable_offloading=False,
+        global_disable_offloading=True,
+        attn_full_step_schedule={},
         attn_local_voxels=0,
-        attn_local_1d_window=0.5,
-        delta_cache=False,
-        world_size=1,
-        attn_rk=0
+        attn_local_1d_window=0,
+        tea_cache_threshold=0.275,
+        world_size=1
     )
-    # Tea Cache Config
+
+    # Tea Cache Config (2.03x)
     cfgs += make_config(
         base_path="examples/wan/chipmunk-config.yml",
         patchify=False,
@@ -345,31 +320,7 @@ def generate_configs_wan() -> List[Dict[str, Any]]:
         tea_cache_threshold=0.2,
         world_size=1
     )
-    # STA
-    cfgs += make_config(
-        base_path="examples/wan/chipmunk-config.yml",
-        patchify=True,
-        attn_sparsity=0,
-        attn_full_step_every=1,
-        attn_full_step_schedule={0, 1},
-        attn_recompute_mask=True,
-        mlp_sparsity=0,
-        mlp_rk=0,
-        mlp_mbm=0,
-        mlp_is_fp8=False,
-        mlp_full_step_every=1,
-        mlp_block_mask_cache=0,
-        step_caching=False,
-        skip_step_schedule={},
-        width=1280,
-        height=720,
-        global_disable_offloading=False,
-        delta_cache=False,
-        attn_local_voxels=5,
-        attn_local_1d_window=0,
-        world_size=1,
-        attn_rk=0
-    )
+    
     
     return cfgs
 
