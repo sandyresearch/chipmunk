@@ -102,6 +102,9 @@ def sample(prompt: str, out_file: list[str], seed: int):
     # The WanT2V.generate method expects a negative seed of -1 to mean random.
     # We pass the provided seed directly.
     time_begin = time.time()
+    # ignore the seed
+    seed = random.randint(0, 1000000)
+    print(f"[wan/batch_sample] Generating video with seed {seed}")
     video = _model.generate(prompt, seed=seed, **_GEN_KWARGS)
     time_end = time.time()
 
