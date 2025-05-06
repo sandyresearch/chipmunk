@@ -441,7 +441,7 @@ def _shortname_from_cfg(cfg: Dict[str, Any], idx: int) -> str:
         short.insert(0, f"teacache={cfg['tea_cache']['threshold']}")
     
     if cfg['attn'].get('full_attn_from_3d_tail') or cfg['attn'].get('full_attn_to_3d_tail'):
-        short += "_attntail"
+        short += ["attntail"]
 
     return "_".join(short)
 
