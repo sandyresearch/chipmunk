@@ -1,56 +1,58 @@
 num_model_invocations_per_inference_step: 2
-model_name: 'wan'
+model_name: wan
+world_size: 1
 
 patchify:
-  is_enabled: true
+  is_enabled: false
 
 mlp:
   is_enabled: false
 
 attn:
-  is_enabled: true
-  top_keys: 0.22
+  # debug: true
+  is_enabled: false
+  # coverage: 0.7
+  top_keys: 0.05
   random_keys: 0.01
+  # top_keys: 0
+  # random_keys: 0
   # Number of local voxels to use for static local attention
-  local_voxels: 3
+  local_voxels: 0
   local_1d_window: 0
+  # local_1d_window: 0.25
   first_n_dense_layers: 2
   recompute_mask: true
   should_compress_indices: true
-  full_attn_from_3d_tail: true
-  full_attn_to_3d_tail: true
 
   # If schedule is not None, will override full_step_every
-  full_step_every: 10
   full_step_schedule: !!set
     ? 0
     ? 1
     ? 10
     ? 40
+  # full_step_every: 3
 
   # Do not change below this line -- kernel-specific business
   pad_qkv_before_kernel: true
-  counts_multiple_of: 128
+
+offloading:
+  mlp.out_cache: false
+  attn.out_cache: false
+  attn.indices: false
+  text_encoders: true
 
 tea_cache:
-  is_enabled: false
+  is_enabled: true
+  threshold: 0.2
   debug: true
-  threshold: 0.3
 
 token_cache:
   is_enabled: false
   cache_ratio: 0.85
   full_every: 3
 
-offloading:
-  global_disable_offloading: false
-  attn.out_cache: true
-  attn.indices: true
-  attn.counts: true
-  text_encoders: true
-
 step_caching:
-  is_enabled: true
+  is_enabled: false
   # Feel free to play with this -- it's pretty stable across different schedules!
   skip_step_schedule: !!set
     ? 7
