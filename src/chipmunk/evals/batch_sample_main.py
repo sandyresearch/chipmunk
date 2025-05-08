@@ -31,6 +31,7 @@ def main(init_fn: Callable[[], None], sample_fn: Callable[[str, list[str], int],
     parser = argparse.ArgumentParser(description="Chipmunk batch sampling entrypoint")
     parser.add_argument("--prompt-file", required=True, help="JSON prompt file path")
     parser.add_argument("--chipmunk-config", required=True, help="Chipmunk config YAML path")
+    parser.add_argument("--prompt-idx", required=False, default=0, type=int, help="The prompt index to start from")
     args = parser.parse_args()
 
     cfg_path = Path(args.chipmunk_config).expanduser().resolve()
@@ -46,6 +47,8 @@ def main(init_fn: Callable[[], None], sample_fn: Callable[[str, list[str], int],
 
     with prompt_path.open("r") as f:    
         prompts: List[Dict[str, Any]] = json.load(f)
+
+    prompts = prompts[int(args.prompt_idx):]
 
     # Experiment directory is the parent of the config file
     exp_dir = cfg_path.parent

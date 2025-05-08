@@ -460,6 +460,7 @@ def _launch_process(
     prompt_file: Path,
     cfg_path: Path,
     log_dir: Path,
+    prompt_idx: int = 0
 ) -> List[subprocess.Popen[bytes]]:
     """Spawn *num_gpus* processes and return their `Popen` handles."""
 
@@ -478,6 +479,8 @@ def _launch_process(
             str(prompt_file),
             "--chipmunk-config",
             str(cfg_path),
+            "--prompt-idx",
+            str(prompt_idx)
         ]
         env = os.environ.copy()
         env["CUDA_VISIBLE_DEVICES"] = ",".join(str(gpu) for gpu in range(start_gpu, end_gpu))
@@ -552,6 +555,13 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
         default=1,
         type=int,
         help="Number of nodes for multi-node inference.",
+    )
+    parser.add_argument(
+        "--prompt-idx",
+        required=False,
+        default=0,
+        type=int,
+        help="The prompt index to start from.",
     )
     
     args = parser.parse_args(argv)
@@ -634,6 +644,7 @@ def main(argv: List[str] | None = None) -> None:  # noqa: D401
             prompt_file.resolve(),
             cfg_path.resolve(),
             exp_dir / "logs" / eval_name,
+            prompt_idx=args.prompt_idx
         )
 
         media_dir = exp_dir / "media" / eval_name
