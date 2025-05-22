@@ -82,7 +82,7 @@ def _parse_args():
         description="Generate a image or video from a text prompt or image using Wan"
     )
     parser.add_argument(
-        "--chipmunk_config",
+        "--chipmunk-config",
         type=str,
         default="chipmunk-config.yml",
         help="The path to the chipmunk config file."
