@@ -1,3 +1,5 @@
+# text2video.py
+
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
 import gc
 import logging
@@ -232,6 +234,7 @@ class WanT2V:
                 local_heads_num=40,
                 device='cuda'
             )
+            self.model.blocks[0].self_attn.attn.layer_counter.reset()
 
             for _, t in enumerate(tqdm(timesteps)):
                 latent_model_input = latents

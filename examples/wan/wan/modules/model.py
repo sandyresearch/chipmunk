@@ -18,6 +18,7 @@ __all__ = ['WanModel']
 T5_CONTEXT_TOKEN_NUMBER = 512
 FIRST_LAST_FRAME_CONTEXT_TOKEN_NUMBER = 257 * 2
 
+FORWARD_PASSES = 0
 
 def sinusoidal_embedding_1d(dim, position):
     # preprocess
@@ -43,6 +44,7 @@ def rope_params(max_seq_len, dim, theta=10000):
     return freqs
 
 
+@torch.compile(dynamic=False)
 @amp.autocast(enabled=False)
 def rope_apply(x, grid_sizes, freqs):
     n, c = x.size(2), x.size(3) // 2
@@ -133,8 +135,10 @@ class WanSelfAttention(nn.Module):
         self.norm_q = WanRMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
         self.norm_k = WanRMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
 
-        layer_num, layer_counter = LayerCounter.build_for_layer(is_attn_sparse=True, is_mlp_sparse=False)
-        self.attn = SparseDiffAttn(layer_num, layer_counter)
+        # Only initialize SparseDiffAttn if this is not a subclass initialization
+        if self.__class__ == WanSelfAttention:
+            layer_num, layer_counter = LayerCounter.build_for_layer(is_attn_sparse=True, is_mlp_sparse=False)
+            self.attn = SparseDiffAttn(layer_num, layer_counter)
 
     def forward(self, x, seq_lens, grid_sizes, freqs):
         r"""
@@ -576,8 +580,13 @@ class WanModel(ModelMixin, ConfigMixin):
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
             if inference_step in GLOBAL_CONFIG['step_caching']['skip_step_schedule']:
                 # Increment singleton layer counter
-                self.blocks[0].self_attn.attn.layer_counter.cur_inference_step += 1
-                x = self.step_cache
+                # self.blocks[0].self_attn.attn.layer_counter.cur_inference_step += 1
+                self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step += 1
+                if self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step == GLOBAL_CONFIG['num_model_invocations_per_inference_step']:
+                    self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step = 0
+                    self.blocks[0].self_attn.attn.layer_counter.cur_inference_step += 1
+
+                x = self.step_cache[self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step].to(device)
                 x = self.head(x, e)
 
                 x = self.unpatchify(x, grid_sizes)
@@ -616,7 +625,9 @@ class WanModel(ModelMixin, ConfigMixin):
         x = x.flatten(2).transpose(1, 2)
         
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
-            self.step_cache = x.clone()
+            if not hasattr(self, 'step_cache'):
+                self.step_cache = [None, None]
+            self.step_cache[self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step] = x.to('cpu', non_blocking=True)
 
         x = self.head(x, e)
 

@@ -62,6 +62,7 @@ class LayerCounter:
         self.cur_inference_step = 0
         self.cur_layer = 0
         self.cur_layer_submodule = 0
+        self.cur_model_invocation_per_step = 0
 
     def get_cur_coord(self):
         return (self.cur_inference_step, self.cur_layer, self.cur_layer_submodule)
