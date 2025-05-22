@@ -16,4 +16,5 @@ python -m flux.cli --name flux-dev \
     --width 1368 \
     --height 768 \
     --num_steps 50 \
-    --seed 42
+    --seed 42 \
+    --chipmunk-config chipmunk-config.yml
