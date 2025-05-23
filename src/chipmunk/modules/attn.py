@@ -206,7 +206,9 @@ class SparseDiffAttn(nn.Module):
     
     def forward(self, q: Tensor, k: Tensor, v: Tensor) -> Tensor:
         if not GLOBAL_CONFIG['attn']['is_enabled']:
-            return F.scaled_dot_product_attention(q, k, v)
+            out = F.scaled_dot_product_attention(q, k, v)
+            self.layer_counter.increment()
+            return out
         
         do_full_step = self.layer_counter.should_do_full_attn_step()
         inference_step = self.layer_counter.cur_inference_step
