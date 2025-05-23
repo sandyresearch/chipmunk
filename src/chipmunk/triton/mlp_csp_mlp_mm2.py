@@ -109,7 +109,7 @@ def csp_mlp_mm2_kernel(
         tl.store(c_ptrs, c, mask=c_mask)
 
 
-def csp_mlp_mm2(a, b, sparsity_indices, sparsity_indices_counts, output, num_sms):
+def csp_mlp_mm2_bf16(a, b, sparsity_indices, sparsity_indices_counts, output, num_sms):
     # Check constraints.
     M, K = a.shape
     K, N = b.shape
@@ -128,7 +128,7 @@ def csp_mlp_mm2(a, b, sparsity_indices, sparsity_indices_counts, output, num_sms
         BLOCK_SIZE_M, BLOCK_SIZE_N, BLOCK_SIZE_K, GROUP_SIZE_M, #
     )
 
-csp_mlp_mm2_function_ptr = csp_mlp_mm2(
+csp_mlp_mm2_bf16_function_ptr = csp_mlp_mm2_bf16(
     torch.randn((256, 256), dtype=torch.bfloat16, device='cuda'), 
     torch.randn((256, 256), dtype=torch.bfloat16, device='cuda'), 
     torch.arange(0, 256, 1, device='cuda', dtype=torch.int32).repeat(2, 1).contiguous(), 
@@ -137,4 +137,4 @@ csp_mlp_mm2_function_ptr = csp_mlp_mm2(
     num_sms=1
 ).function
 
-__all__ = ['csp_mlp_mm2', 'csp_mlp_mm2_function_ptr']
+__all__ = ['csp_mlp_mm2_bf16', 'csp_mlp_mm2_bf16_function_ptr']
