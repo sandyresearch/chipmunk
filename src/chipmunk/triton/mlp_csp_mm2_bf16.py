@@ -109,7 +109,7 @@ def csp_mlp_mm2_kernel(
         tl.store(c_ptrs, c, mask=c_mask)
 
 
-def csp_mlp_mm2_bf16(a, b, sparsity_indices, sparsity_indices_counts, output, num_sms):
+def csp_mlp_mm2_bf16(a, b, sparsity_indices, sparsity_indices_counts, output, num_sms=torch.cuda.get_device_properties(0).multi_processor_count):
     # Check constraints.
     M, K = a.shape
     K, N = b.shape

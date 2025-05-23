@@ -24,13 +24,13 @@ def mm1(
         # We only support FP8 in Triton for now.
         chipmunk.triton.csp_mlp_mm1_fp8(x, fc1w.T, fc1b, indices, counts, sparse_act_T, sparse_act_packed, scale_a, scale_b)
     elif fc1w.dtype == torch.bfloat16:
-        # provider = GLOBAL_CONFIG['mlp']['provider']
-        # if provider == 'triton':
-        #     chipmunk.triton.csp_mlp_mm1_bf16(x, fc1w, sparse_act_packed, fc1b, sparse_act_T, indices, counts)
-        # elif provider == 'cuda':
-        torch.ops.chipmunk.csp_mlp_mm1(x, fc1w, sparse_act_packed, fc1b, sparse_act_T, indices, counts)
-        # else:
-        #     raise ValueError(f"Unsupported provider: {provider}")
+        provider = GLOBAL_CONFIG['mlp']['provider']
+        if provider == 'triton':
+            chipmunk.triton.csp_mlp_mm1_bf16(x, fc1w, sparse_act_packed, fc1b, sparse_act_T, indices, counts)
+        elif provider == 'cuda':
+            torch.ops.chipmunk.csp_mlp_mm1(x, fc1w, sparse_act_packed, fc1b, sparse_act_T, indices, counts)
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")
     else:
         raise ValueError(f"Unsupported dtype: {fc1w.dtype}")
 
@@ -60,6 +60,7 @@ def mm2_triton(
     __: torch.Tensor,
     fc2wT: torch.Tensor,
     cached_out: torch.Tensor,
+    ___: int
 ) -> None:
     assert sparse_act_packed.dtype == torch.bfloat16
     assert fc2wT.dtype == torch.bfloat16
@@ -97,9 +98,7 @@ def run_e2e(
     sparse_act_packed = torch.empty((M, K2), device=x.device, dtype=x.dtype)
     
     mm1(x, fc1w, sparse_act_packed, fc1b, sparse_act_T, indices, counts, mm1_scale_a, mm1_scale_b)
-    # if GLOBAL_CONFIG['mlp']['provider'] == 'cuda':
-    mm2_cuda  (sparse_act_packed, sparse_act_T, indices, counts, sparse_act_packed, fc2w_T, cached_out, num_sms_scatter_add)
-    # else:
-    #     mm2_triton(sparse_act_packed, sparse_act_T, indices, counts, sparse_act_packed, fc2w_T, cached_out)
+    mm2 = mm2_cuda if GLOBAL_CONFIG['mlp']['provider'] == 'cuda' else mm2_triton
+    mm2(sparse_act_packed, sparse_act_T, indices, counts, sparse_act_packed, fc2w_T, cached_out, num_sms_scatter_add)
 
 __all__ = ['run_e2e']

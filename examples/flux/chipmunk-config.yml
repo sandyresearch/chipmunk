@@ -8,11 +8,7 @@ mlp:
   block_mask_cache: 2
   first_n_dense_layers: 2
 
-  provider: cuda
-
-  mbm: 128
-  bm: 128
-  counts_multiple_of: 256
+  provider: triton
 
 patchify:
   is_enabled: true
