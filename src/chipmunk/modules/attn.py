@@ -115,7 +115,6 @@ class SparseDiffAttn(nn.Module):
                     o, lse = chipmunk.ops.dense_attn(q, k, v)
                 else:
                     o, lse = torch.ops.chipmunk.dense_attn(q, k, v)
-                
                 # zero out the lse constants for the padded tokens
                 if provider == 'cuda':
                     lse[..., k.shape[-2]:, :] = 0

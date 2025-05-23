@@ -208,7 +208,7 @@ class _full_attention(torch.autograd.Function):
         HEAD_DIM_V = v.shape[-1]
         assert HEAD_DIM_Q == HEAD_DIM_K and HEAD_DIM_K == HEAD_DIM_V
         assert HEAD_DIM_K in {16, 32, 64, 128, 256}
-        sm_scale = math.sqrt(HEAD_DIM_K)
+        sm_scale = 1/math.sqrt(HEAD_DIM_K)
         stage = 1
 
         # mb = q.shape[2] // 128 if q.shape[2] % 128 == 0 else q.shape[2] // 128 + 1

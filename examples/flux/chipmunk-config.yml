@@ -17,7 +17,7 @@ patchify:
   chunk_size_2: 4
 
 attn:
-  is_enabled: false
+  is_enabled: true
   top_keys: 0.165
 
   full_step_every: 10
@@ -25,6 +25,8 @@ attn:
   first_n_dense_layers: 2
   recompute_mask: false
   should_compress_indices: false
+
+  provider: triton
   # do not change below this line
   pad_qkv_before_kernel: true
 

@@ -198,7 +198,7 @@ class _attention(torch.autograd.Function):
         assert HEAD_DIM_Q == HEAD_DIM_K and HEAD_DIM_K == HEAD_DIM_V
         assert HEAD_DIM_K in {16, 32, 64, 128, 256}
         o = torch.empty_like(q)
-        sm_scale = math.sqrt(HEAD_DIM_K)
+        sm_scale = 1/math.sqrt(HEAD_DIM_K)
         stage = 3 if causal else 1
         extra_kern_args = {}
         grid = lambda args: (triton.cdiv(q.shape[2], args["BLOCK_M"]), q.shape[0] * q.shape[1], 1)
