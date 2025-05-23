@@ -1,8 +1,8 @@
 import torch
-from chipmunk.triton import csp_mlp_mm2_function_ptr, csp_mlp_mm2, csp_mlp_mm1_fp8
+import chipmunk.triton
 from chipmunk.ops.indexed_io import scatter_add
+from chipmunk.util import GLOBAL_CONFIG
 
-USE_FUSED_MLP_MATMUL_2 = True
 
 def mm1(
     x: torch.Tensor, 
@@ -20,13 +20,21 @@ def mm1(
     assert sparse_act_T.dtype == torch.bfloat16
     
     if fc1w.dtype == torch.float8_e4m3fn:
-        csp_mlp_mm1_fp8(x, fc1w.T, fc1b, indices, counts, sparse_act_T, sparse_act_packed, scale_a, scale_b)
+        # FP8 is not supported in CUDA yet!
+        # We only support FP8 in Triton for now.
+        chipmunk.triton.csp_mlp_mm1_fp8(x, fc1w.T, fc1b, indices, counts, sparse_act_T, sparse_act_packed, scale_a, scale_b)
     elif fc1w.dtype == torch.bfloat16:
+        # provider = GLOBAL_CONFIG['mlp']['provider']
+        # if provider == 'triton':
+        #     chipmunk.triton.csp_mlp_mm1_bf16(x, fc1w, sparse_act_packed, fc1b, sparse_act_T, indices, counts)
+        # elif provider == 'cuda':
         torch.ops.chipmunk.csp_mlp_mm1(x, fc1w, sparse_act_packed, fc1b, sparse_act_T, indices, counts)
+        # else:
+        #     raise ValueError(f"Unsupported provider: {provider}")
     else:
         raise ValueError(f"Unsupported dtype: {fc1w.dtype}")
 
-def mm2_fused(
+def mm2_cuda(
     packed: torch.Tensor,
     unpacked_colmajor: torch.Tensor,
     indices: torch.Tensor,
@@ -39,22 +47,26 @@ def mm2_fused(
     assert sparse_act_packed.dtype == torch.bfloat16
     assert fc2wT.dtype == torch.bfloat16
     assert cached_out.dtype == torch.bfloat16
-    torch.ops.chipmunk.csp_mlp_mm2_and_scatter_add(packed.unsqueeze(0), unpacked_colmajor.unsqueeze(0), indices.unsqueeze(0), counts.unsqueeze(0), sparse_act_packed.unsqueeze(0), fc2wT.unsqueeze(0), cached_out.unsqueeze(0), num_sms_scatter_add, csp_mlp_mm2_function_ptr)
+    assert GLOBAL_CONFIG['mlp']['provider'] == 'cuda'
+    # Fused implementation uses CUDAGraphs under the hood to allocate x certain # of SMs to scatter_add cache writeback kernel
+    # and then uses the rest of the SMs for the actual matmul.
+    torch.ops.chipmunk.csp_mlp_mm2_and_scatter_add(packed.unsqueeze(0), unpacked_colmajor.unsqueeze(0), indices.unsqueeze(0), counts.unsqueeze(0), sparse_act_packed.unsqueeze(0), fc2wT.unsqueeze(0), cached_out.unsqueeze(0), num_sms_scatter_add, chipmunk.triton.csp_mlp_mm2_bf16_function_ptr)
 
-def mm2_unfused(
+def mm2_triton(
     sparse_act_packed: torch.Tensor,
-    fc2wT: torch.Tensor,
-    cached_out: torch.Tensor,
-    unpacked_colmajor: torch.Tensor,
+    _: torch.Tensor,
     indices: torch.Tensor,
     counts: torch.Tensor,
-    num_sms_scatter_add: int
+    __: torch.Tensor,
+    fc2wT: torch.Tensor,
+    cached_out: torch.Tensor,
 ) -> None:
     assert sparse_act_packed.dtype == torch.bfloat16
     assert fc2wT.dtype == torch.bfloat16
     assert cached_out.dtype == torch.bfloat16
-    scatter_add(sparse_act_packed, unpacked_colmajor, indices, counts, num_sms_scatter_add)
-    csp_mlp_mm2(sparse_act_packed, fc2wT, indices, counts, cached_out, 132-num_sms_scatter_add)
+    assert GLOBAL_CONFIG['mlp']['provider'] == 'triton'
+    # scatter-add is fused into the csp_mlp_mm1 kernel, so we don't have to take care of it!
+    chipmunk.triton.csp_mlp_mm2_bf16(sparse_act_packed, fc2wT, indices, counts, cached_out)
 
 # REASON FOR DISABLING TORCH COMPILE:
 # torch inductor likes to insert a dummy Triton kernel between matmul 1 and 2 that just copies data (`triton_fused_poi_2`) 
@@ -85,10 +97,9 @@ def run_e2e(
     sparse_act_packed = torch.empty((M, K2), device=x.device, dtype=x.dtype)
     
     mm1(x, fc1w, sparse_act_packed, fc1b, sparse_act_T, indices, counts, mm1_scale_a, mm1_scale_b)
+    # if GLOBAL_CONFIG['mlp']['provider'] == 'cuda':
+    mm2_cuda  (sparse_act_packed, sparse_act_T, indices, counts, sparse_act_packed, fc2w_T, cached_out, num_sms_scatter_add)
+    # else:
+    #     mm2_triton(sparse_act_packed, sparse_act_T, indices, counts, sparse_act_packed, fc2w_T, cached_out)
 
-    # Fused implementation uses CUDAGraphs under the hood to allocate x certain # of SMs to communication kernel
-    # and then uses the rest of the SMs for the actual matmul.
-    mm2 = mm2_fused if USE_FUSED_MLP_MATMUL_2 else mm2_unfused
-    mm2(sparse_act_packed, sparse_act_T, indices, counts, sparse_act_packed, fc2w_T, cached_out, num_sms_scatter_add)
-
-__all__ = ['mm1', 'mm2_fused', 'mm2_unfused', 'run_e2e']
+__all__ = ['run_e2e']

@@ -2,55 +2,22 @@ import torch
 from typing import Tuple
 from einops import rearrange
 import chipmunk
-
-# def csp_attn(
-#     q: torch.Tensor,
-#     k: torch.Tensor,
-#     v: torch.Tensor,
-#     indices: torch.Tensor,
-#     indices_counts: torch.Tensor,
-# ) -> torch.Tensor:
-#     q = q.contiguous()
-#     k = k.contiguous()
-#     v = v.contiguous()
-#     indices = indices.contiguous()
-#     indices_counts = indices_counts.contiguous()
-#     return torch.ops.chipmunk_tk_kernels.csp_attn_fwd(q, k, v, indices, indices_counts)
-
-# def dense_attn(
-#     q: torch.Tensor,
-#     k: torch.Tensor,
-#     v: torch.Tensor
-# ) -> Tuple[torch.Tensor, torch.Tensor]:
-#     q = q.contiguous()
-#     k = k.contiguous()
-#     v = v.contiguous()
-#     return torch.ops.chipmunk_tk_kernels.attn_fwd(q, k, v)
-
-# def dense_colsum_attn(
-#     q: torch.Tensor,
-#     k: torch.Tensor,
-#     v: torch.Tensor,
-#     l: torch.Tensor
-# ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-#     q = q.contiguous()
-#     k = k.contiguous()
-#     v = v.contiguous()
-#     l = l.contiguous()
-#     return torch.ops.chipmunk_tk_kernels.colsum_attn_fwd(q, k, v, l)
+from chipmunk.util import get_kernel_config_attn, GLOBAL_CONFIG
 
 def dense_attn(q, k, v):
-    """
-    Compute variable length attention in ThunderKittens.
-    """
     return_l = True
-    pm = 192
-    if q.shape[-2] % pm == 0:
+    pad_to = get_kernel_config_attn()['bm']
+    provider = GLOBAL_CONFIG['attn']['provider']
+    
+    if q.shape[-2] % pad_to == 0:
         q = q.contiguous()
         k = k.contiguous()
         v = v.contiguous()
-        o, l = torch.ops.chipmunk.dense_attn(q, k, v)
-        # o, l = torch.ops.chipmunk_tk_kernels.attn_fwd(q, k, v)
+        if provider == 'cuda':
+            o, l = torch.ops.chipmunk.dense_attn(q, k, v)
+        else:
+            o, l = chipmunk.triton.dense_attn(q, k, v)
+        
         if return_l:
             return o, l
         else:
@@ -58,7 +25,7 @@ def dense_attn(q, k, v):
 
     # pad
     n = q.shape[-2]
-    padded_n = ((n + pm - 1) // pm) * pm
+    padded_n = ((n + pad_to - 1) // pad_to) * pad_to
     qp = torch.empty(q.shape[:-2] + (padded_n, q.shape[-1]), dtype=q.dtype, device=q.device)
     qp[..., :n, :] = q
 
@@ -68,85 +35,88 @@ def dense_attn(q, k, v):
     v = v.contiguous()
 
     # compute
-    # o, l = torch_tk_attn(qp, k, v)
-    o, l = torch.ops.chipmunk.dense_attn(qp, k, v)
-    # o, l = torch.ops.chipmunk_tk_kernels.attn_fwd(qp, k, v)
+    if provider == 'cuda':
+        o, l = torch.ops.chipmunk.dense_attn(qp, k, v)
+        l[..., n:, :] = 0
+    else:
+        o, l = chipmunk.triton.dense_attn(qp, k, v)
+        l[0][..., n:, :] = 0
+        l[1][..., n:, :] = 0
 
     # unpad
     o = o[..., :n, :].contiguous()
-    # leave l padded to pass back in
-    l[..., n:, :] = 0
 
-    if return_l:
-        return o, l
-    else:
-        return o
+    return o, l
 
 def dense_colsum_attn(q, k, v, p):
-        """
-        Compute variable length attention in ThunderKittens.
-        """
-        fuse_reduce = True
-        wq = 16   # queries per warp
-        pm = 192  # queries per producer (16 * 4 * 3)
-        if q.shape[-2] % pm == 0:
-            # o, cs, l = torch_colsum_attn_fwd(q, k, v, p)
+    """
+    Compute variable length attention in ThunderKittens.
+    """
+    fuse_reduce = True
+    wq = 16   # queries per warp
+    pad_to = get_kernel_config_attn()['bm']
+    provider = GLOBAL_CONFIG['attn']['provider']
+
+    if q.shape[-2] % pad_to == 0:
+        if provider == 'cuda':
             o, cs, l = torch.ops.chipmunk.dense_colsum_attn(q, k, v, p)
-            # o, cs, l = torch.ops.chipmunk_tk_kernels.colsum_attn_fwd(q, k, v, p)
-            if not fuse_reduce:
-                cs = rearrange(cs, 'b h (m r) n -> b h m r n', r=pm//wq).sum(dim=-2)
-            return o, cs, l
-
-        # pad
-        n = q.shape[-2]
-        padded_n = ((n + pm - 1) // pm) * pm
-        qp = torch.empty(q.shape[:-2] + (padded_n, q.shape[-1]), dtype=q.dtype, device=q.device)
-        qp[..., :n, :] = q
-
-        # contiguous
-        qp = qp.contiguous()
-        k = k.contiguous()
-        v = v.contiguous()
-        p = p.contiguous()
-        assert p.shape[-2] == padded_n
-
-        # compute
-        # o, cs, l = torch_colsum_attn_fwd(qp, k, v, p)
-        o, cs, l = torch.ops.chipmunk.dense_colsum_attn(qp, k, v, p)
-        # o, cs, l = torch.ops.chipmunk_tk_kernels.colsum_attn_fwd(qp, k, v, p)
-
-        # unpad
-        o = o[..., :n, :].contiguous()
-        # leave l padded to pass back in
-        l[..., n:, :] = 0
-        if fuse_reduce:
-            # use k since on single gpu q is padded to 119056
-            kseq = k.shape[-2]
-            kgroups = (kseq + pm - 1) // pm
-            cs = cs[..., :kgroups, :kseq]
         else:
-            cs = rearrange(cs, 'b h (m r) n -> b h m r n', r=pm//wq).sum(dim=-2)[..., :n]
+            o, cs, l = chipmunk.triton.dense_colsum_attn(q, k, v, p)
+        
+        if not fuse_reduce:
+            cs = rearrange(cs, 'b h (m r) n -> b h m r n', r=pad_to//wq).sum(dim=-2)
         return o, cs, l
-
-# def csp_attn(q, k, v, o, indices, indices_counts, o_scale):
-    # torch.ops.chipmunk.csp_attn(q, k, v, o, indices, indices_counts, o_scale)
-    # return o
-def csp_attn(q, k, v, indices, indices_counts):
-    if q.shape[-2] % 192 == 0:
-        # return torch_csp_attn_fwd(q, k, v, indices, indices_counts)
-        # torch.ops.chipmunk.csp_attn(q, k, v, o, indices, indices_counts, o_scale)
-        # return o
-
-        return torch.ops.chipmunk.csp_128_attn(q, k, v, indices, indices_counts)
-        # return torch.ops.chipmunk_tk_kernels.csp_attn_fwd(q, k, v, indices, indices_counts)
 
     # pad
     n = q.shape[-2]
-    padded_n = ((n + 192 - 1) // 192) * 192
+    padded_n = ((n + pad_to - 1) // pad_to) * pad_to
+    qp = torch.empty(q.shape[:-2] + (padded_n, q.shape[-1]), dtype=q.dtype, device=q.device)
+    qp[..., :n, :] = q
+
+    # contiguous
+    qp = qp.contiguous()
+    k = k.contiguous()
+    v = v.contiguous()
+    p = p.contiguous()
+    assert p.shape[-2] == padded_n
+
+    # compute
+    if provider == 'cuda':
+        o, cs, l = torch.ops.chipmunk.dense_colsum_attn(qp, k, v, p)
+        l[..., n:, :] = 0
+    else:
+        o, cs, l = chipmunk.triton.dense_colsum_attn(qp, k, v, p)
+        l[0][..., n:, :] = 0
+        l[1][..., n:, :] = 0
+
+    # unpad
+    o = o[..., :n, :].contiguous()
+    if fuse_reduce:
+        kseq = k.shape[-2]
+        kgroups = (kseq + pad_to - 1) // pad_to
+        cs = cs[..., :kgroups, :kseq]
+    else:
+        cs = rearrange(cs, 'b h (m r) n -> b h m r n', r=pad_to//wq).sum(dim=-2)[..., :n]
+    return o, cs, l
+
+def csp_attn(q, k, v, indices, indices_counts):
+    pad_to = get_kernel_config_attn()['bm']
+    provider = GLOBAL_CONFIG['attn']['provider']
+
+    if q.shape[-2] % pad_to == 0:
+        if provider == 'cuda':
+            return torch.ops.chipmunk.csp_128_attn(q, k, v, indices, indices_counts)
+        else:
+            o, _ = chipmunk.triton.csp_attn(q, k, v, indices, indices_counts)
+            return o
+
+    # pad
+    n = q.shape[-2]
+    padded_n = ((n + pad_to - 1) // pad_to) * pad_to
     qp = torch.zeros(q.shape[:-2] + (padded_n, q.shape[-1]), dtype=q.dtype, device=q.device)
     qp[..., :n, :] = q
 
-    if indices.shape[-1] % 192 == 0:
+    if indices.shape[-1] % pad_to == 0:
         indicesp = indices
     else:
         indicesp = torch.empty((indices.shape[0], indices.shape[1], indices.shape[2], padded_n), device=indices.device, dtype=indices.dtype)
@@ -158,12 +128,10 @@ def csp_attn(q, k, v, indices, indices_counts):
     v = v.contiguous()
     indicesp = indicesp.contiguous()
 
-    # o = torch_csp_attn_fwd(qp, k, v, indicesp, indices_counts)
-    # torch.ops.chipmunk.csp_attn(qp, k, v, o, indicesp, indices_counts, o_scale)
-
-    o = torch.ops.chipmunk.csp_128_attn(qp, k, v, indicesp, indices_counts)
-    # o = torch.ops.chipmunk_tk_kernels.csp_attn_fwd(qp, k, v, indicesp, indices_counts)
-
+    if provider == 'cuda':
+        o = torch.ops.chipmunk.csp_128_attn(qp, k, v, indicesp, indices_counts)
+    else:
+        o, _ = chipmunk.triton.csp_attn(qp, k, v, indicesp, indices_counts)
     # unpad
     o = o[..., :n, :].contiguous()
     return o

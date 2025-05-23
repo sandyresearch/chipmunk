@@ -19,10 +19,7 @@ BASE_CONFIG = {
         'block_mask_cache': 2,
         'first_n_dense_layers': 2,
 
-        # do not change below this line
-        'counts_multiple_of': 256,
-        'bm': 128,
-        'mbm': 128,
+        'provider': 'triton',
     },
      "patchify": {
         'is_enabled': True,
@@ -40,17 +37,13 @@ BASE_CONFIG = {
 
         'first_n_dense_layers': 2,
         'full_step_every': 10,
-        # If not None, will override full_step_every
-        # 'full_step_schedule': set([0, 1, 10, 40]),
         'full_step_schedule': None,
 
         'recompute_mask': True,
         'should_compress_indices': True,
-        
-        # do not change below this line
-        'counts_multiple_of': 128,
         'pad_qkv_before_kernel': True,
-        'mbm': 192,
+
+        'provider': 'triton',
     },
     "offloading": {
         'global_disable_offloading': False,
@@ -74,6 +67,30 @@ BASE_CONFIG = {
         'skip_step_schedule': set([7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43])
     }
 }
+
+def get_kernel_config_mlp():
+    # use the same block sizes for MLP across triton and CUDA implementations
+    return {
+        'bm': 128,
+        'mbm': 128,
+        'counts_multiple_of': 256,
+    }
+
+def get_kernel_config_attn():
+    if GLOBAL_CONFIG['attn']['provider'] == 'triton': 
+        # Triton-based FA2 uses a blocksize of 64x64
+        return {
+            'bm': 64,
+            'counts_multiple_of': 64,
+        }
+    elif GLOBAL_CONFIG['attn']['provider'] == 'cuda':
+        # CUDA-based FA3 uses a blocksize of 192x~128
+        return {
+            'bm': 192,
+            'counts_multiple_of': 128 if GLOBAL_CONFIG['attn']['pad_qkv_before_kernel'] else 112,
+        }
+    else:
+        raise ValueError(f"Invalid provider: {GLOBAL_CONFIG['attn']['provider']}")
 
 GLOBAL_CONFIG = copy.deepcopy(BASE_CONFIG)
 

@@ -60,6 +60,7 @@ class MaybeOffloadedTensor:
         self.name = name
         self.layer_num = layer_num
         self.is_offload_enabled = not GLOBAL_CONFIG['offloading']['global_disable_offloading'] and is_offload_enabled[name]
+        assert not (self.is_offload_enabled == True and name == 'attn.lse_constants' and GLOBAL_CONFIG['attn']['provider'] == 'triton'), "LSE constants cannot be offloaded for Triton because they are passed in as a tuple. You will need to implement this manually yourself."
         # Choose a pipeline slot for this layer using modulo:
         self.layer_key = layer_num % PIPELINE_DEPTH
         self.device = device

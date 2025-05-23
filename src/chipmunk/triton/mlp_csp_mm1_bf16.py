@@ -1,14 +1,11 @@
 import triton.language as tl
-from triton.language.extra import libdevice
-import torch
-from triton import cdiv
 import triton
 
 BLOCK_SIZE_M = 128
-BLOCK_SIZE_N = 128
-BLOCK_SIZE_K = 128
-
+BLOCK_SIZE_N = 256
+BLOCK_SIZE_K = 64
 GROUP_SIZE_M = 8
+cdiv = lambda x, y: (x + y - 1) // y
 
 @triton.jit
 def tanh(x):
@@ -28,15 +25,12 @@ def gelu(x):
 
 def get_cuda_autotune_config():
     return [
-        triton.Config({}, num_stages=stage, num_warps=warps)
-        for stage in [3, 4, 5, 6]
-        for warps in [4, 8]
+        triton.Config({}, num_stages=3, num_warps=8),
     ]
-
 
 @triton.autotune(configs=get_cuda_autotune_config(), key=['M', 'N', 'K'])
 @triton.jit
-def matmul_kernel_one_fp8(
+def matmul_kernel_one(
         # Pointers to matrices
         a_ptr, b_ptr, fc1b_ptr, c_ptr,
         sparsity_indices_ptr, sparsity_indices_counts,
@@ -53,15 +47,11 @@ def matmul_kernel_one_fp8(
         BLOCK_SIZE_M: tl.constexpr,
         BLOCK_SIZE_N: tl.constexpr,
         BLOCK_SIZE_K: tl.constexpr,
-        GROUP_SIZE_M: tl.constexpr,
-        scale_a,
-        scale_b,
+        GROUP_SIZE_M: tl.constexpr
 ):
     """Kernel for computing the matmul C = A x B.
     A has shape (M, K), B has shape (K, N) and C has shape (M, N)
     """
-    assert a_ptr.dtype.element_ty == b_ptr.dtype.element_ty, "a and b must have the same dtype"
-
     # -----------------------------------------------------------
     # Map program ids `pid` to the block of C it should compute.
     # This is done in a grouped ordering to promote L2 data reuse.
@@ -103,11 +93,7 @@ def matmul_kernel_one_fp8(
     
     unpacked_offset = (offs_am[:, None] * stride_unpacked_m + offs_bn[None, :] * stride_unpacked_n)
     
-    # pacache = tl.load(sparse_act_unpacked_ptr + unpacked_offset)
-    # pacache = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
     acc = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
-    # acc = tl.load(sparse_act_unpacked_ptr + unpacked_offset).to(tl.float32)
-    # acc *= -1
     for k in range(0, tl.cdiv(K, BLOCK_SIZE_K)):
         # Load the next block of A and B, generate a mask by checking the K dimension.
         # If it is out of bounds, set it to 0.
@@ -118,9 +104,6 @@ def matmul_kernel_one_fp8(
         # Advance the ptrs to the next K block.
         a_ptrs += BLOCK_SIZE_K * stride_ak
         b_ptrs += BLOCK_SIZE_K * stride_bk
-
-    acc = acc * tl.load(scale_a)
-    acc = acc * tl.load(scale_b)
 
     bias = tl.load(fc1b_ptr + offs_bn)[None, :]
     # gelu
@@ -140,7 +123,8 @@ def matmul_kernel_one_fp8(
     tl.store(sparse_act_unpacked_ptr + unpacked_offset, acc, mask=c_mask)
     tl.store(c_ptrs, acc2, mask=c_mask)
 
-def csp_mlp_mm1(a, b, fc1b, sparsity_indices, sparsity_indices_counts, sparse_act_unpacked_inout, sparse_act_packed_out, scale_a, scale_b):
+
+def csp_mlp_mm1_bf16(a, b, sparse_act_packed_out, fc1b, sparse_act_unpacked_inout, sparsity_indices, sparsity_indices_counts):
     # Check constraints.
     M, K = a.shape
     N, K = b.shape
@@ -151,7 +135,7 @@ def csp_mlp_mm1(a, b, fc1b, sparsity_indices, sparsity_indices_counts, sparse_ac
     assert b.shape[1] % BLOCK_SIZE_N == 0, "B must evenly divide BLOCK_SIZE_N"
 
     grid = lambda META: (num_m_blocks * num_n_blocks, )
-    compiled = matmul_kernel_one_fp8[grid](
+    matmul_kernel_one[grid](
         a, b, fc1b, sparse_act_packed_out,  #
         sparsity_indices, sparsity_indices_counts,  #
         sparse_act_unpacked_inout, #
@@ -160,5 +144,5 @@ def csp_mlp_mm1(a, b, fc1b, sparsity_indices, sparsity_indices_counts, sparse_ac
         b.stride(1), b.stride(0),  #
         sparse_act_packed_out.stride(0), sparse_act_packed_out.stride(1),
         sparse_act_unpacked_inout.stride(1), sparse_act_unpacked_inout.stride(0),
-        BLOCK_SIZE_M, BLOCK_SIZE_N, BLOCK_SIZE_K, GROUP_SIZE_M, scale_a, scale_b, #
+        BLOCK_SIZE_M, BLOCK_SIZE_N, BLOCK_SIZE_K, GROUP_SIZE_M, #
     )

@@ -3,7 +3,7 @@ from ..util.layer_counter import LayerCounter
 from ..util.config import GLOBAL_CONFIG
 from einops import rearrange
 import chipmunk.ops
-from chipmunk.util import MlpStorage
+from chipmunk.util import MlpStorage, get_kernel_config_mlp
 
 def block_mean(x: torch.Tensor, mbm: int):
     return rearrange(x, 'b (mb mbm) c -> b mb mbm c', mbm=mbm).mean(dim=2)
@@ -39,9 +39,10 @@ class SparseDiffMlp:
         assert x.ndim == 3 and x.shape[0] == 1, "x must be (1, N, C)"
 
         mlp_cfg              = GLOBAL_CONFIG['mlp']
-        MBM, BM              = mlp_cfg['mbm'], mlp_cfg['bm']
+        mlp_kernel_cfg       = get_kernel_config_mlp()
+        MBM, BM              = mlp_kernel_cfg['mbm'], mlp_kernel_cfg['bm']
+        multiple_of          = mlp_kernel_cfg['counts_multiple_of']
         sparsity             = 1 - mlp_cfg['top_keys']
-        multiple_of          = mlp_cfg['counts_multiple_of']
         first_n_dense_layers = mlp_cfg['first_n_dense_layers']
         
         if layer < first_n_dense_layers:

@@ -26,23 +26,29 @@ extern "C" {
 
 namespace chipmunk {
 
+#ifdef KITTENS_HOPPER
 // Sparse MLP
 extern void csp_mlp_mm1(at::Tensor a, at::Tensor b_colmajor, at::Tensor c, at::Tensor bias, at::Tensor pa_cache_colmajor, at::Tensor indices, at::Tensor indices_counts);
 extern void csp_mlp_mm2_and_scatter_add(at::Tensor packed, at::Tensor unpacked_colmajor, at::Tensor sp_inds, at::Tensor sp_counts, at::Tensor mma_a, at::Tensor mma_b, at::Tensor mma_c, int64_t num_sms_scatter_add, int64_t matmul_kernel);
 
-// // Indexed IO
-extern void copy_indices(at::Tensor bmfc1, at::Tensor bm_mid_cache, at::Tensor sp_inds, at::Tensor sp_counts);
-extern void topk_indices(at::Tensor activation, at::Tensor indices, at::Tensor counts, double sparsity_amount, int64_t multiple_of, double random_amount);
-extern std::vector<at::Tensor> mask_to_indices(at::Tensor mask, int64_t multiple_of, int64_t pad_to_multiple_of);
-extern void csp_scatter_add(at::Tensor packed, at::Tensor unpacked_colmajor, at::Tensor sp_inds, at::Tensor sp_counts, int64_t num_sms);
-
-// // Sparse+Dense Attention
+// Sparse+Dense Attention
 extern void csp_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o, at::Tensor indices, at::Tensor indices_counts, int64_t o_scale);
 extern at::Tensor csp_128_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor indices, at::Tensor indices_counts);
 extern std::vector<at::Tensor> dense_attn(at::Tensor q, at::Tensor k, at::Tensor v);
 extern std::vector<at::Tensor> dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p);
 
+// Indexed IO
+extern void csp_scatter_add(at::Tensor packed, at::Tensor unpacked_colmajor, at::Tensor sp_inds, at::Tensor sp_counts, int64_t num_sms);
+#endif
+
+// Indexed IO
+extern void copy_indices(at::Tensor bmfc1, at::Tensor bm_mid_cache, at::Tensor sp_inds, at::Tensor sp_counts);
+extern void topk_indices(at::Tensor activation, at::Tensor indices, at::Tensor counts, double sparsity_amount, int64_t multiple_of, double random_amount);
+extern std::vector<at::Tensor> mask_to_indices(at::Tensor mask, int64_t multiple_of, int64_t pad_to_multiple_of);
+
+
 TORCH_LIBRARY(chipmunk, m) {
+#ifdef KITTENS_HOPPER
     // Sparse MLP
     m.def("csp_mlp_mm1(Tensor a, Tensor b_colmajor, Tensor(c!) c, Tensor bias, Tensor pa_cache_colmajor, Tensor indices, Tensor indices_counts) -> ()");
     m.def("csp_mlp_mm2_and_scatter_add(Tensor packed, Tensor(unpacked_colmajor!) unpacked_colmajor, Tensor sp_inds, Tensor sp_counts, Tensor mma_a, Tensor mma_b, Tensor mma_c, int num_sms_scatter_add, int matmul_kernel) -> ()");
@@ -54,29 +60,34 @@ TORCH_LIBRARY(chipmunk, m) {
     m.def("dense_colsum_attn(Tensor q, Tensor k, Tensor v, Tensor p) -> Tensor[]");
 
     // Indexed IO
+    m.def("csp_scatter_add(Tensor packed, Tensor(unpacked_colmajor!) unpacked_colmajor, Tensor sp_inds, Tensor sp_counts, int num_sms) -> ()");
+#endif
+    // Indexed IO
     m.def("copy_indices(Tensor bmfc1, Tensor(bm_mid_cache!) bm_mid_cache, Tensor sp_inds, Tensor sp_counts) -> ()");
     m.def("topk_indices(Tensor activation, Tensor(indices!) indices, Tensor counts, float sparsity_amount, int multiple_of, float random_amount) -> ()");
-    m.def("csp_scatter_add(Tensor packed, Tensor(unpacked_colmajor!) unpacked_colmajor, Tensor sp_inds, Tensor sp_counts, int num_sms) -> ()");
     m.def("mask_to_indices(Tensor mask, int multiple_of, int pad_to_multiple_of) -> Tensor[]");
 }
 
 
 TORCH_LIBRARY_IMPL(chipmunk, CUDA, m) {
+#ifdef KITTENS_HOPPER
     // Sparse MLP
     m.impl("csp_mlp_mm1", &csp_mlp_mm1);
     m.impl("csp_mlp_mm2_and_scatter_add", &csp_mlp_mm2_and_scatter_add);
-
-    // Indexed IO
-    m.impl("copy_indices", &copy_indices);
-    m.impl("topk_indices", &topk_indices);
-    m.impl("csp_scatter_add", &csp_scatter_add);
-    m.impl("mask_to_indices", &mask_to_indices);
 
     // Sparse+Dense Attention
     m.impl("csp_attn", &csp_attn);
     m.impl("csp_128_attn", &csp_128_attn);
     m.impl("dense_attn", &dense_attn);
     m.impl("dense_colsum_attn", &dense_colsum_attn);
+
+    // Indexed IO
+    m.impl("csp_scatter_add", &csp_scatter_add);
+#endif    
+    // Indexed IO
+    m.impl("copy_indices", &copy_indices);
+    m.impl("topk_indices", &topk_indices);
+    m.impl("mask_to_indices", &mask_to_indices);
 }
 
 }

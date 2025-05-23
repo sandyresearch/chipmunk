@@ -2,7 +2,7 @@ from typing import Tuple
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
-from chipmunk.util import GLOBAL_CONFIG
+from chipmunk.util import GLOBAL_CONFIG, get_kernel_config_attn
 from chipmunk.ops.voxel import get_local_indices_with_text
 import chipmunk.ops
 from chipmunk.util import AttnStorage, LayerCounter
@@ -92,11 +92,12 @@ class SparseDiffAttn(nn.Module):
         do_full_step: bool,
     ) -> Tensor:
         attn_config = GLOBAL_CONFIG['attn']
-        bm = attn_config['mbm']
-        assert bm == 192, "The kernel was written for BM=192. You may need to change the kernel."
+        attn_kernel_config = get_kernel_config_attn()   
+        bm = attn_kernel_config['bm']
         layer = self.layer_num
-        multiple_of = attn_config['counts_multiple_of'] if not attn_config['pad_qkv_before_kernel'] else 128
+        multiple_of = attn_kernel_config['counts_multiple_of']
         do_padding = attn_config['pad_qkv_before_kernel']
+        provider = attn_config['provider']
 
         # coord = (self.layer_counter.cur_inference_step, self.layer_counter.cur_model_invocation_per_step, self.layer_counter.cur_layer, self.layer_counter.cur_layer_submodule)
         # bkpt_coords = {(1, 0, 2, 0), (2, 0, 2, 0), (1, 1, 2, 0), (2, 1, 2, 0)}
@@ -114,7 +115,15 @@ class SparseDiffAttn(nn.Module):
                     o, lse = chipmunk.ops.dense_attn(q, k, v)
                 else:
                     o, lse = torch.ops.chipmunk.dense_attn(q, k, v)
-                lse[..., k.shape[-2]:, :] = 0
+                
+                # zero out the lse constants for the padded tokens
+                if provider == 'cuda':
+                    lse[..., k.shape[-2]:, :] = 0
+                elif provider == 'triton':
+                    lse[0][..., k.shape[-2]:, :] = 0
+                    lse[1][..., k.shape[-2]:, :] = 0
+                else:
+                    raise NotImplementedError("Provider not supported")
                 self.storage.set_lse_constants(lse)
 
                 return o
@@ -126,7 +135,13 @@ class SparseDiffAttn(nn.Module):
                 else:
                     o, bs, lse = torch.ops.chipmunk.dense_colsum_attn(q, k, v, prev_lse)
                 # zero out the lse constants for the padded tokens
-                lse[..., k.shape[-2]:, :] = 0
+                if provider == 'cuda':
+                    lse[..., k.shape[-2]:, :] = 0
+                elif provider == 'triton':
+                    lse[0][..., k.shape[-2]:, :] = 0
+                    lse[1][..., k.shape[-2]:, :] = 0
+                else:
+                    raise NotImplementedError("Provider not supported")
                 self.storage.set_lse_constants(lse)
 
                 tk = int(multiple_of * round((attn_config['top_keys'] * k.shape[-2]) / multiple_of))

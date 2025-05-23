@@ -165,7 +165,8 @@ class AttnStorage:
     
     def set_lse_constants(self, lse_constants: Tensor):
         if self.lse_constants is None:
-            self.lse_constants = MaybeOffloadedTensor('attn.lse_constants', self.layer_num, lse_constants.dtype, lse_constants.device)
+            tensor = lse_constants[0] if isinstance(lse_constants, tuple) else lse_constants
+            self.lse_constants = MaybeOffloadedTensor('attn.lse_constants', self.layer_num, tensor.dtype, tensor.device)
         self.lse_constants.offload(lse_constants)
 
     def load_async(self):

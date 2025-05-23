@@ -7,10 +7,12 @@ mlp:
   full_step_every: 10
   block_mask_cache: 2
   first_n_dense_layers: 2
-  # do not change below this line
-  counts_multiple_of: 256
-  bm: 128
+
+  provider: cuda
+
   mbm: 128
+  bm: 128
+  counts_multiple_of: 256
 
 patchify:
   is_enabled: true
@@ -19,7 +21,7 @@ patchify:
   chunk_size_2: 4
 
 attn:
-  is_enabled: true
+  is_enabled: false
   top_keys: 0.165
 
   full_step_every: 10
@@ -28,9 +30,7 @@ attn:
   recompute_mask: false
   should_compress_indices: false
   # do not change below this line
-  counts_multiple_of: 112
-  pad_qkv_before_kernel: false
-  mbm: 192
+  pad_qkv_before_kernel: true
 
 offloading:
   global_disable_offloading: true
