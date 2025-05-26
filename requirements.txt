@@ -1,4 +1,4 @@
-torch==2.5.0
+torch>=2.5.0
 torchvision
 einops
 fire
@@ -22,6 +22,3 @@ accelerate
 ftfy
 flash_attn
 easydict
-moviepy==1.0.3
-pillow==9.5.0
-av==13.1.0
