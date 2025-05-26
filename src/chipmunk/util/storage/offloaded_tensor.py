@@ -40,7 +40,7 @@ class MaybeOffloadedTensor:
 
     # Default buffer sizes for pinned CPU memory, tuned for typical shape sizes
     LARGE_BUF_SIZE  = 1 * 32 * 150000 * 128 * torch.finfo(torch.bfloat16).bits // 8
-    MEDIUM_BUF_SIZE = 1 * 32 * 50000 * 128 * torch.finfo(torch.bfloat16).bits // 8
+    MEDIUM_BUF_SIZE = 1 * 32 * 90000 * 128 * torch.finfo(torch.bfloat16).bits // 8
     SMALL_BUF_SIZE  = 1 * 32 * 15000 * 128 * torch.finfo(torch.bfloat16).bits // 8
 
     @torch.compiler.disable # torch.compile fails to allocate pinned CPU memory :(
@@ -101,7 +101,7 @@ class MaybeOffloadedTensor:
             return
         # Validate that our pinned buffer is large enough
         assert gpu_tensor.numel() <= self.cpu_buf[self.get_cur_model_invocation_key()].numel(), (
-            "Tensor is too large to offload - try adjusting MaybeOffloadedTensor.LARGE_BUF_SIZE"
+            f"Tensor {self.name} is too large to offload - try adjusting MaybeOffloadedTensor.LARGE_BUF_SIZE (requested {gpu_tensor.numel()} elements, available {self.cpu_buf[self.get_cur_model_invocation_key()].numel()} elements)"
         )
         # Record the original shape so we can create a matching GPU tensor on load
         self.real_shape[self.get_cur_model_invocation_key()] = gpu_tensor.shape

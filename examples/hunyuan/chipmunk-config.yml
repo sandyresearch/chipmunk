@@ -9,7 +9,7 @@ attn:
   top_keys: 0.05
   random_keys: 0.01
   # Number of local voxels to use for static local attention
-  local_voxels: 0
+  local_voxels: 2
   local_1d_window: 0
   first_n_dense_layers: 2
   recompute_mask: true
@@ -25,7 +25,6 @@ attn:
 
   # Do not change below this line -- kernel-specific business
   pad_qkv_before_kernel: true
-  counts_multiple_of: 128
 
 offloading:
   attn.out_cache: true

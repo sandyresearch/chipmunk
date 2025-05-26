@@ -28,20 +28,24 @@ class SparseDiffAttn(nn.Module):
         tt, th, tw = seq_shape
 
         attn_config = GLOBAL_CONFIG['attn']
+        kernel_config = get_kernel_config_attn()
+        bm = kernel_config['bm']
+        multiple_of = kernel_config['counts_multiple_of']
         rk = attn_config['random_keys']
         topk = attn_config['top_keys']
         lv = attn_config['local_voxels']
         lw1d = attn_config['local_1d_window']
         topk = int(topk * (tt * th * tw))
-
+        assert bm == 192 or bm == 64, f'bm must be 192 or 64, got {bm}'
         # Apply local 3D window
         mask, _, _ = get_local_indices_with_text(
             vid_shape=(tt, th, tw),
             txt_len=txt_len,
-            voxel_shape=(4, 6, 8),
+            voxel_shape=(4, 6, 8) if bm == 192 else (4, 4, 4),
             local_shape=(lv, lv, lv),
             rk=rk,
-            device=device
+            device=device,
+            kv_tile_size=multiple_of
         )
 
         # Apply local 1D window
@@ -49,11 +53,11 @@ class SparseDiffAttn(nn.Module):
             window_size = int(lw1d * (tt * th * tw))
             # Each query group (dim=0, a chunk of 192 queries) in [qg, n] attends to a local 1D window
             total_seq_len = tt * th * tw + txt_len
-            query_groups = (tt * th * tw) // 192  # Assuming 192 queries per group
+            query_groups = (tt * th * tw) // bm
             
             for qg in range(query_groups):
                 # Calculate the center position for this query group
-                center_pos = qg * 192 + 192 // 2
+                center_pos = qg * bm + bm // 2
                 
                 # Define the window boundaries (ensuring we don't go out of bounds)
                 window_start = max(0, center_pos - window_size // 2)
@@ -83,6 +87,7 @@ class SparseDiffAttn(nn.Module):
 
         return mask
 
+    @torch.compiler.disable
     def _fast_attention(
         self,
         q: Tensor,
@@ -99,6 +104,8 @@ class SparseDiffAttn(nn.Module):
         do_padding = attn_config['pad_qkv_before_kernel']
         provider = attn_config['provider']
 
+        print('layer', layer, 'seq_len', q.shape[-2])
+
         # coord = (self.layer_counter.cur_inference_step, self.layer_counter.cur_model_invocation_per_step, self.layer_counter.cur_layer, self.layer_counter.cur_layer_submodule)
         # bkpt_coords = {(1, 0, 2, 0), (2, 0, 2, 0), (1, 1, 2, 0), (2, 1, 2, 0)}
         # if coord in bkpt_coords:
@@ -107,6 +114,9 @@ class SparseDiffAttn(nn.Module):
 
         if layer < attn_config['first_n_dense_layers']:
             o, _ = chipmunk.ops.dense_attn(q, k, v)
+            o_ref = F.scaled_dot_product_attention(q, k, v)
+            torch.cuda.synchronize()
+            assert torch.allclose(o, o_ref, atol=1e-1, rtol=1e-1), breakpoint()
             return o
         # ─────────── FULL STEP ───────────
         if do_full_step:
@@ -115,6 +125,9 @@ class SparseDiffAttn(nn.Module):
                     o, lse = chipmunk.ops.dense_attn(q, k, v)
                 else:
                     o, lse = torch.ops.chipmunk.dense_attn(q, k, v)
+                torch.cuda.synchronize()
+                o_ref = F.scaled_dot_product_attention(q, k, v)
+                assert torch.allclose(o, o_ref, atol=1e-1, rtol=1e-1), breakpoint()
                 # zero out the lse constants for the padded tokens
                 if provider == 'cuda':
                     lse[..., k.shape[-2]:, :] = 0
@@ -129,10 +142,15 @@ class SparseDiffAttn(nn.Module):
 
             elif inference_step == 1 or attn_config['recompute_mask']:
                 prev_lse = self.storage.get_lse_constants()
+                # breakpoint()
+                torch.cuda.synchronize()
                 if do_padding:
                     o, bs, lse = chipmunk.ops.dense_colsum_attn(q, k, v, prev_lse)
                 else:
                     o, bs, lse = torch.ops.chipmunk.dense_colsum_attn(q, k, v, prev_lse)
+                o_ref = F.scaled_dot_product_attention(q, k, v)
+                torch.cuda.synchronize()
+                assert torch.allclose(o, o_ref, atol=1e-1, rtol=1e-1), breakpoint()
                 # zero out the lse constants for the padded tokens
                 if provider == 'cuda':
                     lse[..., k.shape[-2]:, :] = 0
@@ -150,7 +168,7 @@ class SparseDiffAttn(nn.Module):
                     packed, mask_shape = bitpack(mask)
                     self.mask_shape[self.layer_counter.cur_model_invocation_per_step] = mask_shape
                     self.storage.set_indices(packed)
-                    inds, counts = chipmunk.ops.mask_to_indices(mask, multiple_of, bm)
+                    inds, counts = chipmunk.ops.mask_to_indices(mask, multiple_of, bm if provider == 'cuda' else 1)
                 else:
                     kseq = k.shape[-2]
                     kgroups = (kseq + bm - 1) // bm
@@ -170,7 +188,7 @@ class SparseDiffAttn(nn.Module):
                 if attn_config['should_compress_indices']:
                     packed         = self.storage.get_indices()
                     mask           = bitunpack(packed, self.mask_shape[self.layer_counter.cur_model_invocation_per_step])
-                    inds, counts   = chipmunk.ops.mask_to_indices(mask, multiple_of, bm)
+                    inds, counts   = chipmunk.ops.mask_to_indices(mask, multiple_of, bm if provider == 'cuda' else 1)
                 else:
                     inds   = self.storage.get_indices()
                     counts = self.storage.get_counts()
@@ -187,13 +205,13 @@ class SparseDiffAttn(nn.Module):
         if attn_config['should_compress_indices']:
             packed         = self.storage.get_indices()
             mask           = bitunpack(packed, self.mask_shape[self.layer_counter.cur_model_invocation_per_step])
-            inds, counts   = chipmunk.ops.mask_to_indices(mask, multiple_of, bm)
+            inds, counts   = chipmunk.ops.mask_to_indices(mask, multiple_of, bm if provider == 'cuda' else 1)
         else:
             inds   = self.storage.get_indices()
             counts = self.storage.get_counts()
         
         o = self.storage.get_out_cache()
-        
+        torch.cuda.synchronize()
         if do_padding:
             o = o + chipmunk.ops.csp_attn(q, k, v, inds, counts)
         else:
@@ -201,6 +219,8 @@ class SparseDiffAttn(nn.Module):
                 # Our kernel will write to o in place, so we need to clone it if it's not offloaded
                 o = o.clone()
             torch.ops.chipmunk.csp_attn(q, k, v, o, inds, counts, 1)
+        torch.cuda.synchronize()
+        
         return o
     
     def forward(self, q: Tensor, k: Tensor, v: Tensor) -> Tensor:

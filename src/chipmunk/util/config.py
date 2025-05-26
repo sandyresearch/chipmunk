@@ -78,9 +78,9 @@ def get_kernel_config_mlp():
 
 def get_kernel_config_attn():
     if GLOBAL_CONFIG['attn']['provider'] == 'triton': 
-        # Triton-based FA2 uses a blocksize of 64x64
+        # Triton-based FA2 uses a blocksize of 64x64 but we still use 192 for the BM for memory efficiency
         return {
-            'bm': 64,
+            'bm': 192,
             'counts_multiple_of': 64,
         }
     elif GLOBAL_CONFIG['attn']['provider'] == 'cuda':
