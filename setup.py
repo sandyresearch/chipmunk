@@ -3,6 +3,10 @@ import subprocess
 from setuptools import find_packages, setup
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
+# Read requirements from requirements.txt
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+
 sources = {
     'colsum_attn': {
         'source_files': {
@@ -12,6 +16,11 @@ sources = {
     'csp_attn': {
         'source_files': {
             'h100': 'csrc/attn/csp_attn.cu'
+        }
+    },
+    'csp_128_attn': {
+        'source_files': {
+            'h100': 'csrc/attn/csp_128_attn.cu'
         }
     },
     'attn': {
@@ -54,6 +63,7 @@ sources = {
 kernels = [
     'colsum_attn',
     'csp_attn',
+    'csp_128_attn',
     'attn',
     'csp_mlp_mm1',
     'csp_mlp_mm2_and_scatter_add',
@@ -65,7 +75,11 @@ kernels = [
 
 target = 'h100'
 
-tk_root = os.getenv('THUNDERKITTENS_ROOT', '/lustre/fsw/portfolios/coreai/users/sgovande/sparse-kittens')
+tk_root = 'submodules/ThunderKittens'
+tk_root = os.path.abspath(tk_root)
+if not os.path.exists(tk_root):
+    raise FileNotFoundError(f'ThunderKittens root directory {tk_root} not found - please be sure to install all submodules to this folder.')
+
 python_include = subprocess.check_output([
     'python', '-c', "import sysconfig; print(sysconfig.get_path('include'))"
 ]).decode().strip()
@@ -103,8 +117,10 @@ for k in kernels:
 
 setup(
     name='chipmunk',
-    version="0.0.0",
-    packages=find_packages(),
+    version="1.0.0",
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
+    install_requires=requirements,
     ext_modules=[
         CUDAExtension(
             'chipmunk.cuda',

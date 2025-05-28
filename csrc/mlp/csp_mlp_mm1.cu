@@ -2,7 +2,7 @@
 #include "prototype.cuh"
 #include "common/common.cuh"
 #include "common/templates.cuh"
-#include "../common/sparse_utils.cuh"
+#include "../common/all.cuh"
 #ifdef TORCH_COMPILE
 #include "pyutils/torch_helpers.cuh"
 #include <ATen/cuda/CUDAContext.h>
@@ -364,7 +364,7 @@ struct matmul_template {
 
         __device__ static inline void finish(consumer_finish_args<layout> args) {
             if (ENABLE_GELU) for (int n = 0; n < N_BLOCK; n++) {
-                chipmunk::gelu(args.state.accum[n]); // GeLU
+                unary_map<chipmunk::base_ops::gelu>(args.state.accum[n], args.state.accum[n]); // GeLU
             }
             // for (int n = 0; n < N_BLOCK; n++) {
             //     warpgroup::store(args.finish.c[warpgroup::groupid()][n], args.state.accum[n]);

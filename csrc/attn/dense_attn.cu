@@ -3,7 +3,7 @@
 #include "kittens.cuh"
 #include <cooperative_groups.h>
 #include <iostream>
-#include "../common/sparse_utils.cuh"
+#include "../common/all.cuh"
 
 
 constexpr int CONSUMER_WARPGROUPS = (3); 
@@ -50,7 +50,6 @@ template<int D> struct fwd_globals {
     m_gl m;
     o_gl o;
 
-    const int N; 
     const int kN; 
     const int hr;
 };
@@ -225,7 +224,7 @@ void fwd_attend_ker(const __grid_constant__ fwd_globals<D> g) {
         // store as single constant
         exp2(max_vec_scaled, max_vec_scaled);
         mul(max_vec_scaled, max_vec_scaled, norm_vec);
-        rcp(max_vec_scaled, max_vec_scaled);
+        unary_op<chipmunk::base_ops::rcp>(max_vec_scaled, max_vec_scaled);
         warpgroup::store(l_smem[warpgroupid], max_vec_scaled);
         warpgroup::sync(warpgroupid+4);
 
@@ -348,13 +347,14 @@ dense_attn(at::Tensor q, at::Tensor k, at::Tensor v)
     chipmunk::create_tensor_map_with_strides<q_tile, 2>(&qg_arg.tma_descs.tma_desc, d_q, batch, qo_heads, seq_len, head_dim, q.stride(0), q.stride(1), q.stride(2));
     chipmunk::create_tensor_map_with_strides<k_tile, 2>(&kg_arg.tma_descs.tma_desc, d_k, batch, kv_heads, kseq_len, head_dim, k.stride(0), k.stride(1), k.stride(2));
     chipmunk::create_tensor_map_with_strides<v_tile, 2>(&vg_arg.tma_descs.tma_desc, d_v, batch, kv_heads, kseq_len, head_dim, v.stride(0), v.stride(1), v.stride(2));
-    globals g{qg_arg, kg_arg, vg_arg, lg_arg, mg_arg, og_arg, static_cast<int>(seq_len), static_cast<int>(kseq_len), static_cast<int>(hr)};
+    globals g{qg_arg, kg_arg, vg_arg, lg_arg, mg_arg, og_arg, static_cast<int>(kseq_len), static_cast<int>(hr)};
 
     auto mem_size = kittens::MAX_SHARED_MEMORY;
     auto threads  = NUM_WORKERS * kittens::WARP_THREADS;
 
     // TORCH_CHECK(seq_len % (CONSUMER_WARPGROUPS*kittens::TILE_DIM*4) == 0, "sequence length must be divisible by 192");
-    dim3 grid(seq_len/(CONSUMER_WARPGROUPS*kittens::TILE_ROW_DIM<bf16>*4), qo_heads, batch);
+    auto num_tokens_per_block = CONSUMER_WARPGROUPS*kittens::TILE_ROW_DIM<bf16>*4;
+    dim3 grid((seq_len+num_tokens_per_block-1)/num_tokens_per_block, qo_heads, batch);
 
     auto ker_template = fwd_attend_ker<128, false>;
 

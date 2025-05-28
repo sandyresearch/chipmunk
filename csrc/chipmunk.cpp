@@ -6,7 +6,6 @@
 #include <Python.h>
 #include <cuda_runtime.h>
 
-
 extern "C" {
   /* Creates a dummy empty cuda module that can be imported from Python.
      The import from Python will load the .so consisting of this file
@@ -39,6 +38,7 @@ extern void csp_scatter_add(at::Tensor packed, at::Tensor unpacked_colmajor, at:
 
 // // Sparse+Dense Attention
 extern void csp_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o, at::Tensor indices, at::Tensor indices_counts, int64_t o_scale);
+extern at::Tensor csp_128_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor indices, at::Tensor indices_counts);
 extern std::vector<at::Tensor> dense_attn(at::Tensor q, at::Tensor k, at::Tensor v);
 extern std::vector<at::Tensor> dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p);
 
@@ -49,6 +49,7 @@ TORCH_LIBRARY(chipmunk, m) {
 
     // Sparse+Dense Attention
     m.def("csp_attn(Tensor q, Tensor k, Tensor v, Tensor o, Tensor indices, Tensor indices_counts, int o_scale) -> ()");
+    m.def("csp_128_attn(Tensor q, Tensor k, Tensor v, Tensor indices, Tensor indices_counts) -> Tensor");
     m.def("dense_attn(Tensor q, Tensor k, Tensor v) -> Tensor[]");
     m.def("dense_colsum_attn(Tensor q, Tensor k, Tensor v, Tensor p) -> Tensor[]");
 
@@ -73,6 +74,7 @@ TORCH_LIBRARY_IMPL(chipmunk, CUDA, m) {
 
     // Sparse+Dense Attention
     m.impl("csp_attn", &csp_attn);
+    m.impl("csp_128_attn", &csp_128_attn);
     m.impl("dense_attn", &dense_attn);
     m.impl("dense_colsum_attn", &dense_colsum_attn);
 }

@@ -9,7 +9,7 @@
 #include <ATen/cuda/CUDAContext.h>
 #include <curand_kernel.h>
 #include "kittens.cuh"
-#include "../common/sparse_utils.cuh"
+#include "../common/all.cuh"
 #include "../indexed_io/scatter_add.cuh"
 
 #define checkCudaErrors(call) do { \
