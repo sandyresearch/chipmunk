@@ -96,7 +96,7 @@ cuda_flags = [
     '-Xptxas=--warn-on-spills',
     '-DTORCH_COMPILE',
 ] + torch_include.split()
-cpp_flags = ['-std=c++20', '-O3', '-DDPy_LIMITED_API=0x03110000']
+cpp_flags = ['-std=c++20', '-O3', '-DDPy_LIMITED_API=0x03100000']
 
 if target == 'h100':
     cuda_flags.append('-DKITTENS_HOPPER')
@@ -139,5 +139,5 @@ setup(
         )
     ],
     cmdclass={'build_ext': BuildExtension},
-    options={"bdist_wheel": {"py_limited_api": "cp311"}}      
+    options={"bdist_wheel": {"py_limited_api": "cp310"}}      
 )
