@@ -79,7 +79,10 @@ class SparseDiffAttn(nn.Module):
 
         qg = cs.shape[-2]
         n = cs.shape[-1]
-        mask = (mask * singleton_video_query_groups[..., :qg, :n]) | singleton_static_mask[..., :qg, :n]
+        if singleton_video_query_groups is not None:
+            mask = mask * singleton_video_query_groups[..., :qg, :n]
+        if singleton_static_mask is not None:
+            mask = mask | singleton_static_mask[..., :qg, :n]
 
         return mask
 
