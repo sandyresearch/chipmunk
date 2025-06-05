@@ -1,12 +1,13 @@
 # 🐿️ Chipmunk: Hardware-Aware Sparsity for Accelerated Video & Image Generation
 
-Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What if we could make those layers faster? **Chipmunk is a training-free method to accelerate diffusion transformers with hardware-aware, training-free dynamic sparsity**. Chipmunk caches attention weights and MLP activations from previous steps and dynamically computes a sparse “delta” against the cached weights. We make Chipmunk hardware-efficient through [128, 1] and [192, 1] column-sparsity patterns \+ a suite of optimized sparse attention and MLP CUDA kernels. 
+Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What if we could make those layers faster? **Chipmunk is a training-free method to accelerate diffusion transformers with hardware-aware, training-free dynamic sparsity**. Chipmunk caches attention weights and MLP activations from previous steps and dynamically computes a sparse “delta” against the cached weights. We make Chipmunk hardware-efficient through [128, 1] and [192, 1] column-sparsity patterns \+ a suite of optimized sparse attention and MLP CUDA kernels. Check out the [paper](https://arxiv.org/abs/2506.03275) for all the details.
 
 *Developed in collaboration between Together AI, Hazy Research, and Sandy Research.*
 
 ## 🎆 At a glance...
 
-- **\~3.7x** faster video generation on HunyuanVideo at 720x1280 resolution for a 5s video (50 steps)  
+- **\~3.7x** faster video generation on HunyuanVideo at 720x1280 resolution for a 5s video (50 steps)
+- **\~2.67x** faster video generation on Wan2.1 at 720x1280 resolution for a 3s video (50 steps)    
 - **\~1.6x** faster image generations on FLUX.1-dev at 1280x768 resolution (50 steps)  
 - Column Sparse Attention layer is **~9.3x** faster than FlashAttention3 baseline  
 - Column Sparse MLP layer is **~2.5x** faster than cuBLAS baseline
@@ -58,6 +59,19 @@ python3 sample_video.py --flow-reverse --chipmunk-config ./chipmunk-config.yml
 ```
 
 *FYI: for Chipmunk's just-in-time offloading, we manage a pool of pinned CPU memory. Model initialization may take up to ~5 minutes as we allocate all these pinned buffers in RAM!*
+
+#### 🎬 Wan2.1 Generation Example
+
+Use the one-line accelerated inference script to get started, and then check out [examples/wan/README.md](examples/wan/README.md) for a comprehensive tutorial. 
+
+```bash
+cd examples/wan
+# Download weights
+pip install "huggingface_hub[cli]"
+huggingface-cli download Wan-AI/Wan2.1-T2V-14B --local-dir ./Wan2.1-T2V-14B
+# One-line accelerated inference script
+./run.sh
+```
 
 #### 🌅 FLUX.1-dev Image Generation Example
 
@@ -130,3 +144,17 @@ Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block�
 ## 🤝 Contributors
 
 Austin Silveria, Soham Govande, Dan Fu
+
+## Citation
+If you find this work useful, you can cite us as follows:
+~~~
+@misc{silveria2025chipmunktrainingfreeaccelerationdiffusion,
+      title={Chipmunk: Training-Free Acceleration of Diffusion Transformers with Dynamic Column-Sparse Deltas}, 
+      author={Austin Silveria and Soham V. Govande and Daniel Y. Fu},
+      year={2025},
+      eprint={2506.03275},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2506.03275}, 
+}
+~~~
