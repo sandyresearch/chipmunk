@@ -3,6 +3,10 @@
 Original repo: https://github.com/Wan-Video/Wan2.1
 
 
+https://github.com/user-attachments/assets/4a9af692-0926-49a6-9d00-a975a383d209
+
+
+
 ## Quickstart
 ### 1. Clone repo, build kernels, & install deps
 Follow the Quickstart instructions in the [base Chipmunk directory](../../README.md) to install Chipmunk's base collection of primitives.
@@ -15,7 +19,7 @@ huggingface-cli download Wan-AI/Wan2.1-T2V-14B --local-dir ./Wan2.1-T2V-14B
 
 ### 3\. Generate fast videos!
 
-Because of Chipmunk's just-in-time offloading, we manage a pool of pinned CPU memory. Model initialization may take up to ~5 minutes as we allocate all these pinned buffers in RAM, but you can interactively enter prompts after this without re-initializing!
+For reference, you should see video generation times of ~510s seconds per video on the default sparsity config we provide. Because of Chipmunk's just-in-time offloading, we manage a pool of pinned CPU memory. Model initialization may take up to ~5 minutes as we allocate all these pinned buffers in RAM, but you can interactively enter prompts after this without re-initializing!
 
 ```bash
 cd <repo_root>/examples/wan
