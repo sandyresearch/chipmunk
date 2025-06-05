@@ -8,11 +8,11 @@ mlp:
 
 attn:
   is_enabled: true
-  top_keys: 0.1
+  top_keys: 0.15
   random_keys: 0.01
   # Number of local voxels to use for static local attention
-  local_voxels: 5
-  local_1d_window: 0
+  local_voxels: 0
+  local_1d_window: 0.05
   first_n_dense_layers: 2
   recompute_mask: true
   should_compress_indices: true
