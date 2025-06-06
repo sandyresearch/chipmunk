@@ -104,8 +104,6 @@ class SparseDiffAttn(nn.Module):
         do_padding = attn_config['pad_qkv_before_kernel']
         provider = attn_config['provider']
 
-        print('layer', layer, 'seq_len', q.shape[-2])
-
         # coord = (self.layer_counter.cur_inference_step, self.layer_counter.cur_model_invocation_per_step, self.layer_counter.cur_layer, self.layer_counter.cur_layer_submodule)
         # bkpt_coords = {(1, 0, 2, 0), (2, 0, 2, 0), (1, 1, 2, 0), (2, 1, 2, 0)}
         # if coord in bkpt_coords:
@@ -115,7 +113,7 @@ class SparseDiffAttn(nn.Module):
         if layer < attn_config['first_n_dense_layers']:
             o, _ = chipmunk.ops.dense_attn(q, k, v)
             o_ref = F.scaled_dot_product_attention(q, k, v)
-            torch.cuda.synchronize()
+            
             assert torch.allclose(o, o_ref, atol=1e-1, rtol=1e-1), breakpoint()
             return o
         # ─────────── FULL STEP ───────────
@@ -125,7 +123,7 @@ class SparseDiffAttn(nn.Module):
                     o, lse = chipmunk.ops.dense_attn(q, k, v)
                 else:
                     o, lse = torch.ops.chipmunk.dense_attn(q, k, v)
-                torch.cuda.synchronize()
+                
                 o_ref = F.scaled_dot_product_attention(q, k, v)
                 assert torch.allclose(o, o_ref, atol=1e-1, rtol=1e-1), breakpoint()
                 # zero out the lse constants for the padded tokens
@@ -143,13 +141,13 @@ class SparseDiffAttn(nn.Module):
             elif inference_step == 1 or attn_config['recompute_mask']:
                 prev_lse = self.storage.get_lse_constants()
                 # breakpoint()
-                torch.cuda.synchronize()
+                
                 if do_padding:
                     o, bs, lse = chipmunk.ops.dense_colsum_attn(q, k, v, prev_lse)
                 else:
                     o, bs, lse = torch.ops.chipmunk.dense_colsum_attn(q, k, v, prev_lse)
                 o_ref = F.scaled_dot_product_attention(q, k, v)
-                torch.cuda.synchronize()
+                
                 assert torch.allclose(o, o_ref, atol=1e-1, rtol=1e-1), breakpoint()
                 # zero out the lse constants for the padded tokens
                 if provider == 'cuda':
@@ -180,9 +178,10 @@ class SparseDiffAttn(nn.Module):
 
                     self.storage.set_indices(inds)
                     self.storage.set_counts(counts)
-
+                
             else:
                 o, _ = chipmunk.ops.dense_attn(q, k, v)
+                
 
             if not attn_config['recompute_mask']:
                 if attn_config['should_compress_indices']:
@@ -192,12 +191,16 @@ class SparseDiffAttn(nn.Module):
                 else:
                     inds   = self.storage.get_indices()
                     counts = self.storage.get_counts()
-
+            
+            # import pickle
+            # pickle.dump((q,k,v,inds,counts), open('saved_tensors.pkl', 'wb'))
             if do_padding:
                 o_cache = o - chipmunk.ops.csp_attn(q, k, v, inds, counts)
             else:
                 o_cache = o.clone()
                 torch.ops.chipmunk.csp_attn(q, k, v, o_cache, inds, counts, -1)
+            
+            
             self.storage.set_out_cache(o_cache)
             return o
 
@@ -211,7 +214,7 @@ class SparseDiffAttn(nn.Module):
             counts = self.storage.get_counts()
         
         o = self.storage.get_out_cache()
-        torch.cuda.synchronize()
+        
         if do_padding:
             o = o + chipmunk.ops.csp_attn(q, k, v, inds, counts)
         else:
@@ -219,7 +222,7 @@ class SparseDiffAttn(nn.Module):
                 # Our kernel will write to o in place, so we need to clone it if it's not offloaded
                 o = o.clone()
             torch.ops.chipmunk.csp_attn(q, k, v, o, inds, counts, 1)
-        torch.cuda.synchronize()
+        
         
         return o
     

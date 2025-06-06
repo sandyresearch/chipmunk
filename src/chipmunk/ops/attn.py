@@ -8,7 +8,7 @@ import torch.nn.functional as F
 def pad_qkvo_tensor(tensor, pad_to):
     n = tensor.shape[-2]
     padded_n = ((n + pad_to - 1) // pad_to) * pad_to
-    padded_tensor = torch.zeros(tensor.shape[:-2] + (padded_n, tensor.shape[-1]), dtype=tensor.dtype, device=tensor.device)
+    padded_tensor = torch.randn(tensor.shape[:-2] + (padded_n, tensor.shape[-1]), dtype=tensor.dtype, device=tensor.device)
     padded_tensor[..., :n, :] = tensor
     return padded_tensor
 
@@ -41,6 +41,8 @@ def dense_attn(q, k, v):
         qp = q
         kp = pad_qkvo_tensor(k, pad_to)
         vp = pad_qkvo_tensor(v, pad_to)
+        kp = k
+        vp = v
     else:
         qp = pad_qkvo_tensor(q, pad_to)
         kp = k
@@ -137,7 +139,10 @@ def dense_colsum_attn(q, k, v, p):
 
 def csp_attn(q, k, v, indices, indices_counts):
     if GLOBAL_CONFIG['attn']['provider'] == 'triton':
-        o, _ = chipmunk.triton.csp_attn(q, k, v, indices, indices_counts)
+        kp = pad_qkvo_tensor(k, get_kernel_config_attn()['bm'])
+        vp = pad_qkvo_tensor(v, get_kernel_config_attn()['bm'])
+
+        o, _ = chipmunk.triton.csp_attn(q, kp, vp, indices, indices_counts)
         return o
 
     pad_to = get_kernel_config_attn()['bm']

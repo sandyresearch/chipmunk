@@ -45,9 +45,13 @@ def _sparse_attn_fwd_inner(acc, l_i, m_i, q,  #
     # loop over k, v and update accumulator
     for start_n in range(0, sparsity_count, BLOCK_N):
         start_n = tl.multiple_of(start_n, BLOCK_N)
-        sparsity_indices = tl.load(sparsity_indices_ptr)
-        # sparsity_indices = tl.arange(0, BLOCK_N) + start_n
+        # sparsity_indices = tl.load(sparsity_indices_ptr)
+        sparsity_indices = tl.arange(0, BLOCK_N) + start_n
         # sparsity_indices = tl.zeros_like(sparsity_indices)
+        
+        tl.device_assert(tl.max(sparsity_indices) < N_CTX)
+        tl.device_assert(tl.min(sparsity_indices) >= 0)
+
         K_block_ptr = K_block_ptr_orig + (sparsity_indices[None, :]) * stride_k_seqlen
         V_block_ptr = V_block_ptr_orig + (sparsity_indices[:, None]) * stride_v_seqlen
         # Commented out lines are for when we use random sparsity counts, in production it's always a multiple of BLOCK_N = 64
