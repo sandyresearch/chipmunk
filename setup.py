@@ -87,7 +87,9 @@ cpp_flags = ['-std=c++20', '-O3', '-DDPy_LIMITED_API=0x03110000']
 if target == HOPPER_GENERATION:
     cuda_flags.append('-DKITTENS_HOPPER')
 
-cuda_flags.append(f'-arch={torch.cuda.get_arch_list()[-1]}')
+arch = torch.cuda.get_arch_list()[-1]
+if arch == 'sm_90': arch = 'sm_90a'
+cuda_flags.append(f'-arch={arch}')
 
 source_files = ['csrc/chipmunk.cpp']
 
