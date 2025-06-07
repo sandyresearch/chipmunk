@@ -64,7 +64,10 @@ target = HOPPER_GENERATION if torch.cuda.get_device_capability()[0] == 9 else DE
 tk_root = 'submodules/ThunderKittens'
 tk_root = os.path.abspath(tk_root)
 if not os.path.exists(tk_root):
-    raise FileNotFoundError(f'ThunderKittens root directory {tk_root} not found - please be sure to install all submodules to this folder.')
+    raise FileNotFoundError(f'ThunderKittens root directory {tk_root} not found.')
+tk_include = f'{tk_root}/include'
+if not os.path.exists(tk_include):
+    raise FileNotFoundError(f'ThunderKittens include directory {tk_include} not found - please be sure to install all submodules to this folder.')
 
 python_include = subprocess.check_output([
     'python', '-c', "import sysconfig; print(sysconfig.get_path('include'))"
