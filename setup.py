@@ -32,7 +32,7 @@ sources = {
         'source_files': { HOPPER_GENERATION: 'csrc/mlp/csp_mlp_mm2_and_scatter_add.cu' }
     },
     'csp_scatter_add': {
-        'source_files': { DEFAULT_GENERATION: 'csrc/indexed_io/scatter_add.cu' }
+        'source_files': { HOPPER_GENERATION: 'csrc/indexed_io/scatter_add.cu' }
     },
     # These kernels are available on all generations! Not just Hopper.
     'copy_indices': {
