@@ -96,7 +96,12 @@ for k in kernels:
     if target not in src_files and DEFAULT_GENERATION not in src_files:
         print(f'Warning: Target {target} not found in source files for kernel {k}. We will fallback to a Triton-based implementation.')
         continue
-    source_files.append(src_files.get(target, src_files[DEFAULT_GENERATION]))
+    if target in src_files:                       # exact match, e.g. Hopper on Hopper
+        source_files.append(src_files[target])
+    elif DEFAULT_GENERATION in src_files:         # portable implementation exists
+        source_files.append(src_files[DEFAULT_GENERATION])
+    else:                                         # neither variant exists → skip
+        raise ValueError(f'No CUDA source for kernel {k} on target {target}')
     cpp_flags.append(f'-DTK_COMPILE_{k.replace(" ", "_").upper()}')
 
 setup(
