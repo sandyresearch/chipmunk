@@ -11,7 +11,7 @@ attn:
   top_keys: 0.1
   random_keys: 0.01
   # Number of local voxels to use for static local attention
-  local_voxels: 5
+  local_voxels: 0
   local_1d_window: 0
   first_n_dense_layers: 2
   recompute_mask: true
@@ -19,13 +19,11 @@ attn:
 
   # If schedule is not None, will override full_step_every
   full_step_every: 10
-
-  # Do not change below this line -- kernel-specific business
+  provider: triton
   pad_qkv_before_kernel: true
-  counts_multiple_of: 128
 
 offloading:
-  global_disable_offloading: false
+  global_disable_offloading: true
   attn.out_cache: true
   attn.indices: true
   attn.counts: true

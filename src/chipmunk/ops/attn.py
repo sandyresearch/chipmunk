@@ -14,7 +14,9 @@ def pad_qkvo_tensor(tensor, pad_to):
 
 def dense_attn(q, k, v):
     if GLOBAL_CONFIG['attn']['provider'] == 'triton':
-        return chipmunk.triton.dense_attn(q, k, v)
+        kp = pad_qkvo_tensor(k, get_kernel_config_attn()['bm'])
+        vp = pad_qkvo_tensor(v, get_kernel_config_attn()['bm'])
+        return chipmunk.triton.dense_attn(q, kp, vp)
 
     return_l = True
     pad_to = get_kernel_config_attn()['bm']
@@ -71,8 +73,6 @@ def dense_colsum_attn(q, k, v, p):
     """
     Compute variable length attention in ThunderKittens.
     """
-    if GLOBAL_CONFIG['attn']['provider'] == 'triton':
-        return chipmunk.triton.dense_colsum_attn(q, k, v, p)
 
     fuse_reduce = True
     wq = 16   # queries per warp
@@ -126,13 +126,9 @@ def dense_colsum_attn(q, k, v, p):
     # unpad
     o = o[..., :n, :].contiguous()
     if fuse_reduce:
-        if provider == 'cuda' or True:
-            kseq = k.shape[-2]
-            kgroups = (kseq + pad_to - 1) // pad_to
-            cs = cs[..., :kgroups, :kseq]
-        else:
-            fuse_amt = get_kernel_config_attn()['bm'] // 64
-            # cs = rearrange(cs, 'b h (m r) n -> b h m r n', r=fuse_amt).sum(dim=-2)
+        kseq = k.shape[-2]
+        kgroups = (kseq + pad_to - 1) // pad_to
+        cs = cs[..., :kgroups, :kseq]
     else:
         cs = rearrange(cs, 'b h (m r) n -> b h m r n', r=pad_to//wq).sum(dim=-2)[..., :n]
     return o, cs, l
