@@ -95,7 +95,7 @@ arch = torch.cuda.get_arch_list()[-1]
 if arch == 'sm_90': arch = 'sm_90a'
 cuda_flags.append(f'-arch={arch}')
 
-source_files = ['csrc/chipmunk.cpp']
+source_files = ['csrc/chipmunk.cu']
 
 for k in kernels:
     src_files = sources[k]['source_files']
