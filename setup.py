@@ -91,7 +91,7 @@ if target == HOPPER_GENERATION:
     cuda_flags.append('-DKITTENS_HOPPER')
     cpp_flags.append('-DKITTENS_HOPPER')
 
-arch = torch.cuda.get_arch_list()[-1]
+arch = f'sm_{torch.cuda.get_device_capability()[0]}{torch.cuda.get_device_capability()[1]}'
 if arch == 'sm_90': arch = 'sm_90a'
 cuda_flags.append(f'-arch={arch}')
 
