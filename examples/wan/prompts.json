@@ -1,0 +1,428 @@
+[
+    {
+        "underlying_prompt": "An oil painting of a couple in formal evening wear going home get caught in a heavy downpour with umbrellas",
+        "prompt": "In an oil painting, a couple in formal evening wear are caught in a heavy downpour, holding umbrellas as they walk home. Night lighting, Intimate",
+        "seed": 743104,
+        "output_path": [
+            "vbench/overall_consistency/An oil painting of a couple in formal evening wear going home get caught in a heavy downpour with umbrellas-4.mp4",
+            "vbench/aesthetic_quality/An oil painting of a couple in formal evening wear going home get caught in a heavy downpour with umbrellas-4.mp4",
+            "vbench/imaging_quality/An oil painting of a couple in formal evening wear going home get caught in a heavy downpour with umbrellas-4.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "farm",
+        "prompt": "A farm with fields, animals, and a barn. Realistic, Natural lighting, Peaceful",
+        "seed": 389783,
+        "output_path": [
+            "vbench/scene/farm-2.mp4",
+            "vbench/background_consistency/farm-2.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "Robot dancing in Times Square.",
+        "prompt": "A robot is dancing in Times Square. Realistic, Indoor lighting, Festive",
+        "seed": 651909,
+        "output_path": [
+            "vbench/overall_consistency/Robot dancing in Times Square.-2.mp4",
+            "vbench/aesthetic_quality/Robot dancing in Times Square.-2.mp4",
+            "vbench/imaging_quality/Robot dancing in Times Square.-2.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a bench on the left of a truck, front view",
+        "prompt": "A bench is to the left of a truck, front view. Realistic, Natural lighting, Casual",
+        "seed": 526813,
+        "output_path": [
+            "vbench/spatial_relationship/a bench on the left of a truck, front view-4.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a white chair",
+        "prompt": "A white chair. Realistic, Indoor lighting, Casual",
+        "seed": 774981,
+        "output_path": [
+            "vbench/color/a white chair-2.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A person is motorcycling",
+        "prompt": "A person is riding a motorcycle. Realistic, Natural lighting, Casual",
+        "seed": 251778,
+        "output_path": [
+            "vbench/human_action/A person is motorcycling-1.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A person is drawing",
+        "prompt": "A person is drawing. Realistic, Indoor lighting, Focused",
+        "seed": 875499,
+        "output_path": [
+            "vbench/human_action/A person is drawing-4.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A person is flying kite",
+        "prompt": "A person is flying a kite. Realistic, Natural lighting, Casual",
+        "seed": 868623,
+        "output_path": [
+            "vbench/human_action/A person is flying kite-1.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A beautiful coastal beach in spring, waves lapping on sand, in super slow motion",
+        "prompt": "A beautiful coastal beach in spring, waves gently lapping on the sand, in super slow motion. Realistic, Natural lighting, Peaceful",
+        "seed": 75187,
+        "output_path": [
+            "vbench/temporal_style/A beautiful coastal beach in spring, waves lapping on sand, in super slow motion-2.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "An astronaut flying in space, zoom out",
+        "prompt": "An astronaut floating in space, the camera movement is Zoom Out. Realistic, Natural lighting, Mysterious",
+        "seed": 530669,
+        "output_path": [
+            "vbench/temporal_style/An astronaut flying in space, zoom out-4.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "An oil painting of a couple in formal evening wear going home get caught in a heavy downpour with umbrellas",
+        "prompt": "In an oil painting, a couple in formal evening wear are caught in a heavy downpour, holding umbrellas as they walk home. Night lighting, Intimate",
+        "seed": 279799,
+        "output_path": [
+            "vbench/overall_consistency/An oil painting of a couple in formal evening wear going home get caught in a heavy downpour with umbrellas-0.mp4",
+            "vbench/aesthetic_quality/An oil painting of a couple in formal evening wear going home get caught in a heavy downpour with umbrellas-0.mp4",
+            "vbench/imaging_quality/An oil painting of a couple in formal evening wear going home get caught in a heavy downpour with umbrellas-0.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A beautiful coastal beach in spring, waves lapping on sand, zoom out",
+        "prompt": "A beautiful coastal beach in spring, waves gently lapping on the sand, the camera movement is Zoom Out. Realistic, Natural lighting, Peaceful",
+        "seed": 606146,
+        "output_path": [
+            "vbench/temporal_style/A beautiful coastal beach in spring, waves lapping on sand, zoom out-1.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "iceberg",
+        "prompt": "A large iceberg floats in the water. Realistic, Natural lighting, Peaceful",
+        "seed": 180906,
+        "output_path": [
+            "vbench/scene/iceberg-0.mp4",
+            "vbench/background_consistency/iceberg-0.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A person is shuffling cards",
+        "prompt": "A person is shuffling cards. Realistic, Warm lighting, Casual",
+        "seed": 655936,
+        "output_path": [
+            "vbench/human_action/A person is shuffling cards-3.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a black clock",
+        "prompt": "A black clock with a round face and silver hands. Realistic, Indoor lighting, Casual",
+        "seed": 847179,
+        "output_path": [
+            "vbench/color/a black clock-0.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "In a still frame, a vintage gas lantern, adorned with intricate details, gracing a historic cobblestone square",
+        "prompt": "A vintage gas lantern with intricate details stands on a historic cobblestone square. Realistic, Warm lighting, Peaceful",
+        "seed": 14036,
+        "output_path": [
+            "vbench/temporal_flickering/In a still frame, a vintage gas lantern, adorned with intricate details, gracing a historic cobblestone square-2.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "driveway",
+        "prompt": "driveway. Realistic, Natural lighting, Casual",
+        "seed": 586052,
+        "output_path": [
+            "vbench/scene/driveway-2.mp4",
+            "vbench/background_consistency/driveway-2.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a shark is swimming in the ocean, pan right",
+        "prompt": "A shark is swimming in the ocean, the camera movement is Pan Right. Realistic, Natural lighting, Mysterious",
+        "seed": 396267,
+        "output_path": [
+            "vbench/temporal_style/a shark is swimming in the ocean, pan right-4.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A cute happy Corgi playing in park, sunset, pan right",
+        "prompt": "A cute, happy Corgi playing in the park during sunset, the camera movement is Pan Right. Realistic, Warm lighting, Peaceful",
+        "seed": 884506,
+        "output_path": [
+            "vbench/temporal_style/A cute happy Corgi playing in park, sunset, pan right-2.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "The bund Shanghai, animated style",
+        "prompt": "The Bund in Shanghai, animated style. Natural lighting, Lively",
+        "seed": 34781,
+        "output_path": [
+            "vbench/appearance_style/The bund Shanghai, animated style-0.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A tranquil tableau of in the Zen garden, a perfectly raked gravel path led to a serene rock garden",
+        "prompt": "In the Zen garden, a tranquil scene of a perfectly raked gravel path leading to a serene rock garden. Realistic, Natural lighting, Peaceful",
+        "seed": 108289,
+        "output_path": [
+            "vbench/temporal_flickering/A tranquil tableau of in the Zen garden, a perfectly raked gravel path led to a serene rock garden-0.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "staircase",
+        "prompt": "A staircase, made of stone or wood, leading from one floor to another. Realistic, Indoor lighting, Formal",
+        "seed": 453925,
+        "output_path": [
+            "vbench/scene/staircase-0.mp4",
+            "vbench/background_consistency/staircase-0.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "An epic tornado attacking above a glowing city at night, the tornado is made of smoke",
+        "prompt": "An epic tornado, made of smoke, attacks above a glowing city at night. Realistic, Night lighting, Tense",
+        "seed": 174213,
+        "output_path": [
+            "vbench/overall_consistency/An epic tornado attacking above a glowing city at night, the tornado is made of smoke-2.mp4",
+            "vbench/aesthetic_quality/An epic tornado attacking above a glowing city at night, the tornado is made of smoke-2.mp4",
+            "vbench/imaging_quality/An epic tornado attacking above a glowing city at night, the tornado is made of smoke-2.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a motorcycle and a boat",
+        "prompt": "A motorcycle and a boat. Realistic, Natural lighting, Casual",
+        "seed": 440330,
+        "output_path": [
+            "vbench/multiple_objects/a motorcycle and a boat-1.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a bus",
+        "prompt": "a bus. Realistic, Natural lighting, Casual",
+        "seed": 401987,
+        "output_path": [
+            "vbench/object_class/a bus-0.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A person is rock climbing",
+        "prompt": "A person is rock climbing. Realistic, Natural lighting, Tense",
+        "seed": 306380,
+        "output_path": [
+            "vbench/human_action/A person is rock climbing-1.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a toothbrush",
+        "prompt": "A toothbrush. Realistic, Indoor lighting, Casual",
+        "seed": 830727,
+        "output_path": [
+            "vbench/object_class/a toothbrush-3.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "Sewing machine, old sewing machine working.",
+        "prompt": "An old sewing machine works, stitching fabric. Realistic, Indoor lighting, Professional",
+        "seed": 368599,
+        "output_path": [
+            "vbench/overall_consistency/Sewing machine, old sewing machine working.-3.mp4",
+            "vbench/aesthetic_quality/Sewing machine, old sewing machine working.-3.mp4",
+            "vbench/imaging_quality/Sewing machine, old sewing machine working.-3.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "Gwen Stacy reading a book, pan right",
+        "prompt": "Gwen Stacy reading a book, the camera movement is Pan Right. Realistic, Indoor lighting, Casual",
+        "seed": 97952,
+        "output_path": [
+            "vbench/temporal_style/Gwen Stacy reading a book, pan right-4.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a motorcycle",
+        "prompt": "a motorcycle. Realistic, Natural lighting, Casual",
+        "seed": 210098,
+        "output_path": [
+            "vbench/object_class/a motorcycle-3.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "Gwen Stacy reading a book, Van Gogh style",
+        "prompt": "Gwen Stacy reading a book, Van Gogh style. Night lighting, Intimate",
+        "seed": 318205,
+        "output_path": [
+            "vbench/appearance_style/Gwen Stacy reading a book, Van Gogh style-0.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A drone view of celebration with Christmas tree and fireworks, starry sky - background.",
+        "prompt": "An aerial shot of a celebration with a Christmas tree and fireworks, starry sky in the background. Realistic, Night lighting, Festive",
+        "seed": 514023,
+        "output_path": [
+            "vbench/overall_consistency/A drone view of celebration with Christmas tree and fireworks, starry sky - background.-2.mp4",
+            "vbench/aesthetic_quality/A drone view of celebration with Christmas tree and fireworks, starry sky - background.-2.mp4",
+            "vbench/imaging_quality/A drone view of celebration with Christmas tree and fireworks, starry sky - background.-2.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a red bird",
+        "prompt": "A red bird. Realistic, Natural lighting, Peaceful",
+        "seed": 753563,
+        "output_path": [
+            "vbench/color/a red bird-0.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a pink chair",
+        "prompt": "A pink chair. Realistic, Indoor lighting, Casual",
+        "seed": 977372,
+        "output_path": [
+            "vbench/color/a pink chair-0.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "house",
+        "prompt": "house. Realistic, Natural lighting, Peaceful",
+        "seed": 997141,
+        "output_path": [
+            "vbench/scene/house-3.mp4",
+            "vbench/background_consistency/house-3.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a white chair",
+        "prompt": "A white chair. Realistic, Indoor lighting, Casual",
+        "seed": 438830,
+        "output_path": [
+            "vbench/color/a white chair-1.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a person swimming in ocean",
+        "prompt": "A person swimming in the ocean. Realistic, Natural lighting, Peaceful",
+        "seed": 38009,
+        "output_path": [
+            "vbench/subject_consistency/a person swimming in ocean-2.mp4",
+            "vbench/dynamic_degree/a person swimming in ocean-2.mp4",
+            "vbench/motion_smoothness/a person swimming in ocean-2.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A boat sailing leisurely along the Seine River with the Eiffel Tower in background, pan left",
+        "prompt": "A boat cruising gently on the Seine River with the Eiffel Tower visible in the background, the camera movement is Pan Left. Realistic, Natural lighting, Peaceful",
+        "seed": 166723,
+        "output_path": [
+            "vbench/temporal_style/A boat sailing leisurely along the Seine River with the Eiffel Tower in background, pan left-4.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a train crossing over a tall bridge",
+        "prompt": "A train is crossing a tall bridge. Realistic, Natural lighting, Peaceful",
+        "seed": 437855,
+        "output_path": [
+            "vbench/subject_consistency/a train crossing over a tall bridge-1.mp4",
+            "vbench/dynamic_degree/a train crossing over a tall bridge-1.mp4",
+            "vbench/motion_smoothness/a train crossing over a tall bridge-1.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A person is squat",
+        "prompt": "A person is squatting. Realistic, Indoor lighting, Casual",
+        "seed": 447911,
+        "output_path": [
+            "vbench/human_action/A person is squat-3.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a traffic light on the left of a fire hydrant, front view",
+        "prompt": "A traffic light is to the left of a fire hydrant, in a front view shot. Realistic, Natural lighting, Casual",
+        "seed": 385270,
+        "output_path": [
+            "vbench/spatial_relationship/a traffic light on the left of a fire hydrant, front view-0.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "mansion",
+        "prompt": "A large, luxurious mansion with multiple stories and ornate architectural details. Realistic, Natural lighting, Formal",
+        "seed": 331986,
+        "output_path": [
+            "vbench/scene/mansion-0.mp4",
+            "vbench/background_consistency/mansion-0.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "Vincent van Gogh is painting in the room",
+        "prompt": "Vincent van Gogh is painting in the room. Realistic, Indoor lighting, Professional",
+        "seed": 675779,
+        "output_path": [
+            "vbench/overall_consistency/Vincent van Gogh is painting in the room-2.mp4",
+            "vbench/aesthetic_quality/Vincent van Gogh is painting in the room-2.mp4",
+            "vbench/imaging_quality/Vincent van Gogh is painting in the room-2.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "Flying through fantasy landscapes.",
+        "prompt": "Flying through magical, dreamlike terrains. Fantasy, Soft lighting",
+        "seed": 695589,
+        "output_path": [
+            "vbench/overall_consistency/Flying through fantasy landscapes.-4.mp4",
+            "vbench/aesthetic_quality/Flying through fantasy landscapes.-4.mp4",
+            "vbench/imaging_quality/Flying through fantasy landscapes.-4.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a banana",
+        "prompt": "A yellow, curved fruit with a bumpy skin. Realistic, Natural lighting, Casual",
+        "seed": 505254,
+        "output_path": [
+            "vbench/object_class/a banana-1.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a potted plant",
+        "prompt": "a plant in a pot. Realistic, Natural lighting, Peaceful",
+        "seed": 152915,
+        "output_path": [
+            "vbench/object_class/a potted plant-3.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A tranquil tableau of in the corner of the minimalist tea room, a bonsai tree added a touch of nature's beauty to the otherwise simple and elegant space",
+        "prompt": "In the corner of the minimalist tea room, a tranquil scene as a bonsai tree adds a touch of nature's beauty to the simple and elegant space. Realistic, Indoor lighting, Peaceful",
+        "seed": 289524,
+        "output_path": [
+            "vbench/temporal_flickering/A tranquil tableau of in the corner of the minimalist tea room, a bonsai tree added a touch of nature's beauty to the otherwise simple and elegant space-3.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "A boat sailing leisurely along the Seine River with the Eiffel Tower in background, animated style",
+        "prompt": "A boat sailing gently on the Seine River with the Eiffel Tower in the background, animated style. Natural lighting, Peaceful",
+        "seed": 999108,
+        "output_path": [
+            "vbench/appearance_style/A boat sailing leisurely along the Seine River with the Eiffel Tower in background, animated style-0.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a cat",
+        "prompt": "a cat. Realistic, Natural indoor lighting, Peaceful",
+        "seed": 209066,
+        "output_path": [
+            "vbench/object_class/a cat-2.mp4"
+        ]
+    },
+    {
+        "underlying_prompt": "a handbag and a tie",
+        "prompt": "A handbag and a tie. Realistic, Indoor lighting, Casual",
+        "seed": 31649,
+        "output_path": [
+            "vbench/multiple_objects/a handbag and a tie-3.mp4"
+        ]
+    }
+]
