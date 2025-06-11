@@ -60,7 +60,8 @@ class MaybeOffloadedTensor:
         self.name = name
         self.layer_num = layer_num
         self.is_offload_enabled = not GLOBAL_CONFIG['offloading']['global_disable_offloading'] and is_offload_enabled[name]
-        assert not (self.is_offload_enabled == True and name == 'attn.lse_constants' and GLOBAL_CONFIG['attn']['provider'] == 'triton'), "LSE constants cannot be offloaded for Triton because they are passed in as a tuple. You will need to implement this manually yourself."
+        assert not (self.is_offload_enabled == True and name == 'attn.lse_constants'), "LSE constants cannot be offloaded (i) in Triton because they are passed in as a tuple. You will need to implement this manually yourself; and (ii) in CUDA because they are padded to 16-byte TMA-aligned tensors, and offloading with non-contiguous tensors is not yet tested."
+        assert not (self.is_offload_enabled == True and name == 'attn.indices' and GLOBAL_CONFIG['attn']['provider'] == 'cuda'), "Indices cannot be offloaded in CUDA because they are padded to 16-byte TMA-aligned tensors, and offloading with non-contiguous tensors is not yet tested."
         # Choose a pipeline slot for this layer using modulo:
         self.layer_key = layer_num % PIPELINE_DEPTH
         self.device = device
@@ -74,6 +75,7 @@ class MaybeOffloadedTensor:
             self.gpu_tensor = [None for _ in range(GLOBAL_CONFIG['num_model_invocations_per_inference_step'])]
         # Will store the original shape of the tensor so we can reload properly
         self.real_shape = [None for _ in range(GLOBAL_CONFIG['num_model_invocations_per_inference_step'])]
+        self.real_stride = [None for _ in range(GLOBAL_CONFIG['num_model_invocations_per_inference_step'])]
         self.load_completed_event = None
 
         self.model_invocation_count = 0
@@ -104,7 +106,8 @@ class MaybeOffloadedTensor:
             f"Tensor {self.name} is too large to offload - try adjusting MaybeOffloadedTensor.LARGE_BUF_SIZE (requested {gpu_tensor.numel()} elements, available {self.cpu_buf[self.get_cur_model_invocation_key()].numel()} elements)"
         )
         # Record the original shape so we can create a matching GPU tensor on load
-        self.real_shape[self.get_cur_model_invocation_key()] = gpu_tensor.shape
+        self.real_shape[self.get_cur_model_invocation_key()] = gpu_tensor.size()
+        self.real_stride[self.get_cur_model_invocation_key()] = gpu_tensor.stride()          # <── store the stride
         # Perform copy on our dedicated self.offload_stream
         self.offload_stream.wait_stream(torch.cuda.current_stream())
         with torch.cuda.stream(self.offload_stream):
@@ -140,28 +143,41 @@ class MaybeOffloadedTensor:
 
         :return: The GPU tensor now loaded into the correct slot.
         """
-        # no op if the tensor does not exist yet
-        if self.real_shape[self.get_cur_model_invocation_key()] is None:
+        key  = self.get_cur_model_invocation_key()
+        size = self.real_shape[key]
+        if size is None:           # nothing has been off-loaded yet
             return None
-        cur_real_shape = self.real_shape[self.get_cur_model_invocation_key()]
+
         if not self.is_offload_enabled:
-            return self.gpu_tensor[self.get_cur_model_invocation_key()]
-        # Allocate a GPU tensor if the slot is currently None / used by a different shape (happens when switching between double and single stream block)
-        if gpu_tensors[self.name][self.layer_key] is None or gpu_tensors[self.name][self.layer_key].shape != cur_real_shape:
-            gpu_tensors[self.name][self.layer_key] = torch.empty(
-                cur_real_shape, dtype=self.cpu_buf[self.get_cur_model_invocation_key()].dtype, device=self.device
+            return self.gpu_tensor[key]
+
+        stride = self.real_stride[key]
+
+        # (re)allocate the GPU slot **with identical strides**
+        slot = gpu_tensors[self.name]
+        need_new = (
+            slot[self.layer_key] is None
+            or slot[self.layer_key].shape  != size
+            or slot[self.layer_key].stride() != stride
+        )
+        if need_new:
+            slot[self.layer_key] = torch.empty_strided(   # <── preserves layout
+                size, stride,
+                dtype=self.cpu_buf[key].dtype,
+                device=self.device,
             )
 
-        gpu_tensor = gpu_tensors[self.name][self.layer_key]
+        gpu_view = slot[self.layer_key]      # this is already non-contiguous if stride says so
 
-        # Asynchronous copy from pinned CPU memory to GPU
+        # copy row-major CPU view → strided GPU view
+        flat_src = self.cpu_buf[key][:gpu_view.numel()]
         self.load_stream.wait_stream(torch.cuda.current_stream())
         with torch.cuda.stream(self.load_stream):
-            gpu_tensor.copy_(self.cpu_buf[self.get_cur_model_invocation_key()][ :gpu_tensor.numel()].view(gpu_tensor.shape), non_blocking=True)
-            gpu_tensor.record_stream(self.offload_stream)
- 
-        return gpu_tensor
+            gpu_view.copy_(flat_src.view(size), non_blocking=True)
+            gpu_view.record_stream(self.offload_stream)
 
+        return gpu_view
+    
     def load_async_wait(self):
         """
         Instruct the current (default) stream to wait for the self.offload_stream.

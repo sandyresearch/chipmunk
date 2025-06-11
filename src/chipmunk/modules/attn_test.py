@@ -8,7 +8,6 @@ import chipmunk.ops
 from chipmunk.util import AttnStorage, LayerCounter
 from chipmunk.ops import bitpack, bitunpack
 import triton
-import pickle
 
 # Initialized based on sequence shape
 singleton_static_mask = None
@@ -84,9 +83,7 @@ class SparseDiffAttn(nn.Module):
 
         qg = cs.shape[-2]
         n = cs.shape[-1]
-        
-        if singleton_video_query_groups is not None and singleton_static_mask is not None:
-            mask = (mask * singleton_video_query_groups[..., :qg, :n]) | singleton_static_mask[..., :qg, :n]
+        mask = (mask * singleton_video_query_groups[..., :qg, :n]) | singleton_static_mask[..., :qg, :n]
 
         return mask
 
@@ -103,59 +100,69 @@ class SparseDiffAttn(nn.Module):
         attn_kernel_config = get_kernel_config_attn()   
         bm = attn_kernel_config['bm']
         layer = self.layer_num
-
         multiple_of = attn_kernel_config['counts_multiple_of']
-        indices_pad_to = attn_kernel_config['indices_pad_to']
         provider = attn_config['provider']
-
+        indices_pad_to = attn_kernel_config['indices_pad_to']
+        
         if layer < attn_config['first_n_dense_layers']:
             o, _ = chipmunk.ops.dense_attn(q, k, v)
+            # o_ref = F.scaled_dot_product_attention(q, k, v)
+            # assert torch.allclose(o, o_ref, atol=1e-1, rtol=1e-1), breakpoint()
             return o
-
         # ─────────── FULL STEP ───────────
         if do_full_step:
             if inference_step == 0:
-                o, lse = chipmunk.ops.dense_attn(q, k, v)         
+                o, lse = chipmunk.ops.dense_attn(q, k, v)                
+                # o_ref = F.scaled_dot_product_attention(q, k, v)
+                # assert torch.allclose(o, o_ref, atol=1e-1, rtol=1e-1), breakpoint()
                 self.storage.set_lse_constants(lse)
                 return o
 
             elif inference_step == 1 or attn_config['recompute_mask']:
                 prev_lse = self.storage.get_lse_constants()
                 o, bs, lse = chipmunk.ops.dense_colsum_attn(q, k, v, prev_lse)
-                indices_count = int(multiple_of * round((attn_config['top_keys'] * k.shape[-2]) / multiple_of))
+                # o_ref = F.scaled_dot_product_attention(q, k, v)
+                # assert torch.allclose(o, o_ref, atol=1e-1, rtol=1e-1), breakpoint()
+                self.storage.set_lse_constants(lse)
+
+                tk = int(multiple_of * round((attn_config['top_keys'] * k.shape[-2]) / multiple_of))
                 
                 if attn_config['should_compress_indices']:
-                    mask = self.random_and_topk(bs, indices_count) if indices_count > 0 else singleton_static_mask[..., :bs.shape[-2], :bs.shape[-1]]
+                    mask = self.random_and_topk(bs, tk) if tk > 0 else singleton_static_mask[..., :bs.shape[-2], :bs.shape[-1]]
                     packed, mask_shape = bitpack(mask)
                     self.mask_shape[self.layer_counter.cur_model_invocation_per_step] = mask_shape
                     self.storage.set_indices(packed)
                     inds, counts = chipmunk.ops.mask_to_indices(mask, multiple_of, indices_pad_to)
                     inds = inds[:,:,:,:k.shape[-2]]
-                
                 else:
-                    inds = torch.topk(bs, k=indices_count, dim=-1).indices
-                    counts = torch.full((q.shape[0], q.shape[1], triton.cdiv(q.shape[-2], bm)), indices_count, device=q.device, dtype=torch.int32)
+                    kseq = k.shape[-2]
+                    kgroups = (kseq + bm - 1) // bm
+                    bs = bs[..., :kgroups, :kseq]
+                    inds = torch.topk(bs, k=tk, dim=-1).indices
+                    counts = torch.full((q.shape[0], q.shape[1], triton.cdiv(q.shape[-2], bm)), tk, device=q.device, dtype=torch.int32)
                     # Pad the stride, but not the shape, of indices so that the TMA stride gets aligned to 16 bytes
-                    padding_amount = (q.shape[-2] - indices_count + indices_pad_to - 1) // indices_pad_to * indices_pad_to
+                    padding_amount = (q.shape[-2] - tk + indices_pad_to - 1) // indices_pad_to * indices_pad_to
                     inds = torch.cat([inds, torch.empty((*counts.shape, padding_amount), device=q.device, dtype=torch.int32)], dim=-1).to(torch.int32)
                     inds = inds[:,:,:,:k.shape[-2]]
                     self.storage.set_indices(inds)
                     self.storage.set_counts(counts)
+                
             else:
                 o, _ = chipmunk.ops.dense_attn(q, k, v)
+                
 
             if not attn_config['recompute_mask']:
                 if attn_config['should_compress_indices']:
                     packed         = self.storage.get_indices()
                     mask           = bitunpack(packed, self.mask_shape[self.layer_counter.cur_model_invocation_per_step])
                     inds, counts   = chipmunk.ops.mask_to_indices(mask, multiple_of, indices_pad_to)
-                    inds = inds[:,:,:,:k.shape[-2]]
                 else:
                     inds   = self.storage.get_indices()
                     counts = self.storage.get_counts()
             
-            if provider == 'cuda': o_cache = o.clone()
-            else:                  o_cache = o
+            # Our CUDA kernel will write to o in place, so we need to clone it
+            if attn_config['provider'] == 'cuda':  o_cache = o.clone()
+            else:                                 o_cache = o
             
             o_cache = chipmunk.ops.csp_attn(q, k, v, inds, counts, o_cache, -1)
             
@@ -173,8 +180,11 @@ class SparseDiffAttn(nn.Module):
             counts = self.storage.get_counts()
         
         o = self.storage.get_out_cache()
-        if provider == 'cuda': o = o.clone()
-        o = chipmunk.ops.csp_attn(q, k, v, inds, counts, o, 1)
+        
+        if not self.storage.out_cache.is_offload_enabled and attn_config['provider'] == 'cuda':
+            # Our kernel will write to o in place, so we need to clone it if it's not offloaded
+            o = o.clone()
+        o = chipmunk.ops.csp_attn(q, k, v, inds, counts, o, 1)        
         
         return o
     
@@ -183,7 +193,7 @@ class SparseDiffAttn(nn.Module):
             out = F.scaled_dot_product_attention(q, k, v)
             self.layer_counter.increment()
             return out
-
+        
         do_full_step = self.layer_counter.should_do_full_attn_step()
         inference_step = self.layer_counter.cur_inference_step
         out = self._fast_attention(q, k, v, inference_step, do_full_step)

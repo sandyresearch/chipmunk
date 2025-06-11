@@ -295,13 +295,6 @@ template<int D> struct attn_fwd_template {
             neg_infty(args.state.max_vec);
             // neg_infty(args.state.max_vec_scaled);
             warpgroup::sync(warpgroup::groupid());
-
-            // printf("o_reg %d\n", sizeof(args.state.o_reg));
-            // printf("max_vec_scaled %d\n", sizeof(args.state.max_vec_scaled));
-            // printf("max_vec_last_scaled %d\n", sizeof(args.state.max_vec_last_scaled));
-            // printf("norm_vec %d\n", sizeof(args.state.norm_vec));
-            // printf("att_block %d\n", sizeof(args.state.att_block));
-            // printf("att_block_mma %d\n", sizeof(args.state.att_block_mma));
         }
         __device__ static inline void compute(consumer_compute_args<layout> args) {
             constexpr float TEMPERATURE_SCALE = (D == 128) ? 0.08838834764f*1.44269504089f : 0.125f*1.44269504089f;

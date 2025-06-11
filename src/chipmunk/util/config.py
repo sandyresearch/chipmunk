@@ -82,12 +82,14 @@ def get_kernel_config_attn():
         return {
             'bm': 192,
             'counts_multiple_of': 64,
+            'indices_pad_to': 1,
         }
     elif GLOBAL_CONFIG['attn']['provider'] == 'cuda':
         # CUDA-based FA3 uses a blocksize of 192x~128
         return {
             'bm': 192,
-            'counts_multiple_of': 128 if GLOBAL_CONFIG['attn']['pad_qkv_before_kernel'] else 112,
+            'counts_multiple_of': 112,
+            'indices_pad_to': 4,
         }
     else:
         raise ValueError(f"Invalid provider: {GLOBAL_CONFIG['attn']['provider']}")
