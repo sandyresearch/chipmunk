@@ -41,7 +41,6 @@ BASE_CONFIG = {
 
         'recompute_mask': True,
         'should_compress_indices': True,
-        'pad_qkv_before_kernel': True,
 
         'provider': 'triton',
     },

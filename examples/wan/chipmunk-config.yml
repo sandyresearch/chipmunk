@@ -20,7 +20,6 @@ attn:
   # If schedule is not None, will override full_step_every
   full_step_every: 10
   provider: triton
-  pad_qkv_before_kernel: true
 
 offloading:
   global_disable_offloading: false
