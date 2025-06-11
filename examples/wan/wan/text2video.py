@@ -228,7 +228,9 @@ class WanT2V:
 
             arg_c = {'context': context, 'seq_len': seq_len}
             arg_null = {'context': context_null, 'seq_len': seq_len}
-            if seq_len == 32760:
+            if seq_len == 75600:
+                seq_shape = (21, 45, 80)
+            elif seq_len == 32760:
                 seq_shape = (21, 45, 80)
             elif seq_len == 21840:
                 seq_shape = (21, 30, 52)

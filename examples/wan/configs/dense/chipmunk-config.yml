@@ -7,7 +7,7 @@ mlp:
   is_enabled: false
 
 attn:
-  is_enabled: true
+  is_enabled: false
   top_keys: 0.1
   random_keys: 0.01
   # Number of local voxels to use for static local attention
@@ -23,14 +23,14 @@ attn:
   pad_qkv_before_kernel: true
 
 offloading:
-  global_disable_offloading: false
+  global_disable_offloading: true
   attn.out_cache: true
   attn.indices: true
   attn.counts: true
   text_encoders: true
 
 step_caching:
-  is_enabled: true
+  is_enabled: false
   # Feel free to play with this -- it's pretty stable across different schedules!
   skip_step_schedule: !!set
     ? 7

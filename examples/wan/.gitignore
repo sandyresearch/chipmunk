@@ -14,7 +14,7 @@
 *.pth
 *.ckpt
 *.safetensors
-*.json
+# *.json
 # *.txt
 *.backup
 *.pkl

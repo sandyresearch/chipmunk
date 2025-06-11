@@ -14,7 +14,7 @@ from PIL import Image
 
 import wan
 from wan.configs import WAN_CONFIGS, SIZE_CONFIGS, MAX_AREA_CONFIGS, SUPPORTED_SIZES
-from wan.utils.prompt_extend import DashScopePromptExpander, QwenPromptExpander
+# from wan.utils.prompt_extend import DashScopePromptExpander, QwenPromptExpander
 from wan.utils.utils import cache_video, cache_image, str2bool
 import chipmunk.util.config
 EXAMPLE_PROMPT = {
@@ -87,6 +87,13 @@ def _parse_args():
         default="chipmunk-config.yml",
         help="The path to the chipmunk config file."
     )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="outputs",
+        help="The path to the output directory."
+    )
+
     parser.add_argument(
         "--task",
         type=str,
@@ -472,6 +479,9 @@ def generate(args):
                                                                      "_")[:50]
             suffix = '.png' if "t2i" in args.task else '.mp4'
             args.save_file = f"{args.task}_{args.size.replace('*','x') if sys.platform=='win32' else args.size}_{args.ulysses_size}_{args.ring_size}_{formatted_prompt}_{formatted_time}" + suffix
+
+            args.save_file = os.path.join(args.output_dir, args.save_file)
+            os.makedirs(args.output_dir, exist_ok=True)
 
         if "t2i" in args.task:
             logging.info(f"Saving generated image to {args.save_file}")
