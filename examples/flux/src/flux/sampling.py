@@ -276,8 +276,6 @@ def _denoise_inner(
     inference_step = 0
     for t_curr, t_prev in zip(timesteps[:-1], timesteps[1:]):
         t_vec = torch.full((img.shape[0],), t_curr, dtype=img.dtype, device=img.device)
-        img_old = img.clone()
-        was_any_nan = img_old.isnan().any().item()
         pred = model(
             img=torch.cat((img, img_cond), dim=-1) if img_cond is not None else img,
             img_ids=img_ids,
@@ -287,10 +285,7 @@ def _denoise_inner(
             timesteps=t_vec,
             guidance=guidance_vec,
         )
-        img = img_old + (t_prev - t_curr) * pred
-        if img.isnan().any(): 
-            print('was_any_nan', was_any_nan, 'is_any_nan', img_old.isnan().any().item())
-            breakpoint()
+        img = img + (t_prev - t_curr) * pred
         if step_fn is not None:
             step_fn(inference_step)
         inference_step += 1
