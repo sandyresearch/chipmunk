@@ -32,13 +32,13 @@ def dense_colsum_attn(q, k, v, p):
     Compute variable length attention in ThunderKittens.
     """
     assert q.shape == k.shape and q.shape == v.shape, "Input shape mismatch - q: {}, k: {}, v: {}".format(q.shape, k.shape, v.shape)
-    assert p.shape == (q.shape[0], q.shape[1], q.shape[2], 1), "P shape mismatch - p: {}".format(p.shape)
     
     provider = GLOBAL_CONFIG['attn']['provider']
     pad_to = get_kernel_config_attn()['bm']
     
     if provider == 'cuda':
         # CUDA implementation
+        assert p.shape == (q.shape[0], q.shape[1], q.shape[2], 1), "P shape mismatch - p: {}".format(p.shape)
         o, cs, l = torch.ops.chipmunk.dense_colsum_attn(q, k, v, p)
         assert l.shape == (q.shape[0], q.shape[1], q.shape[2], 1), "L shape mismatch - l: {}, q: {}".format(l[0].shape, q.shape)
         
@@ -46,6 +46,8 @@ def dense_colsum_attn(q, k, v, p):
         # Triton implementation
         assert type(p) == tuple
         assert p[0].is_contiguous() and p[1].is_contiguous(), "P must be contiguous"
+        assert p[0].shape == (q.shape[0], q.shape[1], q.shape[2], 1), "P shape mismatch - p[0]: {}".format(p[0].shape)
+        assert p[1].shape == (q.shape[0], q.shape[1], q.shape[2], 1), "P shape mismatch - p[1]: {}".format(p[1].shape)
         
         if q.shape[-2] % pad_to == 0:
             o, cs, l = chipmunk.triton.dense_colsum_attn(q, k, v, p)

@@ -26,7 +26,7 @@ attn:
   recompute_mask: false
   should_compress_indices: false
 
-  provider: cuda
+  provider: triton
 
 offloading:
   global_disable_offloading: true
