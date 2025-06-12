@@ -8,10 +8,6 @@ from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.models.modeling_utils import ModelMixin
 
 from .attention import flash_attention
-from chipmunk.modules import SparseDiffMlp, SparseDiffAttn
-from chipmunk.util import LayerCounter, GLOBAL_CONFIG
-from chipmunk.util.storage.offloaded_tensor import PIPELINE_DEPTH
-from chipmunk.ops.voxel import voxel_chunk_no_padding, reverse_voxel_chunk_no_padding
 from einops import rearrange
 __all__ = ['WanModel']
 
@@ -136,6 +132,9 @@ class WanSelfAttention(nn.Module):
         self.norm_k = WanRMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
 
         # Only initialize SparseDiffAttn if this is not a subclass initialization
+        from chipmunk.util import LayerCounter
+        from chipmunk.modules import SparseDiffAttn
+
         if self.__class__ == WanSelfAttention:
             layer_num, layer_counter = LayerCounter.build_for_layer(is_attn_sparse=True, is_mlp_sparse=False)
             self.attn = SparseDiffAttn(layer_num, layer_counter)
@@ -541,6 +540,10 @@ class WanModel(ModelMixin, ConfigMixin):
             List[Tensor]:
                 List of denoised video tensors with original input shapes [C_out, F, H / 8, W / 8]
         """
+        from chipmunk.util.storage.offloaded_tensor import PIPELINE_DEPTH
+        from chipmunk.ops.voxel import voxel_chunk_no_padding, reverse_voxel_chunk_no_padding
+        from chipmunk.util import GLOBAL_CONFIG
+        from chipmunk.util.layer_counter import singleton as layer_counter
         ###############################
         voxel_shape = (4, 6, 8)
         if self.model_type == 'i2v' or self.model_type == 'flf2v':
@@ -576,17 +579,17 @@ class WanModel(ModelMixin, ConfigMixin):
                 sinusoidal_embedding_1d(self.freq_dim, t).float())
             e0 = self.time_projection(e).unflatten(1, (6, self.dim))
             assert e.dtype == torch.float32 and e0.dtype == torch.float32
-
+                
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
             if inference_step in GLOBAL_CONFIG['step_caching']['skip_step_schedule']:
                 # Increment singleton layer counter
-                # self.blocks[0].self_attn.attn.layer_counter.cur_inference_step += 1
-                self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step += 1
-                if self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step == GLOBAL_CONFIG['num_model_invocations_per_inference_step']:
-                    self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step = 0
-                    self.blocks[0].self_attn.attn.layer_counter.cur_inference_step += 1
+                # layer_counter.cur_inference_step += 1
+                layer_counter.cur_model_invocation_per_step += 1
+                if layer_counter.cur_model_invocation_per_step == GLOBAL_CONFIG['num_model_invocations_per_inference_step']:
+                    layer_counter.cur_model_invocation_per_step = 0
+                    layer_counter.cur_inference_step += 1
 
-                x = self.step_cache[self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step].to(device)
+                x = self.step_cache[layer_counter.cur_model_invocation_per_step].to(device)
                 x = self.head(x, e)
 
                 x = self.unpatchify(x, grid_sizes)
@@ -627,7 +630,7 @@ class WanModel(ModelMixin, ConfigMixin):
         if GLOBAL_CONFIG['step_caching']['is_enabled']:
             if not hasattr(self, 'step_cache'):
                 self.step_cache = [None, None]
-            self.step_cache[self.blocks[0].self_attn.attn.layer_counter.cur_model_invocation_per_step] = x.to('cpu', non_blocking=True)
+            self.step_cache[layer_counter.cur_model_invocation_per_step] = x.to('cpu', non_blocking=True)
 
         x = self.head(x, e)
 

@@ -5,7 +5,8 @@ from chipmunk.util import get_kernel_config_attn, GLOBAL_CONFIG
 def pad_qkvo_tensor(tensor, pad_to):
     n = tensor.shape[-2]
     padded_n = ((n + pad_to - 1) // pad_to) * pad_to
-    padded_tensor = torch.empty(tensor.shape[:-2] + (padded_n, tensor.shape[-1]), dtype=tensor.dtype, device=tensor.device)
+    # IMPORTANT: Do not use torch.empty here, it will cause NaN in the Triton kernel!
+    padded_tensor = torch.zeros(tensor.shape[:-2] + (padded_n, tensor.shape[-1]), dtype=tensor.dtype, device=tensor.device)
     padded_tensor[..., :n, :] = tensor
     return padded_tensor
 
@@ -20,12 +21,13 @@ def dense_attn(q, k, v):
         assert lse[0].shape == (q.shape[0], q.shape[1], q.shape[2], 1), "LSE shape mismatch"
         assert lse[1].shape == (q.shape[0], q.shape[1], q.shape[2], 1), "LSE shape mismatch"
     else:
-        o, lse = torch.ops.chipmunk.dense_attn(q, k,v )
+        o, lse = torch.ops.chipmunk.dense_attn(q, k, v)
         assert lse.shape == (q.shape[0], q.shape[1], q.shape[2], 1), "LSE shape mismatch"
     
     assert o.shape == q.shape, "Output shape mismatch"
     
     return o, lse
+
 
 def dense_colsum_attn(q, k, v, p):
     """
