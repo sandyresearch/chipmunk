@@ -32,6 +32,12 @@ from genmo.mochi_preview.dit.joint_model.utils import (
     pad_and_split_xy,
 )
 
+import chipmunk
+from chipmunk.util.config import GLOBAL_CONFIG
+from chipmunk.modules.attn import SparseDiffAttn
+from chipmunk.util.layer_counter import LayerCounter
+from chipmunk.util.storage.offloaded_tensor import PIPELINE_DEPTH
+
 COMPILE_FINAL_LAYER = os.environ.get("COMPILE_DIT") == "1"
 COMPILE_MMDIT_BLOCK = os.environ.get("COMPILE_DIT") == "1"
 
@@ -105,6 +111,13 @@ class AsymmetricAttention(nn.Module):
         )
         self.proj_x = LoraLinear(dim_x, dim_x, **proj_lora_kwargs)
         self.proj_y = LoraLinear(dim_x, dim_y, **proj_lora_kwargs) if update_y else nn.Identity()
+
+        if os.environ.get("CHIPMUNK_ATTENTION") == "1":
+            layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
+            self.chipmunk_attention = SparseDiffAttn(
+                layer_num=layer_num,
+                layer_counter=layer_counter,
+            )
 
     def run_qkv_y(self, y):
         cp_rank, cp_size = cp.get_cp_rank_size()
@@ -246,6 +259,8 @@ class AsymmetricAttention(nn.Module):
                 out = self.sdpa_attention(q, k, v)  # (B, local_heads, seq_len, head_dim)
             elif self.attention_mode == "sage":
                 out = self.sage_attention(q, k, v)  # (B, local_heads, seq_len, head_dim)
+            elif self.attention_mode == "chipmunk":
+                out = self.chipmunk_attention(q, k, v)  # (B, local_heads, seq_len, head_dim)
             else:
                 raise ValueError(f"Unknown attention mode: {self.attention_mode}")
 
@@ -691,6 +706,19 @@ class AsymmDiTJoint(nn.Module):
             x, c, y_feat, rope_cos, rope_sin = self.prepare(x, sigma, y_feat[0], y_mask[0])
         del y_mask
 
+        if GLOBAL_CONFIG['patchify']['is_enabled']:
+            voxel_shape = (4, 6, 8) # 192
+
+            x = rearrange(x.unsqueeze(1), 'b nh (t h w) d -> b nh t h w d', t=T, h=H // self.patch_size, w=W // self.patch_size)
+            x = chipmunk.ops.voxel.voxel_chunk_no_padding(x, voxel_shape=voxel_shape).squeeze(1)
+
+            rope_cos = rearrange(rope_cos.unsqueeze(0), 'b (t h w) nh c -> b nh t h w c', t=T, h=H // self.patch_size, w=W // self.patch_size)
+            rope_sin = rearrange(rope_sin.unsqueeze(0), 'b (t h w) nh c -> b nh t h w c', t=T, h=H // self.patch_size, w=W // self.patch_size)
+            rope_cos = chipmunk.ops.voxel.voxel_chunk_no_padding(rope_cos, voxel_shape=voxel_shape)
+            rope_sin = chipmunk.ops.voxel.voxel_chunk_no_padding(rope_sin, voxel_shape=voxel_shape)
+            rope_cos = rearrange(rope_cos.squeeze(0), 'nh n c -> n nh c')
+            rope_sin = rearrange(rope_sin.squeeze(0), 'nh n c -> n nh c')
+
         cp_rank, cp_size = cp.get_cp_rank_size()
         N = x.size(1)
         M = N // cp_size
@@ -705,6 +733,10 @@ class AsymmDiTJoint(nn.Module):
             rope_sin = rope_sin.narrow(1, cp_rank * local_heads, local_heads)
 
         for i, block in enumerate(self.blocks):
+            if os.environ.get("CHIPMUNK_ATTENTION") == "1" and not GLOBAL_CONFIG['offloading']['global_disable_offloading']:
+                next_block = self.blocks[(i + len(self.blocks) + PIPELINE_DEPTH - 1) % len(self.blocks)]
+                next_block.attn.chipmunk_attention.storage.load_async()
+                block.attn.chipmunk_attention.storage.load_async_wait()
             x, y_feat = block(
                 x,
                 c,
@@ -723,6 +755,12 @@ class AsymmDiTJoint(nn.Module):
         patch = x.size(2)
         x = cp.all_gather(x)
         x = rearrange(x, "(G B) M P -> B (G M) P", G=cp_size, P=patch)
+
+        if GLOBAL_CONFIG['patchify']['is_enabled']:
+            og_shape = (1, 1, T, H // self.patch_size, W // self.patch_size, self.patch_size ** 2 * self.out_channels)
+            x = chipmunk.ops.voxel.reverse_voxel_chunk_no_padding(x.unsqueeze(1), og_shape, voxel_shape=voxel_shape).squeeze(1)
+            x = rearrange(x, "b t h w d -> b (t h w) d")
+
         x = rearrange(
             x,
             "B (T hp wp) (p1 p2 c) -> B c T (hp p1) (wp p2)",

@@ -1,4 +1,6 @@
 #! /usr/bin/env python
+from chipmunk.util import config
+
 import json
 import os
 import time
@@ -18,6 +20,8 @@ from genmo.mochi_preview.pipelines import (
     linear_quadratic_schedule,
 )
 
+CHIPMUNK_ATTENTION = os.environ.get("CHIPMUNK_ATTENTION", "0") == "1"
+
 pipeline = None
 model_dir_path = None
 lora_path = None
@@ -34,6 +38,7 @@ def configure_model(model_dir_path_, lora_path_, cpu_offload_, fast_model_=False
 
 def load_model():
     global num_gpus, pipeline, model_dir_path, lora_path
+
     if pipeline is None:
         MOCHI_DIR = model_dir_path
         print(f"Launching with {num_gpus} GPUs. If you want to force single GPU mode use CUDA_VISIBLE_DEVICES=0.")
@@ -44,6 +49,7 @@ def load_model():
                 model_path=f"{MOCHI_DIR}/dit.safetensors",
                 lora_path=lora_path,
                 model_dtype="bf16",
+                attention_mode="chipmunk" if CHIPMUNK_ATTENTION else "sdpa",
             ),
             decoder_factory=DecoderModelFactory(
                 model_path=f"{MOCHI_DIR}/decoder.safetensors",
@@ -185,21 +191,23 @@ def generate_cli(
                 )
                 click.echo(f"Video {i+1} generated at: {output_path}")
     else:
-        output_path = generate_video(
-            prompt,
-            negative_prompt,
-            width,
-            height,
-            num_frames,
-            seed,
-            cfg_scale,
-            num_steps,
-            threshold_noise=threshold_noise,
-            linear_steps=linear_steps,
-            output_dir=out_dir,
-        )
-        click.echo(f"Video generated at: {output_path}")
+        for i in range(4):
+            output_path = generate_video(
+                prompt,
+                negative_prompt,
+                width,
+                height,
+                num_frames,
+                seed,
+                cfg_scale,
+                num_steps,
+                threshold_noise=threshold_noise,
+                linear_steps=linear_steps,
+                output_dir=out_dir,
+            )
+            click.echo(f"Video generated at: {output_path}")
 
 
 if __name__ == "__main__":
+    config.load_from_file("chipmunk-config.yml")
     generate_cli()

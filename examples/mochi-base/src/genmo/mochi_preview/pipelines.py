@@ -41,6 +41,7 @@ from genmo.mochi_preview.vae.models import (
 )
 from genmo.mochi_preview.vae.vae_stats import dit_latents_to_vae_latents
 
+import chipmunk.util.config
 
 def load_to_cpu(p, weights_only=True):
     if p.endswith(".safetensors"):
@@ -604,6 +605,7 @@ class MultiGPUContext:
         local_rank,
         world_size,
     ):
+        chipmunk.util.config.load_from_file("chipmunk-config.yml")
         t = Timer()
         self.device = torch.device(f"cuda:{device_id}")
         print(f"Initializing rank {local_rank+1}/{world_size}")
