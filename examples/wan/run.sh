@@ -1,7 +1,6 @@
 CONFIG_DIR=configs/triton-test
 # CONFIG_DIR=configs/dense
 
-CUDA_VISIBLE_DEVICES=7 \
 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 python generate.py \
 --task t2v-14B \
