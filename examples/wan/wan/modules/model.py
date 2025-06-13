@@ -166,7 +166,7 @@ class WanSelfAttention(nn.Module):
         q, k, v = q.permute(0, 2, 1, 3).to(torch.bfloat16), k.permute(0, 2, 1, 3).to(torch.bfloat16), v.permute(0, 2, 1, 3).to(torch.bfloat16)
         x = self.attn(q, k, v)
         x = x.permute(0, 2, 1, 3)
-        self.attn.storage.complete_cur_layer()
+        # self.attn.storage.complete_cur_layer()
 
         # # output
         # x = flash_attention(
