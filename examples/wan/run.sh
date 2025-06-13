@@ -1,6 +1,4 @@
-CONFIG_DIR=configs/triton-test
-# CONFIG_DIR=configs/dense
-
+CONFIG_DIR=configs/cuda-test
 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 python generate.py \
 --task t2v-14B \

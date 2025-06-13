@@ -9,6 +9,12 @@ from diffusers.models.modeling_utils import ModelMixin
 
 from .attention import flash_attention
 from einops import rearrange
+from chipmunk.util.storage.offloaded_tensor import PIPELINE_DEPTH
+from chipmunk.ops.voxel import voxel_chunk_no_padding, reverse_voxel_chunk_no_padding
+from chipmunk.util import GLOBAL_CONFIG, LayerCounter
+from chipmunk.util.layer_counter import singleton as layer_counter
+from chipmunk.modules import SparseDiffAttn
+
 __all__ = ['WanModel']
 
 T5_CONTEXT_TOKEN_NUMBER = 512
@@ -132,9 +138,6 @@ class WanSelfAttention(nn.Module):
         self.norm_k = WanRMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
 
         # Only initialize SparseDiffAttn if this is not a subclass initialization
-        from chipmunk.util import LayerCounter
-        from chipmunk.modules import SparseDiffAttn
-
         if self.__class__ == WanSelfAttention:
             layer_num, layer_counter = LayerCounter.build_for_layer(is_attn_sparse=True, is_mlp_sparse=False)
             self.attn = SparseDiffAttn(layer_num, layer_counter)
@@ -540,10 +543,6 @@ class WanModel(ModelMixin, ConfigMixin):
             List[Tensor]:
                 List of denoised video tensors with original input shapes [C_out, F, H / 8, W / 8]
         """
-        from chipmunk.util.storage.offloaded_tensor import PIPELINE_DEPTH
-        from chipmunk.ops.voxel import voxel_chunk_no_padding, reverse_voxel_chunk_no_padding
-        from chipmunk.util import GLOBAL_CONFIG
-        from chipmunk.util.layer_counter import singleton as layer_counter
         ###############################
         voxel_shape = (4, 6, 8)
         if self.model_type == 'i2v' or self.model_type == 'flf2v':

@@ -39,8 +39,8 @@ class MaybeOffloadedTensor:
     """
 
     # Default buffer sizes for pinned CPU memory, tuned for typical shape sizes
-    LARGE_BUF_SIZE  = 1 * 32 * 150000 * 128 * torch.finfo(torch.bfloat16).bits // 8
-    MEDIUM_BUF_SIZE = 1 * 32 * 90000 * 128 * torch.finfo(torch.bfloat16).bits // 8
+    LARGE_BUF_SIZE  = int(0.5 * 1 * 32 * 150000 * 128 * torch.finfo(torch.bfloat16).bits // 8)
+    MEDIUM_BUF_SIZE = int(0.5 * 1 * 32 * 90000 * 128 * torch.finfo(torch.bfloat16).bits // 8)
     SMALL_BUF_SIZE  = 1 * 32 * 15000 * 128 * torch.finfo(torch.bfloat16).bits // 8
 
     @torch.compiler.disable # torch.compile fails to allocate pinned CPU memory :(
@@ -61,7 +61,7 @@ class MaybeOffloadedTensor:
         self.layer_num = layer_num
         self.is_offload_enabled = not GLOBAL_CONFIG['offloading']['global_disable_offloading'] and is_offload_enabled[name]
         assert not (self.is_offload_enabled == True and name == 'attn.lse_constants'), "LSE constants cannot be offloaded (i) in Triton because they are passed in as a tuple. You will need to implement this manually yourself; and (ii) in CUDA because they are padded to 16-byte TMA-aligned tensors, and offloading with non-contiguous tensors is not yet tested."
-        assert not (self.is_offload_enabled == True and name == 'attn.indices' and GLOBAL_CONFIG['attn']['provider'] == 'cuda'), "Indices cannot be offloaded in CUDA because they are padded to 16-byte TMA-aligned tensors, and offloading with non-contiguous tensors is not yet tested."
+        assert not (self.is_offload_enabled == True and name == 'attn.indices' and GLOBAL_CONFIG['attn']['provider'] == 'cuda' and GLOBAL_CONFIG['attn']['should_compress_indices'] == False), "Non-compressed indices cannot be offloaded in CUDA because they are padded to 16-byte TMA-aligned tensors, and offloading with non-contiguous tensors is not yet tested."
         # Choose a pipeline slot for this layer using modulo:
         self.layer_key = layer_num % PIPELINE_DEPTH
         self.device = device
@@ -69,7 +69,7 @@ class MaybeOffloadedTensor:
         self.load_stream = global_load_stream
         # Pre-allocate pinned CPU buffer to hold the tensor data
         if self.is_offload_enabled:
-            print(f"Offloaded tensor {name} allocated {cpu_buf_size} bytes of pinned CPU memory")
+            print(f"Offloaded tensor {name} allocated {cpu_buf_size} bytes of pinned CPU memory for {name} layer {layer_num}")
             self.cpu_buf = [torch.empty(cpu_buf_size, dtype=dtype, device="cpu", pin_memory=True) for _ in range(GLOBAL_CONFIG['num_model_invocations_per_inference_step'])]
         else:
             self.gpu_tensor = [None for _ in range(GLOBAL_CONFIG['num_model_invocations_per_inference_step'])]
