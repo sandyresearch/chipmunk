@@ -41,7 +41,8 @@ BASE_CONFIG = {
 
         'recompute_mask': True,
         'should_compress_indices': True,
-
+        'should_keep_tail_dense': False,
+        
         'provider': 'triton',
     },
     "offloading": {
