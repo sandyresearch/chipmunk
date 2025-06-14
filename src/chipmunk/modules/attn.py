@@ -22,6 +22,45 @@ class SparseDiffAttn(nn.Module):
         self.storage = AttnStorage(layer_num, init_names=['indices', 'out_cache'])
         self.mask_shape = [None] * GLOBAL_CONFIG['num_model_invocations_per_inference_step']
 
+    def initialize_1d_static_mask(self, q: Tensor):
+        attn_config = GLOBAL_CONFIG['attn']
+        kernel_config = get_kernel_config_attn()
+        bm = kernel_config['bm']
+        topk = attn_config['top_keys']
+        lw1d = attn_config['local_1d_window']
+
+        b, h, n, d = q.shape
+        qg = n // bm
+
+        # make mask a bit bigger to account for unbatched CFG
+        mask = torch.zeros((qg + 3, n + 512), device=q.device, dtype=torch.bool)
+
+        # Apply local 1D window
+        if lw1d > 0:
+            window_size = int(lw1d * n)
+            # Each query group (dim=0, a chunk of 192 queries) in [qg, n] attends to a local 1D window
+            query_groups = n // bm
+            
+            for qg in range(query_groups):
+                # Calculate the center position for this query group
+                center_pos = qg * bm + bm // 2
+                
+                # Define the window boundaries (ensuring we don't go out of bounds)
+                window_start = max(0, center_pos - window_size // 2)
+                window_end = min(n, center_pos + window_size // 2)
+                
+                # For the current query group, allow attention to tokens within the window
+                mask[qg, window_start:window_end] = True
+
+        mask = mask[None, None, :, :].expand(1, h, -1, -1).contiguous()
+        sparse_attn_query_groups = ((mask.sum(dim=-1, keepdim=True) + topk) < (n))
+
+        # Update singletons
+        global singleton_static_mask
+        global singleton_video_query_groups
+        singleton_static_mask = mask
+        singleton_video_query_groups = sparse_attn_query_groups
+
     def initialize_static_mask(self, seq_shape: Tuple, txt_len: int, local_heads_num: int, device: torch.device):
         if len(seq_shape) == 2:
             raise NotImplementedError("Not yet implemented for 2D sequences")
@@ -184,10 +223,14 @@ class SparseDiffAttn(nn.Module):
             self.layer_counter.increment()
             return out
 
+        if singleton_static_mask is None:
+            self.initialize_1d_static_mask(q)
+
         do_full_step = self.layer_counter.should_do_full_attn_step()
         inference_step = self.layer_counter.cur_inference_step
         out = self._fast_attention(q, k, v, inference_step, do_full_step)
         self.layer_counter.increment()
+        self.storage.complete_cur_layer()
         return out
 
 

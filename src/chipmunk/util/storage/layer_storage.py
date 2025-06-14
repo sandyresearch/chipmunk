@@ -1,6 +1,7 @@
 import torch
 from torch import Tensor
 from .offloaded_tensor import MaybeOffloadedTensor
+from chipmunk.util import GLOBAL_CONFIG
 
 class MlpStorage:
     def __init__(self, layer_num: int):
@@ -100,6 +101,9 @@ class AttnStorage:
         self.counts = None
         self.out_cache = None
         self.lse_constants = None
+
+        if GLOBAL_CONFIG['offloading']['global_disable_offloading']:
+            return
 
         # for name in init_names:
         if 'out_cache' in init_names:

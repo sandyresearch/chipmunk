@@ -40,7 +40,7 @@ def dense_colsum_attn(q, k, v, p):
     
     if provider == 'cuda':
         # CUDA implementation
-        assert p.shape == (q.shape[0], q.shape[1], q.shape[2], 1), "P shape mismatch - p: {}".format(p.shape)
+        assert p.shape == (q.shape[0], q.shape[1], q.shape[2], 1), "P shape mismatch - p: {}, q: {}".format(p.shape, q.shape)
         o, cs, l = torch.ops.chipmunk.dense_colsum_attn(q, k, v, p)
         assert l.shape == (q.shape[0], q.shape[1], q.shape[2], 1), "L shape mismatch - l: {}, q: {}".format(l[0].shape, q.shape)
         
