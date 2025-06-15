@@ -5,6 +5,10 @@
 
 Chipmunk ships all custom kernels as PyTorch extensions available under the `chipmunk.cuda` package. All tensors are expected to be **CUDA‑resident**, contiguous (except attention QKV inputs, which can be strided except for the embedding dimension). Shapes below omit batch B when the kernel is designed for B = 1; otherwise the full shape is given.
 
+### Update (6/15/2025)
+
+**6/15/2025:** ⚡️ Exciting news! Our attention kernels now support completely unpadded and arbitrarily strided inputs for Q, K, and V (i.e., BHND no longer need to be contiguous - only D does). This can save 5-10% of the E2E video generation time which was previously spent on making tensors contiguous and adding padding to them! *Note: If you play around with the indices and LSE tensors, you'll notice that they are always padded to a multiple of `N%4 == 0`. This is to align the TMA stride to a multiple of 16 bytes. Since this is never exposed to user-facing APIs, you don't need to worry about this unlness you're hacking on Chipmunk internals!*
+
 
 ### **Kernel Summary Table**
 
