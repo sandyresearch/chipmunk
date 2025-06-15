@@ -1,6 +1,21 @@
-# 🐿️ Chipmunk: Hardware-Aware Sparsity for Accelerated Video & Image Generation
 
-Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What if we could make those layers faster? **Chipmunk is a training-free method to accelerate diffusion transformers with hardware-aware, training-free dynamic sparsity**. Chipmunk caches attention weights and MLP activations from previous steps and dynamically computes a sparse “delta” against the cached weights. We make Chipmunk hardware-efficient through [128, 1] and [192, 1] column-sparsity patterns \+ a suite of optimized sparse attention and MLP CUDA kernels. Check out the [paper](https://arxiv.org/abs/2506.03275) for all the details.
+<p align="center">
+<h1 align="center">Chipmunk: Training-Free Acceleration of Diffusion Transformers with Dynamic Column-Sparse Deltas</h1>
+</p>
+<p align="center">
+  <p align="center">
+    <a href="https://x.com/austinsilveria">Austin Silveria</a><sup>1,3</sup>
+    ·
+    <a href="https://sohamgovande.com/">Soham Govande</a><sup>2</sup>
+    ·
+    <a href="https://danfu.org/">Dan Fu</a><sup>1-3</sup><br/>
+        <sup>1</sup>Together AI <sup>2</sup>Stanford University <sup>3</sup>UCSD
+  </p>
+  <h3 align="center">Accepted to EsFoMo@ICML2025 and YPS@MLSys2025</h3>
+  <h3 align="center"><a href="https://arxiv.org/abs/2506.08009">Paper</a> | <a href="https://sandyresearch.github.io">Blogs</a> | Video Tutorial (Coming Soon)</h3>
+</p>
+
+Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What if we could make those layers faster? **Chipmunk is a training-free method to accelerate diffusion transformers with hardware-aware, training-free dynamic sparsity**. Chipmunk caches attention weights and MLP activations from previous steps and dynamically computes a sparse “delta” against the cached weights. We make Chipmunk hardware-efficient through [128, 1] and [192, 1] column-sparsity patterns \+ a suite of optimized sparse attention and MLP CUDA kernels.
 
 *Developed in collaboration between Together AI, Hazy Research, and Sandy Research.*
 
@@ -140,10 +155,6 @@ Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block�
 [video-grid]: assets/videos/comparison-grid.mp4
 [speed]: assets/images/speed.png
 [comparison]: assets/images/chipmunk-comparison.png
-
-## 🤝 Contributors
-
-Austin Silveria, Soham Govande, Dan Fu
 
 ## Citation
 If you find this work useful, you can cite us as follows:
