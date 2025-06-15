@@ -2,15 +2,13 @@ mlp:
   is_enabled: true
   is_fp8: false
   top_keys: 0.3
-  
+
   random_keys: 0.05
   full_step_every: 10
   block_mask_cache: 2
   first_n_dense_layers: 2
-  # do not change below this line
-  counts_multiple_of: 256
-  bm: 128
-  mbm: 128
+
+  provider: triton
 
 patchify:
   is_enabled: true
@@ -20,17 +18,15 @@ patchify:
 
 attn:
   is_enabled: true
-  top_keys: 0.165
+  top_keys: 0.15
 
   full_step_every: 10
   full_step_schedule: ~
   first_n_dense_layers: 2
   recompute_mask: false
   should_compress_indices: false
-  # do not change below this line
-  counts_multiple_of: 112
-  pad_qkv_before_kernel: false
-  mbm: 192
+
+  provider: triton
 
 offloading:
   global_disable_offloading: true
@@ -44,3 +40,6 @@ offloading:
   attn.counts: false
   attn.lse_constants: false
   text_encoders: false
+
+step_caching:
+  is_enabled: false

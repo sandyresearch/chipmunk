@@ -19,10 +19,7 @@ attn:
 
   # If schedule is not None, will override full_step_every
   full_step_every: 10
-
-  # Do not change below this line -- kernel-specific business
-  pad_qkv_before_kernel: true
-  counts_multiple_of: 128
+  provider: cuda
 
 offloading:
   global_disable_offloading: false

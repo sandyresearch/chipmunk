@@ -38,6 +38,7 @@ template<int D, int NUM_WORKERS> struct attn_fwd_layout {
         kv_global K, V; 
         int *indices, *indices_counts;
         int3 q_stride, k_stride, v_stride;
+        int3 indices_stride;
     };
     struct input_block    { kv_tile k, v; };
     // struct scratch_block  { qo_tile q[NUM_WORKERS]; int indices[INPUT_PIPE_STAGES][KV_TILE_ROWS]; semaphore indices_bar[INPUT_PIPE_STAGES]; };
@@ -89,7 +90,7 @@ template<int D, int O_SCALE> struct attn_fwd_template {
     }
 
     struct producer {
-        __device__ static inline void load_indices(int *s_indices, int *g_indices, int iter, int3 indices_coord, const layout::qo_global &Q, const layout::kv_global &K, semaphore &bar) {
+        __device__ static inline void load_indices(int *s_indices, int *g_indices, int indices_count, int iter, int3 indices_coord, int3 indices_stride, const layout::qo_global &Q, const layout::kv_global &K, semaphore &bar) {
             // local indices coordinates
             int batch = indices_coord.x;
             int head = indices_coord.y;
@@ -99,7 +100,8 @@ template<int D, int O_SCALE> struct attn_fwd_template {
             int N_groups = (Q.rows + layout::qo_tile::rows * NUM_CONSUMER_WARPGROUPS - 1) / (layout::qo_tile::rows * NUM_CONSUMER_WARPGROUPS); // the total number of indices groups per head
             int N_queries = Q.rows;
             // this indexing calcluation is the SAME as the one in the get_indices_count, but the stride between elements is now `N_keys`
-            g_indices += (batch * H * N_groups * N_queries) + (head * N_groups * N_queries) + (seq * N_queries) + iter * layout::kv_tile::rows;
+            g_indices += (batch * indices_stride.x)         + (head * indices_stride.y)     + (seq * indices_stride.z) + iter * layout::kv_tile::rows;
+         // g_indices += (batch * H * N_groups * N_queries) + (head * N_groups * N_queries) + (seq * N_queries)        + iter * layout::kv_tile::rows;
 
             if (ENABLE_DYNAMIC_INDICES) {
                 if (LOAD_INDICES_FROM_TMA) {
@@ -107,7 +109,7 @@ template<int D, int O_SCALE> struct attn_fwd_template {
                     uint32_t s_bar_ptr = static_cast<uint32_t>(__cvta_generic_to_shared(&bar));
                     uint64_t g_indices_ptr = static_cast<uint64_t>(__cvta_generic_to_global(g_indices));
                     // int num_bytes_to_copy = layout::kv_tile::rows * sizeof(int);
-                    int num_bytes_to_copy = min(INDICES_LOAD_INTERVAL * layout::kv_tile::rows, N_queries - iter * layout::kv_tile::rows) * sizeof(int);
+                    int num_bytes_to_copy = min(INDICES_LOAD_INTERVAL * layout::kv_tile::rows, indices_count - iter * layout::kv_tile::rows) * sizeof(int);
 
                     tma::expect_bytes(bar, num_bytes_to_copy);
 
@@ -217,7 +219,7 @@ template<int D, int O_SCALE> struct attn_fwd_template {
                 if (args.task_iter == 0) {
                     init_semaphore(args.scratch.indices_bar, 1, 0);
                 }
-                load_indices(args.scratch.indices, args.globals.indices, 0, {args.common.batch, args.common.head, args.common.seq}, args.globals.Q, args.globals.K, args.scratch.indices_bar);
+                load_indices(args.scratch.indices, args.globals.indices, args.num_iters*KV_TILE_ROWS, 0, {args.common.batch, args.common.head, args.common.seq}, args.globals.indices_stride, args.globals.Q, args.globals.K, args.scratch.indices_bar);
             }
             warpgroup::sync(0); // broadcast the semaphore initialization to all threads
 
@@ -238,7 +240,7 @@ template<int D, int O_SCALE> struct attn_fwd_template {
             // (3) Kick off indices load for next stage.
             if (((args.iter + 1) & (INDICES_LOAD_INTERVAL - 1)) == 0 && args.iter + 1 < args.num_iters) {
                 if (warpgroup::laneid() == 0) {
-                    load_indices(args.scratch.indices, args.globals.indices, args.iter + 1, {args.common.batch, args.common.head, args.common.seq}, args.globals.Q, args.globals.K, args.scratch.indices_bar);
+                    load_indices(args.scratch.indices, args.globals.indices, args.num_iters*KV_TILE_ROWS, args.iter + 1, {args.common.batch, args.common.head, args.common.seq}, args.globals.indices_stride,  args.globals.Q, args.globals.K, args.scratch.indices_bar);
                 }
             }
 
@@ -254,7 +256,7 @@ template<int D, int O_SCALE> struct attn_fwd_template {
         __device__ static inline void setup(consumer_setup_args<layout> args) {
             warpgroup::increase_registers<NUM_CONSUMER_REGISTERS>();
             if((args.common.seq*NUM_WORKERS + warpgroup::groupid())*layout::qo_tile::rows < args.globals.Q.rows) // out of bounds?
-                chipmunk::load_strided(args.scratch.q[warpgroup::groupid()], args.globals.Q,
+                chipmunk::load_strided</*test_for_oob=*/true>(args.scratch.q[warpgroup::groupid()], args.globals.Q,
                                 {args.common.batch, args.common.head, args.common.seq*NUM_WORKERS+warpgroup::groupid(), 0}, args.globals.q_stride);
             zero(args.state.o_reg);
             zero(args.state.norm_vec);
@@ -325,7 +327,6 @@ void csp_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o, at::Tensor
     auto num_indices_groups = (seq_len+(ker_template::NUM_WORKERS * ker_template::layout::qo_tile::rows)-1) / (ker_template::NUM_WORKERS * ker_template::layout::qo_tile::rows);
 
     TORCH_CHECK(o_scale == 1 || o_scale == -1, "o_scale must be 1 or -1");
-    TORCH_CHECK(indices.is_contiguous(), "Indices must be contiguous");
     TORCH_CHECK(indices_counts.is_contiguous(), "Indices counts must be contiguous");
 
     TORCH_CHECK(indices_counts.dim() == 3, "Indices counts must be a 3D tensor");
@@ -353,7 +354,10 @@ void csp_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o, at::Tensor
     TORCH_CHECK(k.size(3) == head_dim, "K head dimension - idx 3 - must match for all non-vector inputs");
     TORCH_CHECK(v.size(3) == head_dim, "V head dimension - idx 3 - must match for all non-vector inputs");
     TORCH_CHECK(o.size(3) == head_dim, "O head dimension - idx 3 - must match for all non-vector inputs");
+
     TORCH_CHECK(indices.size(3) == seq_len, "Indices sequence length dimension - idx 3 - must match for all inputs");
+    // cp.async.bulk.tensor requires 16-byte alignment of gmem operand - indices must be a multiple of 4
+    TORCH_CHECK(indices.stride(2) * sizeof(int) % 16 == 0, "Indices stride must divide by 16 bytes (4 int32s) evenly. Either make indices non-contiguous or use a sequence length that's a multiple of 4.");
 
     TORCH_CHECK(qo_heads == kv_heads, "QO heads must be equal to KV heads");
     TORCH_CHECK(q.size(1) == qo_heads, "QO head dimension - idx 1 - must match for all inputs");
@@ -386,6 +390,7 @@ void csp_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o, at::Tensor
     ker_template::layout::kv_global Kg(d_k, static_cast<unsigned int>(batch), static_cast<unsigned int>(kv_heads), static_cast<unsigned int>(kseq_len), nullptr);
     ker_template::layout::kv_global Vg(d_v, static_cast<unsigned int>(batch), static_cast<unsigned int>(kv_heads), static_cast<unsigned int>(kseq_len), nullptr);
     ker_template::layout::qo_global Og(d_o, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), static_cast<unsigned int>(seq_len), nullptr);
+
     chipmunk::create_tensor_map_with_strides<ker_template::layout::qo_tile, 2>(&Qg.tma_descs.tma_desc, d_q, batch, qo_heads, seq_len, head_dim, q.stride(0), q.stride(1), q.stride(2));
     chipmunk::create_tensor_map_with_strides<ker_template::layout::kv_tile, 2>(&Kg.tma_descs.tma_desc, d_k, batch, kv_heads, kseq_len, head_dim, k.stride(0), k.stride(1), k.stride(2));
     chipmunk::create_tensor_map_with_strides<ker_template::layout::kv_tile, 2>(&Vg.tma_descs.tma_desc, d_v, batch, kv_heads, kseq_len, head_dim, v.stride(0), v.stride(1), v.stride(2));
@@ -396,6 +401,7 @@ void csp_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor o, at::Tensor
         {q.stride(0), q.stride(1), q.stride(2)},
         {k.stride(0), k.stride(1), k.stride(2)},
         {v.stride(0), v.stride(1), v.stride(2)},
+        {indices.stride(0), indices.stride(1), indices.stride(2)}
     };
 
     auto mem_size = kittens::MAX_SHARED_MEMORY - 2000;

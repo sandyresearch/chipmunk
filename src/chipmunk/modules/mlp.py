@@ -3,7 +3,7 @@ from ..util.layer_counter import LayerCounter
 from ..util.config import GLOBAL_CONFIG
 from einops import rearrange
 import chipmunk.ops
-from chipmunk.util import MlpStorage
+from chipmunk.util import MlpStorage, get_kernel_config_mlp
 
 def block_mean(x: torch.Tensor, mbm: int):
     return rearrange(x, 'b (mb mbm) c -> b mb mbm c', mbm=mbm).mean(dim=2)
@@ -28,20 +28,22 @@ class SparseDiffMlp:
         self.num_sms_scatter_add = heuristic_sms_scatter_add
 
     def forward(self, x: torch.Tensor):
+        assert x.ndim == 3 and x.shape[0] == 1, "x must be (1, N, C)"
+
         fc1, fc2 = self.fc1[0], self.fc2[0]
+        
+        inference_step, layer, _ = self.layer_counter.cur_inference_step, self.layer_counter.cur_layer, self.layer_counter.cur_layer_submodule
+        do_full  = self.layer_counter.should_do_full_mlp_step()
+        self.layer_counter.increment()
 
         if not GLOBAL_CONFIG['mlp']['is_enabled']:
             return fc2(self.activation(fc1(x)))
 
-        do_full  = self.layer_counter.should_do_full_mlp_step()
-        inference_step, layer, submodule = self.layer_counter.increment()
-
-        assert x.ndim == 3 and x.shape[0] == 1, "x must be (1, N, C)"
-
         mlp_cfg              = GLOBAL_CONFIG['mlp']
-        MBM, BM              = mlp_cfg['mbm'], mlp_cfg['bm']
+        mlp_kernel_cfg       = get_kernel_config_mlp()
+        MBM, BM              = mlp_kernel_cfg['mbm'], mlp_kernel_cfg['bm']
+        multiple_of          = mlp_kernel_cfg['counts_multiple_of']
         sparsity             = 1 - mlp_cfg['top_keys']
-        multiple_of          = mlp_cfg['counts_multiple_of']
         first_n_dense_layers = mlp_cfg['first_n_dense_layers']
         
         if layer < first_n_dense_layers:
@@ -72,17 +74,11 @@ class SparseDiffMlp:
             mdiff   = (bmfc1 - self.storage.get_blockmean_mid_cache()).abs()
             mdiff   = rearrange(mdiff, 'b (mb r) f -> b r mb f', r=r).sum(dim=1)
 
-            inds   = torch.empty_like(mdiff, dtype=torch.int32, device=x.device)
-            counts = torch.empty(
-                (mdiff.size(0), mdiff.size(1)), dtype=torch.int32, device=x.device
-            )
-            chipmunk.ops.topk_indices(
-                mdiff, inds, counts, sparsity, multiple_of, mlp_cfg['random_keys']
-            )
-            chipmunk.ops.copy_indices(bmfc1,
-                                      self.storage.get_blockmean_mid_cache(),
-                                      inds,
-                                      counts)
+            inds    = torch.empty_like(mdiff, dtype=torch.int32, device=x.device)
+            counts  = torch.empty((mdiff.size(0), mdiff.size(1)), dtype=torch.int32, device=x.device)
+            
+            chipmunk.ops.topk_indices(mdiff, inds, counts, sparsity, multiple_of, mlp_cfg['random_keys'])
+            chipmunk.ops.copy_indices(bmfc1, self.storage.get_blockmean_mid_cache(), inds, counts)
 
             self.storage.set_indices(inds)
             self.storage.set_counts(counts)

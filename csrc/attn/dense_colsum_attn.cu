@@ -340,176 +340,6 @@ void cs_attend_ker(const __grid_constant__ cs_globals<D> g) {
     }
 }
 
-// ---------------------------------------------------------------------------------------------------
-// ----------------------------------- Backward preparation kernel -----------------------------------
-// ---------------------------------------------------------------------------------------------------
-
-template<int D>
-struct bwd_prep_globals {
-    using og_tile = st_bf<4*16, D>;
-    using o_tile  = st_bf<4*16, D>;
-    using d_tile  = col_vec<st_fl<4*16, D>>;
-
-    using og_gl = gl<bf16,  -1, -1, -1, -1, og_tile>;
-    using o_gl  = gl<bf16,  -1, -1, -1, -1, o_tile>;
-    using d_gl  = gl<float, -1, -1, -1, -1, d_tile>;
-
-    og_gl og;
-    o_gl  o;
-    d_gl  d;
-};
-
-template<int D>
-__global__  __launch_bounds__(4*kittens::WARP_THREADS, (D == 64) ? 2 : 1)
-void bwd_attend_prep_ker(const __grid_constant__ bwd_prep_globals<D> g) {
-    extern __shared__ int __shm[]; 
-    tma_swizzle_allocator al((int*)&__shm[0]);
-
-    int warpid = kittens::warpid();
-
-    using og_tile = st_bf<4*16, D>;
-    using o_tile  = st_bf<4*16, D>;
-    using d_tile  = col_vec<st_fl<4*16, D>>;
-
-    og_tile (&og_smem)[4] = al.allocate<og_tile, 4>();
-    o_tile  (&o_smem) [4] = al.allocate<o_tile , 4>();
-    d_tile  (&d_smem) [4] = al.allocate<d_tile , 4>();
-    
-    rt_fl<4*16, D> og_reg, o_reg; 
-    col_vec<rt_fl<4*16, D>> d_reg;
-
-    __shared__ kittens::semaphore smem_semaphore;
-
-    if (threadIdx.x == 0) {
-        init_semaphore(smem_semaphore, 0, 1);
-        tma::expect_bytes(smem_semaphore, sizeof(og_smem[0]) * 4 * 2);
-    }
-    __syncthreads();
-
-    if (warpid == 0) {
-        for (int w = 0; w < 4; w++) {
-            coord<o_tile> tile_idx = {blockIdx.z, blockIdx.y, (blockIdx.x * 4) + w, 0};
-            tma::load_async(o_smem[w],  g.o,  tile_idx, smem_semaphore);
-            tma::load_async(og_smem[w], g.og, tile_idx, smem_semaphore);
-        }
-    }
-
-    kittens::wait(smem_semaphore, 0);
-    load(o_reg, o_smem[warpid]);
-    load(og_reg, og_smem[warpid]);
-    mul(og_reg, og_reg, o_reg);
-    row_sum(d_reg, og_reg);
-    store(d_smem[warpid], d_reg);
-    __syncthreads(); 
-
-    if (warpid == 0) {
-        for (int w = 0; w < 4; w++) {
-            coord<d_tile> tile_idx = {blockIdx.z, blockIdx.y, 0, (blockIdx.x * 4) + w};
-            tma::store_async(g.d, d_smem[w], tile_idx);
-        }
-    }
-    tma::store_async_wait();
-}
-
-template<int D> struct bwd_attend_ker_tile_dims {};
-template<> struct bwd_attend_ker_tile_dims<64> {
-    constexpr static int tile_width = (64);
-    constexpr static int tile_h     = (4*16);
-    constexpr static int tile_h_qo  = (4*16);
-    constexpr static int blocks_sm = 1;
-};
-template<> struct bwd_attend_ker_tile_dims<128> {
-    constexpr static int tile_width = (128);
-    constexpr static int tile_h     = (4*16);
-    constexpr static int tile_h_qo  = (4*16);
-    constexpr static int blocks_sm = 1; 
-};
-
-constexpr int BWD_CONSUMER_WARPGROUPS = (2); 
-constexpr int BWD_PRODUCER_WARPGROUPS = (1); 
-constexpr int BWD_NUM_WARPGROUPS      = (BWD_CONSUMER_WARPGROUPS+BWD_PRODUCER_WARPGROUPS); 
-constexpr int BWD_NUM_WORKERS         = (BWD_NUM_WARPGROUPS*kittens::WARPGROUP_WARPS); 
-
-template<int D>
-struct bwd_globals {
-    using G = bwd_attend_ker_tile_dims<D>;
-
-    using q_tile  =         st_bf<G::tile_h_qo, G::tile_width>;
-    using k_tile  =         st_bf<G::tile_h,    G::tile_width>;
-    using v_tile  =         st_bf<G::tile_h,    G::tile_width>;
-    using og_tile =         st_bf<G::tile_h_qo, G::tile_width>;
-    using qg_tile =         st_fl<G::tile_h_qo, G::tile_width>;
-    using kg_tile =         st_fl<G::tile_h,    G::tile_width>;
-    using vg_tile =         st_fl<G::tile_h,    G::tile_width>;
-    using l_tile  = row_vec<st_fl<G::tile_h_qo, G::tile_h>>;
-    using d_tile  = row_vec<st_fl<G::tile_h_qo, G::tile_h>>;
-
-    using q_gl  = gl<bf16,  -1, -1, -1, -1, q_tile>;
-    using k_gl  = gl<bf16,  -1, -1, -1, -1, k_tile>;
-    using v_gl  = gl<bf16,  -1, -1, -1, -1, v_tile>;
-
-    using og_gl = gl<bf16,  -1, -1, -1, -1, og_tile>;
-
-    using qg_gl = gl<float, -1, -1, -1, -1, qg_tile>;
-    using kg_gl = gl<float, -1, -1, -1, -1, kg_tile>;
-    using vg_gl = gl<float, -1, -1, -1, -1, vg_tile>;
-
-    using l_gl  = gl<float, -1, -1, -1, -1, l_tile>;
-    using d_gl  = gl<float, -1, -1, -1, -1, d_tile>; 
-
-    q_gl  q;
-    k_gl  k;
-    v_gl  v;
-    og_gl og;
-    qg_gl qg;
-    kg_gl kg;
-    vg_gl vg;
-    l_gl  l;
-    d_gl  d;
-
-    const int N;
-    const int hr;
-};
-
-__device__ static inline void
-stream_tile(auto &reg_tile, auto &smem_vec, int tic) {
-    #pragma unroll
-    for(int i = 0; i < 4; i++) {
-        int base_col = 16*i + 2*(kittens::laneid()%4);
-        reg_tile.tiles[0][i].data[0] = *(float2*)&smem_vec[tic][base_col + 0];
-        reg_tile.tiles[0][i].data[1] = *(float2*)&smem_vec[tic][base_col + 0];
-        reg_tile.tiles[0][i].data[2] = *(float2*)&smem_vec[tic][base_col + 8];
-        reg_tile.tiles[0][i].data[3] = *(float2*)&smem_vec[tic][base_col + 8];
-    }
-}
-
-__device__ static inline void
-stream_sub_tile(auto &reg_tile, auto &smem_vec, int tic) {
-    #pragma unroll
-    for(int i = 0; i < 4; i++) {
-        int base_col = 16*i + 2*(laneid()%4);
-        reg_tile.tiles[0][i].data[0] = base_ops::sub::template op<float2>(reg_tile.tiles[0][i].data[0], *(float2*)&smem_vec[tic][base_col + 0]);
-        reg_tile.tiles[0][i].data[1] = base_ops::sub::template op<float2>(reg_tile.tiles[0][i].data[1], *(float2*)&smem_vec[tic][base_col + 0]);
-        reg_tile.tiles[0][i].data[2] = base_ops::sub::template op<float2>(reg_tile.tiles[0][i].data[2], *(float2*)&smem_vec[tic][base_col + 8]);
-        reg_tile.tiles[0][i].data[3] = base_ops::sub::template op<float2>(reg_tile.tiles[0][i].data[3], *(float2*)&smem_vec[tic][base_col + 8]);
-    }
-}
-
-template<int tile_h_qo, int tile_h>
-__device__ static inline void 
-causal_mask(auto &reg_tile, int qo_idx) {
-    int q_blk = (qo_idx) * (tile_h_qo/kittens::TILE_ROW_DIM<bf16>);
-    int k_blk = (blockIdx.x * BWD_CONSUMER_WARPGROUPS * (tile_h/kittens::TILE_ROW_DIM<bf16>)) 
-                + ((kittens::warpid()/kittens::WARPGROUP_WARPS) * (tile_h/kittens::TILE_ROW_DIM<bf16>)) 
-                + (kittens::warpid() % kittens::WARPGROUP_WARPS);
-
-    for (int j = 0; j < (tile_h_qo/kittens::TILE_ROW_DIM<bf16>); j++) {
-        int q_idx = q_blk + j;
-        auto &attn_subtile = reinterpret_cast<rt_fl<16, 16>&>(reg_tile.tiles[0][j]);
-        if      (q_idx  < k_blk) { neg_infty(attn_subtile); }
-        else if (q_idx == k_blk) { make_causal_t(attn_subtile, attn_subtile, kittens::base_types::constants<float>::neg_infty()); }
-    }
-}
 
 #ifdef TORCH_COMPILE
 
@@ -524,7 +354,7 @@ dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p)
     // CHECK_INPUT(q);
     // CHECK_INPUT(k);
     // CHECK_INPUT(v);
-    CHECK_INPUT(p);
+    // CHECK_INPUT(p);
 
     auto batch    = q.size(0);
     auto seq_len  = q.size(2); 
@@ -557,6 +387,8 @@ dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p)
     TORCH_CHECK(v.size(1) == kv_heads, "KV head dimension - idx 1 - must match for all inputs");  
     TORCH_CHECK(p.size(1) == kv_heads, "P head dimension - idx 1 - must match for all inputs");
 
+    TORCH_CHECK(p.stride(1) % (16/sizeof(float)) == 0, "P must have a stride multiple of 4 for TMA alignment requirements.");
+
     auto hr = qo_heads / kv_heads;
     auto seq_downsample = FUSE_REDUCE ? 192 : 16;
     auto qg = (seq_len+seq_downsample-1) / seq_downsample;
@@ -571,24 +403,29 @@ dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p)
     bf16*  d_v = reinterpret_cast<bf16*>(v_ptr);
     float* d_p = reinterpret_cast<float*>(p_ptr);
 
+    // all strides need to be a multiple of 16b
+    // technically we could pad to 4xfp32 and 8xbf16 but that's too much work, instead let's assume smallest size
+    constexpr int SEQUENCE_STRIDE_PADDING = 16 / sizeof(bf16); 
+    const uint seq_len_padded = static_cast<uint>((seq_len + SEQUENCE_STRIDE_PADDING - 1) / SEQUENCE_STRIDE_PADDING * SEQUENCE_STRIDE_PADDING);
+
     // for the returned outputs
     at::Tensor o     = torch::empty({static_cast<const uint>(batch), 
                                         static_cast<const uint>(qo_heads), 
                                         static_cast<const uint>(seq_len), 
                                         static_cast<const uint>(head_dim)}, v.options());
     
-    at::Tensor cs = torch::empty({static_cast<const uint>(batch), 
-                                        static_cast<const uint>(qo_heads), 
-                                        static_cast<const uint>(qg), 
-                                        static_cast<const uint>(seq_len)}, v.options());
+    at::Tensor cs = torch::empty_strided(
+        {static_cast<const uint>(batch), static_cast<const uint>(qo_heads), static_cast<const uint>(qg), static_cast<const uint>(seq_len)}, 
+        {static_cast<const uint>(qo_heads*qg*seq_len_padded), static_cast<const uint>(qg*seq_len_padded), static_cast<const uint>(seq_len_padded), static_cast<const uint>(1)}, 
+        v.options()
+    );
 
-    at::Tensor l_vec = torch::empty({static_cast<const uint>(batch), 
-                                        static_cast<const uint>(qo_heads), 
-                                        static_cast<const uint>(seq_len), 
-                                        static_cast<const uint>(1)}, 
-                                        torch::TensorOptions().dtype(torch::kFloat).device(q.device()).memory_format(at::MemoryFormat::Contiguous));
+    at::Tensor l_vec = torch::empty_strided(
+        {static_cast<const uint>(batch), static_cast<const uint>(qo_heads), static_cast<const uint>(seq_len), static_cast<const uint>(1)}, 
+        {static_cast<const uint>(qo_heads*seq_len_padded), static_cast<const uint>(seq_len_padded), static_cast<const uint>(1), static_cast<const uint>(0)}, 
+        torch::TensorOptions().dtype(torch::kFloat).device(q.device())
+    );
         
-
     bf16*  o_ptr = reinterpret_cast<bf16*>(o.data_ptr<c10::BFloat16>());
     bf16*  d_o   = reinterpret_cast<bf16*>(o_ptr);
 
@@ -624,13 +461,17 @@ dense_colsum_attn(at::Tensor q, at::Tensor k, at::Tensor v, at::Tensor p)
     q_global qg_arg{d_q, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), static_cast<unsigned int>(seq_len), 128U};
     k_global kg_arg{d_k, static_cast<unsigned int>(batch), static_cast<unsigned int>(kv_heads), static_cast<unsigned int>(kseq_len), 128U};
     v_global vg_arg{d_v, static_cast<unsigned int>(batch), static_cast<unsigned int>(kv_heads), static_cast<unsigned int>(kseq_len), 128U};
-    p_global pg_arg{d_p, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), 1U,   static_cast<unsigned int>(seq_len)};
-    l_global lg_arg{d_l, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), 1U,   static_cast<unsigned int>(seq_len)};
-    c_global cg_arg{d_cs, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), static_cast<unsigned int>(qg), static_cast<unsigned int>(seq_len)};
+    p_global pg_arg{d_p, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), 1U,   static_cast<unsigned int>(seq_len_padded)};
+    l_global lg_arg{d_l, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), 1U,   static_cast<unsigned int>(seq_len_padded)};
+    c_global cg_arg{d_cs, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), static_cast<unsigned int>(qg), static_cast<unsigned int>(seq_len_padded)};
     o_global og_arg{d_o, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), static_cast<unsigned int>(seq_len), 128U};
+
     chipmunk::create_tensor_map_with_strides<q_tile, 2>(&qg_arg.tma_descs.tma_desc, d_q, batch, qo_heads, seq_len, head_dim, q.stride(0), q.stride(1), q.stride(2));
     chipmunk::create_tensor_map_with_strides<k_tile, 2>(&kg_arg.tma_descs.tma_desc, d_k, batch, kv_heads, kseq_len, head_dim, k.stride(0), k.stride(1), k.stride(2));
     chipmunk::create_tensor_map_with_strides<v_tile, 2>(&vg_arg.tma_descs.tma_desc, d_v, batch, kv_heads, kseq_len, head_dim, v.stride(0), v.stride(1), v.stride(2));
+
+    chipmunk::create_tensor_map_with_strides<p_col_vec, -1>(&pg_arg.tma_descs.tma_desc, d_p, batch, qo_heads, 1U, seq_len, p.stride(0), p.stride(1), p.stride(3));
+    chipmunk::create_tensor_map_with_strides<l_col_vec, -1>(&lg_arg.tma_descs.tma_desc, d_l, batch, qo_heads, 1U, seq_len, l_vec.stride(0), l_vec.stride(1), l_vec.stride(3));
 
 
     globals g{qg_arg, kg_arg, vg_arg, pg_arg, lg_arg, og_arg, cg_arg, static_cast<int>(kseq_len), static_cast<int>(hr)};

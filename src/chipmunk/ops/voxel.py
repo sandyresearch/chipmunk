@@ -1,6 +1,8 @@
 import torch
 from einops import rearrange
 
+from chipmunk.config import GLOBAL_CONFIG
+
 # x: [b, ah, t, h, w, d]
 #
 # return
@@ -208,12 +210,17 @@ def get_local_indices_with_text(
     txt_len,
     voxel_shape,
     local_shape,
-    full_tail_from_attn=False,
-    full_tail_to_attn=False,
+    full_tail_from_attn=None,
+    full_tail_to_attn=None,
     rk=0,
     kv_tile_size=128,
     device=torch.device('cuda')
 ):
+    if full_tail_from_attn is None:
+        full_tail_from_attn = GLOBAL_CONFIG['attn']['should_make_tail_dense']
+    if full_tail_to_attn is None:
+        full_tail_to_attn = GLOBAL_CONFIG['attn']['should_make_tail_dense']
+
     cdiv = lambda x, y: ((x + y - 1) // y)
 
     # square away our shapes

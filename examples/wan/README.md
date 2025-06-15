@@ -2,20 +2,20 @@
 
 Original repo: https://github.com/Wan-Video/Wan2.1
 
-
 https://github.com/user-attachments/assets/4a9af692-0926-49a6-9d00-a975a383d209
 
-
-
 ## Quickstart
+
 ### 1. Clone repo, build kernels, & install deps
+
 Follow the Quickstart instructions in the [base Chipmunk directory](../../README.md) to install Chipmunk's base collection of primitives.
 
 ### 2\. Download Wan2.1 Weights
-~~~
+
+```
 pip install "huggingface_hub[cli]"
 huggingface-cli download Wan-AI/Wan2.1-T2V-14B --local-dir ./Wan2.1-T2V-14B
-~~~
+```
 
 ### 3\. Generate fast videos!
 

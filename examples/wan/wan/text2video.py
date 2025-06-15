@@ -84,6 +84,7 @@ class WanT2V:
 
         logging.info(f"Creating WanModel from {checkpoint_dir}")
         self.model = WanModel.from_pretrained(checkpoint_dir)
+        self.checkpoint_dir = checkpoint_dir
         self.model.eval().requires_grad_(False)
 
         if use_usp:
@@ -227,11 +228,26 @@ class WanT2V:
 
             arg_c = {'context': context, 'seq_len': seq_len}
             arg_null = {'context': context_null, 'seq_len': seq_len}
+            if seq_len == 75600:
+                seq_shape = (21, 45, 80)
+            elif seq_len == 32760:
+                seq_shape = (21, 45, 80)
+            elif seq_len == 21840:
+                seq_shape = (21, 30, 52)
+            else:
+                raise ValueError(f"Unsupported sequence length: {seq_len} - please add it to the code")
+            
+            if '1.3B' in self.checkpoint_dir:
+                local_heads_num = 12
+            elif '14B' in self.checkpoint_dir:
+                local_heads_num = 40
+            else:
+                raise ValueError(f"Unsupported checkpoint: {self.checkpoint_dir} - please add it to the code")
+            
             self.model.blocks[0].self_attn.attn.initialize_static_mask(
-                seq_shape=(21, 45, 80),
-                # seq_shape=(21, 30, 52),
+                seq_shape=seq_shape,
                 txt_len=0,
-                local_heads_num=40,
+                local_heads_num=local_heads_num,
                 device='cuda'
             )
             self.model.blocks[0].self_attn.attn.layer_counter.reset()

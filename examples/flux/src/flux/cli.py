@@ -135,10 +135,6 @@ def main(
     import chipmunk.util.config
     chipmunk.util.config.load_from_file(kwargs.get("chipmunk_config", "chipmunk-config.yml"))
     
-    device_props = torch.cuda.get_device_properties(torch.device(device))
-    sm_major = device_props.major
-    if sm_major < 9:
-        raise ValueError("Running Chipmunk requires an H100 GPU (SM90 or higher). Your GPU has compute capability SM{sm_major}X.")
     if name == 'flux-schnell' or num_steps < 10:
         print("CHIPMUNK: Warning - using Flux-schnell or a low number of steps may result in suboptimal performance. Proceed with caution unless you know what you're doing.")
     prompt = prompt.split("|")
@@ -224,8 +220,7 @@ def main(
         inp = prepare(t5, clip, x, prompt=opts.prompt)
         timesteps = get_schedule(opts.num_steps, inp["img"].shape[1], shift=(name != "flux-schnell"))
 
-
-
+        from chipmunk.util.layer_counter import singleton as layer_counter
         # denoise initial noise
         x = denoise(model, **inp, timesteps=timesteps, guidance=opts.guidance)
 
@@ -244,6 +239,13 @@ def main(
         print(f"Done in {t1 - t0:.3f}s. Saving {fn}")
 
         idx = save_image(nsfw_classifier, name, output_name, idx, x, add_sampling_metadata, prompt)
+        
+        layer_counter.reset()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.reset_peak_memory_stats()
+            torch.cuda.reset_accumulated_memory_stats()
+        
         GLOBAL_CONFIG['generation_index'] += 1
         if loop:
             print("-" * 80)

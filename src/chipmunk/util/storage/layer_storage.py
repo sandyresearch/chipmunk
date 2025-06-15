@@ -1,6 +1,7 @@
 import torch
 from torch import Tensor
 from .offloaded_tensor import MaybeOffloadedTensor
+from chipmunk.util import GLOBAL_CONFIG
 
 class MlpStorage:
     def __init__(self, layer_num: int):
@@ -101,6 +102,9 @@ class AttnStorage:
         self.out_cache = None
         self.lse_constants = None
 
+        if GLOBAL_CONFIG['offloading']['global_disable_offloading']:
+            return
+
         # for name in init_names:
         if 'out_cache' in init_names:
             self.out_cache = MaybeOffloadedTensor(
@@ -165,7 +169,8 @@ class AttnStorage:
     
     def set_lse_constants(self, lse_constants: Tensor):
         if self.lse_constants is None:
-            self.lse_constants = MaybeOffloadedTensor('attn.lse_constants', self.layer_num, lse_constants.dtype, lse_constants.device)
+            tensor = lse_constants[0] if isinstance(lse_constants, tuple) else lse_constants
+            self.lse_constants = MaybeOffloadedTensor('attn.lse_constants', self.layer_num, tensor.dtype, tensor.device)
         self.lse_constants.offload(lse_constants)
 
     def load_async(self):

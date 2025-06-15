@@ -1,171 +1,84 @@
 import torch
-from typing import Tuple
-from einops import rearrange
 import chipmunk
+from chipmunk.util import get_kernel_config_attn, GLOBAL_CONFIG
 
-# def csp_attn(
-#     q: torch.Tensor,
-#     k: torch.Tensor,
-#     v: torch.Tensor,
-#     indices: torch.Tensor,
-#     indices_counts: torch.Tensor,
-# ) -> torch.Tensor:
-#     q = q.contiguous()
-#     k = k.contiguous()
-#     v = v.contiguous()
-#     indices = indices.contiguous()
-#     indices_counts = indices_counts.contiguous()
-#     return torch.ops.chipmunk_tk_kernels.csp_attn_fwd(q, k, v, indices, indices_counts)
-
-# def dense_attn(
-#     q: torch.Tensor,
-#     k: torch.Tensor,
-#     v: torch.Tensor
-# ) -> Tuple[torch.Tensor, torch.Tensor]:
-#     q = q.contiguous()
-#     k = k.contiguous()
-#     v = v.contiguous()
-#     return torch.ops.chipmunk_tk_kernels.attn_fwd(q, k, v)
-
-# def dense_colsum_attn(
-#     q: torch.Tensor,
-#     k: torch.Tensor,
-#     v: torch.Tensor,
-#     l: torch.Tensor
-# ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-#     q = q.contiguous()
-#     k = k.contiguous()
-#     v = v.contiguous()
-#     l = l.contiguous()
-#     return torch.ops.chipmunk_tk_kernels.colsum_attn_fwd(q, k, v, l)
+def pad_qkvo_tensor(tensor, pad_to):
+    n = tensor.shape[-2]
+    padded_n = ((n + pad_to - 1) // pad_to) * pad_to
+    # IMPORTANT: Do not use torch.empty here, it will cause NaN in the Triton kernel!
+    padded_tensor = torch.zeros(tensor.shape[:-2] + (padded_n, tensor.shape[-1]), dtype=tensor.dtype, device=tensor.device)
+    padded_tensor[..., :n, :] = tensor
+    return padded_tensor
 
 def dense_attn(q, k, v):
+    assert q.shape == k.shape and q.shape == v.shape, "Input shape mismatch - q: {}, k: {}, v: {}".format(q.shape, k.shape, v.shape)
+    
+    if GLOBAL_CONFIG['attn']['provider'] == 'triton':
+        pad_to = get_kernel_config_attn()['bm']
+        o, lse = chipmunk.triton.dense_attn(q, pad_qkvo_tensor(k, pad_to), pad_qkvo_tensor(v, pad_to))
+        
+        assert type(lse) == tuple, "LSE must be a tuple"
+        assert lse[0].shape == (q.shape[0], q.shape[1], q.shape[2], 1), "LSE shape mismatch"
+        assert lse[1].shape == (q.shape[0], q.shape[1], q.shape[2], 1), "LSE shape mismatch"
+    else:
+        o, lse = torch.ops.chipmunk.dense_attn(q, k, v)
+        assert lse.shape == (q.shape[0], q.shape[1], q.shape[2], 1), "LSE shape mismatch"
+    
+    assert o.shape == q.shape, "Output shape mismatch"
+    
+    return o, lse
+
+
+def dense_colsum_attn(q, k, v, p):
     """
     Compute variable length attention in ThunderKittens.
     """
-    return_l = True
-    pm = 192
-    if q.shape[-2] % pm == 0:
-        q = q.contiguous()
-        k = k.contiguous()
-        v = v.contiguous()
-        o, l = torch.ops.chipmunk.dense_attn(q, k, v)
-        # o, l = torch.ops.chipmunk_tk_kernels.attn_fwd(q, k, v)
-        if return_l:
-            return o, l
-        else:
-            return o
-
-    # pad
-    n = q.shape[-2]
-    padded_n = ((n + pm - 1) // pm) * pm
-    qp = torch.empty(q.shape[:-2] + (padded_n, q.shape[-1]), dtype=q.dtype, device=q.device)
-    qp[..., :n, :] = q
-
-    # contiguous
-    qp = qp.contiguous()
-    k = k.contiguous()
-    v = v.contiguous()
-
-    # compute
-    # o, l = torch_tk_attn(qp, k, v)
-    o, l = torch.ops.chipmunk.dense_attn(qp, k, v)
-    # o, l = torch.ops.chipmunk_tk_kernels.attn_fwd(qp, k, v)
-
-    # unpad
-    o = o[..., :n, :].contiguous()
-    # leave l padded to pass back in
-    l[..., n:, :] = 0
-
-    if return_l:
-        return o, l
+    assert q.shape == k.shape and q.shape == v.shape, "Input shape mismatch - q: {}, k: {}, v: {}".format(q.shape, k.shape, v.shape)
+    
+    provider = GLOBAL_CONFIG['attn']['provider']
+    pad_to = get_kernel_config_attn()['bm']
+    
+    if provider == 'cuda':
+        # CUDA implementation
+        assert p.shape == (q.shape[0], q.shape[1], q.shape[2], 1), "P shape mismatch - p: {}, q: {}".format(p.shape, q.shape)
+        o, cs, l = torch.ops.chipmunk.dense_colsum_attn(q, k, v, p)
+        assert l.shape == (q.shape[0], q.shape[1], q.shape[2], 1), "L shape mismatch - l: {}, q: {}".format(l[0].shape, q.shape)
+        
     else:
-        return o
-
-def dense_colsum_attn(q, k, v, p):
-        """
-        Compute variable length attention in ThunderKittens.
-        """
-        fuse_reduce = True
-        wq = 16   # queries per warp
-        pm = 192  # queries per producer (16 * 4 * 3)
-        if q.shape[-2] % pm == 0:
-            # o, cs, l = torch_colsum_attn_fwd(q, k, v, p)
-            o, cs, l = torch.ops.chipmunk.dense_colsum_attn(q, k, v, p)
-            # o, cs, l = torch.ops.chipmunk_tk_kernels.colsum_attn_fwd(q, k, v, p)
-            if not fuse_reduce:
-                cs = rearrange(cs, 'b h (m r) n -> b h m r n', r=pm//wq).sum(dim=-2)
-            return o, cs, l
-
-        # pad
-        n = q.shape[-2]
-        padded_n = ((n + pm - 1) // pm) * pm
-        qp = torch.empty(q.shape[:-2] + (padded_n, q.shape[-1]), dtype=q.dtype, device=q.device)
-        qp[..., :n, :] = q
-
-        # contiguous
-        qp = qp.contiguous()
-        k = k.contiguous()
-        v = v.contiguous()
-        p = p.contiguous()
-        assert p.shape[-2] == padded_n
-
-        # compute
-        # o, cs, l = torch_colsum_attn_fwd(qp, k, v, p)
-        o, cs, l = torch.ops.chipmunk.dense_colsum_attn(qp, k, v, p)
-        # o, cs, l = torch.ops.chipmunk_tk_kernels.colsum_attn_fwd(qp, k, v, p)
-
-        # unpad
-        o = o[..., :n, :].contiguous()
-        # leave l padded to pass back in
-        l[..., n:, :] = 0
-        if fuse_reduce:
-            # use k since on single gpu q is padded to 119056
-            kseq = k.shape[-2]
-            kgroups = (kseq + pm - 1) // pm
-            cs = cs[..., :kgroups, :kseq]
+        # Triton implementation
+        assert type(p) == tuple
+        assert p[0].is_contiguous() and p[1].is_contiguous(), "P must be contiguous"
+        assert p[0].shape == (q.shape[0], q.shape[1], q.shape[2], 1), "P shape mismatch - p[0]: {}".format(p[0].shape)
+        assert p[1].shape == (q.shape[0], q.shape[1], q.shape[2], 1), "P shape mismatch - p[1]: {}".format(p[1].shape)
+        
+        if q.shape[-2] % pad_to == 0:
+            o, cs, l = chipmunk.triton.dense_colsum_attn(q, k, v, p)
         else:
-            cs = rearrange(cs, 'b h (m r) n -> b h m r n', r=pm//wq).sum(dim=-2)[..., :n]
-        return o, cs, l
+            o, cs, l = chipmunk.triton.dense_colsum_attn(q, pad_qkvo_tensor(k, pad_to), pad_qkvo_tensor(v, pad_to), p)
+        
+        assert l[0].shape == (q.shape[0], q.shape[1], q.shape[2], 1), "L shape mismatch - l: {}, q: {}".format(l[0].shape, q.shape)
+        assert l[1].shape == (q.shape[0], q.shape[1], q.shape[2], 1), "L shape mismatch - l: {}, q: {}".format(l[1].shape, q.shape)
+        
+    assert o.shape == q.shape, "Output shape mismatch - o: {}, q: {}".format(o.shape, q.shape)
+    assert cs.shape == (q.shape[0], q.shape[1], (q.shape[-2] + pad_to - 1) // pad_to, q.shape[2]), "CS shape mismatch - cs: {}, q: {}".format(cs.shape, q.shape)
+    
+    return o, cs, l
 
-# def csp_attn(q, k, v, o, indices, indices_counts, o_scale):
-    # torch.ops.chipmunk.csp_attn(q, k, v, o, indices, indices_counts, o_scale)
-    # return o
-def csp_attn(q, k, v, indices, indices_counts):
-    if q.shape[-2] % 192 == 0:
-        # return torch_csp_attn_fwd(q, k, v, indices, indices_counts)
-        # torch.ops.chipmunk.csp_attn(q, k, v, o, indices, indices_counts, o_scale)
-        # return o
-
-        return torch.ops.chipmunk.csp_128_attn(q, k, v, indices, indices_counts)
-        # return torch.ops.chipmunk_tk_kernels.csp_attn_fwd(q, k, v, indices, indices_counts)
-
-    # pad
-    n = q.shape[-2]
-    padded_n = ((n + 192 - 1) // 192) * 192
-    qp = torch.zeros(q.shape[:-2] + (padded_n, q.shape[-1]), dtype=q.dtype, device=q.device)
-    qp[..., :n, :] = q
-
-    if indices.shape[-1] % 192 == 0:
-        indicesp = indices
+def csp_attn(q, k, v, indices, indices_counts, o, o_scale):
+    assert q.shape == k.shape and q.shape == v.shape, "Input shape mismatch - q: {}, k: {}, v: {}".format(q.shape, k.shape, v.shape)
+    # Ignore the n_groups dimension in Python - the kernel will also double check for us!
+    assert indices.shape == (q.shape[0], q.shape[1], indices.shape[2], q.shape[-2]), "Indices shape mismatch - indices: {}, q: {}".format(indices.shape, q.shape)
+    assert indices_counts.shape == indices.shape[:-1], "Indices counts shape mismatch - indices_counts: {}, indices: {}".format(indices_counts.shape, indices.shape)
+    assert o.shape == q.shape, "Output shape mismatch - o: {}, q: {}".format(o.shape, q.shape)
+    
+    if GLOBAL_CONFIG['attn']['provider'] == 'triton':
+        pad_to = get_kernel_config_attn()['bm']
+        o_delta, _ = chipmunk.triton.csp_attn(q, pad_qkvo_tensor(k, pad_to), pad_qkvo_tensor(v, pad_to), indices, indices_counts)
+        assert o_delta.shape == o.shape, "Output delta shape mismatch - o_delta: {}, o: {}".format(o_delta.shape, o.shape)
+        o = o + o_delta * o_scale
     else:
-        indicesp = torch.empty((indices.shape[0], indices.shape[1], indices.shape[2], padded_n), device=indices.device, dtype=indices.dtype)
-        indicesp[..., :indices.shape[-1]] = indices
-
-    # contiguous
-    qp = qp.contiguous()
-    k = k.contiguous()
-    v = v.contiguous()
-    indicesp = indicesp.contiguous()
-
-    # o = torch_csp_attn_fwd(qp, k, v, indicesp, indices_counts)
-    # torch.ops.chipmunk.csp_attn(qp, k, v, o, indicesp, indices_counts, o_scale)
-
-    o = torch.ops.chipmunk.csp_128_attn(qp, k, v, indicesp, indices_counts)
-    # o = torch.ops.chipmunk_tk_kernels.csp_attn_fwd(qp, k, v, indicesp, indices_counts)
-
-    # unpad
-    o = o[..., :n, :].contiguous()
+        torch.ops.chipmunk.csp_attn(q, k, v, o, indices, indices_counts, o_scale)
+    
     return o
 
 __all__ = ['csp_attn', 'dense_attn', 'dense_colsum_attn']

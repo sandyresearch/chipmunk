@@ -285,7 +285,6 @@ def _denoise_inner(
             timesteps=t_vec,
             guidance=guidance_vec,
         )
-
         img = img + (t_prev - t_curr) * pred
         if step_fn is not None:
             step_fn(inference_step)

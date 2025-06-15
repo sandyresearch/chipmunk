@@ -235,9 +235,91 @@ __host__ static inline void create_tensor_map_with_strides(CUtensorMap *tma_map,
     const char *error_string;
     CUresult res = cuGetErrorString(result, &error_string);
     if (result != CUDA_SUCCESS) {
-        std::cerr << "Error in tile TMA descriptor creation: " << error_string << std::endl;
+        std::cerr << "Error in strided tile TMA descriptor creation: " << error_string << std::endl;
     }
 }
+
+
+/**
+* @brief Creates a tensor map for the given source vector.
+*
+* This function creates a tensor map (CUtensorMap) for the specified source shared vector type. The tensor map
+* is used to describe the shape and layout of the tensor in memory. The function sets up the tensor
+* map based on the provided source tensor pointer and the layout specified by the SV template parameter.
+*
+* @tparam SV The source tensor type, which must be TMA-compatible.
+* @tparam num_vectors The number of vectors present in global memory.
+* @param tma_map Pointer to the CUtensorMap object to be initialized.
+* @param src Pointer to the source tensor data in global memory.
+*/
+template<ducks::sv::all SV, int axis>
+__host__ static inline void create_tensor_map_with_strides(CUtensorMap *tma_map, const typename SV::dtype *src, int batch, int depth, int rows, int cols, int stride1, int stride2, int stride3) {
+    using dtype = typename SV::dtype;
+    static_assert(axis == -1, "for vector TMA, row axis must be -1 as it's unused");
+    static_assert(SV::length <= 256 || (SV::length*sizeof(dtype)) % 128 == 0);
+    // There is technically a way around ^ that involves instantiating two separate TMA descriptors, one of size 256
+    // and the other of size %256, but this is a fairly mild restriction and the other approach is a real PITA and incurs other costs.
+    
+    constexpr uint32_t  tma_dim     = 4;
+    void               *global_addr = (void*)(src);
+
+    constexpr CUtensorMapDataType     tma_format      = (
+        std::is_same_v<dtype, bf16>  ? CU_TENSOR_MAP_DATA_TYPE_BFLOAT16 :
+        std::is_same_v<dtype, half>  ? CU_TENSOR_MAP_DATA_TYPE_FLOAT16 :
+        std::is_same_v<dtype, float> ? CU_TENSOR_MAP_DATA_TYPE_FLOAT32 :
+        std::is_same_v<dtype, fp8e4m3> ? CU_TENSOR_MAP_DATA_TYPE_UINT8 :
+        std::is_same_v<dtype, fp8e5m2> ? CU_TENSOR_MAP_DATA_TYPE_UINT8 :
+        CUtensorMapDataType(-1)
+    );
+    constexpr CUtensorMapInterleave   tma_interleave  = CU_TENSOR_MAP_INTERLEAVE_NONE;
+    constexpr CUtensorMapL2promotion  tma_l2Promotion = CU_TENSOR_MAP_L2_PROMOTION_NONE;
+    constexpr CUtensorMapFloatOOBfill tma_oobFill     = CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE;
+    constexpr CUtensorMapSwizzle      swizzle         = CU_TENSOR_MAP_SWIZZLE_NONE;
+
+    constexpr uint64_t dim1 = tma::detail::sv_tma_dim1<SV>; // inner dim
+    // constexpr uint64_t dim2 = sv_tma_dim2<SV>; outer dim, not used here.
+
+    uint64_t gmem_shape [4] = {(uint64_t)cols, (uint64_t)rows, (uint64_t)depth, (uint64_t)batch};
+    uint64_t gmem_stride[3] = {(uint64_t)cols*sizeof(dtype), (uint64_t)cols*rows*sizeof(dtype), (uint64_t)cols*rows*depth*sizeof(dtype)};
+    uint32_t smem_shape [4] = {(uint32_t)dim1, 1, 1, 1};
+    uint32_t smem_stride[4] = {1, 1, 1, 1};
+
+    gmem_stride[0] = (uint64_t)stride3 * sizeof(dtype);
+    gmem_stride[1] = (uint64_t)stride2 * sizeof(dtype);
+    gmem_stride[2] = (uint64_t)stride1 * sizeof(dtype);
+
+    // ensure that the global address is always 16-byte aligned 
+    assert((reinterpret_cast<uint64_t>(global_addr) & 0b1111) == 0);
+
+    assert(smem_shape[0] <= 256); // smem_shape[0] elements must be <= 256.
+
+    const uint64_t *gmem_shape_ptr = &gmem_shape[0];
+    const uint64_t *gmem_stride_ptr = &gmem_stride[0]; 
+    const uint32_t *smem_shape_ptr = &smem_shape[0];
+    const uint32_t *smem_stride_ptr = &smem_stride[0];
+
+    CUresult result = cuTensorMapEncodeTiled(
+        tma_map,
+        tma_format,
+        tma_dim,
+        global_addr,
+        gmem_shape_ptr,
+        gmem_stride_ptr, 
+        smem_shape_ptr,
+        smem_stride_ptr,
+        tma_interleave,
+        swizzle,
+        tma_l2Promotion,
+        tma_oobFill
+    );
+
+    const char *error_string;
+    CUresult res = cuGetErrorString(result, &error_string);
+    if (result != CUDA_SUCCESS) {
+        std::cerr << "Error in strided vector TMA descriptor creation: " << error_string << std::endl;
+    }
+};
+
 
 /**
  * @brief Loads data from global memory into a shared memory tile, without assuming that the global tile is contiguous.
@@ -249,7 +331,7 @@ __host__ static inline void create_tensor_map_with_strides(CUtensorMap *tma_map,
  * @param[in] idx The coordinate of the tile in the global memory array.
  * @param[in] strides The strides for b, d, and r.
  */
-template<ducks::st::all ST, ducks::gl::all GL, ducks::coord::tile COORD=coord<ST>>
+template<bool test_for_oob, ducks::st::all ST, ducks::gl::all GL, ducks::coord::tile COORD=coord<ST>>
 __device__ static inline void load_strided(ST &dst, const GL &src, const COORD &idx, int3 strides) {
     using T = typename ST::dtype;
     const int row_stride = strides.z;
@@ -277,6 +359,12 @@ __device__ static inline void load_strided(ST &dst, const GL &src, const COORD &
         int row = load_idx / memcpy_per_row;
         int col = (load_idx*elem_per_memcpy) % dst.cols;
         float4 tmp;
+        if constexpr (test_for_oob) {
+            if (row > src.rows) {
+                // Don't continue here - return - since `row` increases monotonically with `i`
+                return;
+            }
+        }
         move<float4>::ldg(tmp, (float4*)&src_ptr[row*row_stride + col]);
         move<float4>::sts(dst.idx(dst_ptr, {row, col}), tmp);
     }
