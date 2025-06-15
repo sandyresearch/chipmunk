@@ -112,12 +112,11 @@ class AsymmetricAttention(nn.Module):
         self.proj_x = LoraLinear(dim_x, dim_x, **proj_lora_kwargs)
         self.proj_y = LoraLinear(dim_x, dim_y, **proj_lora_kwargs) if update_y else nn.Identity()
 
-        if os.environ.get("CHIPMUNK_ATTENTION") == "1":
-            layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
-            self.chipmunk_attention = SparseDiffAttn(
-                layer_num=layer_num,
-                layer_counter=layer_counter,
-            )
+        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=False, is_attn_sparse=True)
+        self.chipmunk_attention = SparseDiffAttn(
+            layer_num=layer_num,
+            layer_counter=layer_counter,
+        )
 
     def run_qkv_y(self, y):
         cp_rank, cp_size = cp.get_cp_rank_size()
