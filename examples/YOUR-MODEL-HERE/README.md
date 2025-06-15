@@ -1,6 +1,6 @@
 # How to Chipmunkify your model!
 
-<p align="center"><img src="https://github.com/sandyresearch/chipmunk/blob/master/assets/images/kittens.png" width="50%"></p>
+<p align="center"><img src="https://github.com/sandyresearch/chipmunk/blob/master/assets/images/kittens.png" width="25%"></p>
 
 🐿️⚡️ Chipmunk is very easy to add to any open-source diffusion transformer (DiT) codebase! To see your end-to-end speedup, you only need to sparsify your attention layer! The rest of the steps are optional, but can help you get even more speedups, optimize memory usage, or maximize generation quality.
 
