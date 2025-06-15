@@ -11,7 +11,7 @@
         <sup>1</sup>Together AI <sup>2</sup>Stanford University <sup>3</sup>UCSD
   </p>
   <h3 align="center">Accepted to EsFoMo@ICML2025 and YPS@MLSys2025</h3>
-  <h3 align="center"><a href="https://arxiv.org/abs/2506.08009">Paper</a> | <a href="https://sandyresearch.github.io">Blogs</a> | Video Tutorial (Coming Soon)</h3>
+  <h3 align="center"><a href="https://arxiv.org/abs/2506.03275">Paper</a> | <a href="https://sandyresearch.github.io">Blogs</a> | Video Tutorial (Coming Soon)</h3>
 </p>
 
 Diffusion transformers (DiTs) are bottlenecked by attention and MLP layers. What if we could make those layers faster? **Chipmunk is a training-free method to accelerate diffusion transformers with hardware-aware, training-free dynamic sparsity**. Chipmunk caches attention weights and MLP activations from previous steps and dynamically computes a sparse “delta” against the cached weights. We make Chipmunk hardware-efficient through [128, 1] and [192, 1] column-sparsity patterns \+ a suite of optimized sparse attention and MLP CUDA kernels.
