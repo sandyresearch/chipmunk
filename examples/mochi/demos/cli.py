@@ -20,8 +20,6 @@ from genmo.mochi_preview.pipelines import (
     linear_quadratic_schedule,
 )
 
-CHIPMUNK_ATTENTION = os.environ.get("CHIPMUNK_ATTENTION", "0") == "1"
-
 pipeline = None
 model_dir_path = None
 lora_path = None
@@ -49,7 +47,7 @@ def load_model():
                 model_path=f"{MOCHI_DIR}/dit.safetensors",
                 lora_path=lora_path,
                 model_dtype="bf16",
-                attention_mode="chipmunk" if CHIPMUNK_ATTENTION else "sdpa",
+                attention_mode="chipmunk",
             ),
             decoder_factory=DecoderModelFactory(
                 model_path=f"{MOCHI_DIR}/decoder.safetensors",
