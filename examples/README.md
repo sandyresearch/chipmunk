@@ -1,4 +1,4 @@
-# Example Models
+# Chipmunk-Enabled Models
 
 We've implemented Chipmunk into the following models:
 
