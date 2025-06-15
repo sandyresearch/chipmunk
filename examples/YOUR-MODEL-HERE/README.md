@@ -64,7 +64,7 @@ class MLP(nn.Module):
         ## NEW CODE
         return self.chipmunk_mlp(x)
         ## OLD CODE
-        return self.fc2(F.gelu(self.fc1(x)))
+        return self.fc2(self.activation(self.fc1(x)))
 ```
 
 ### Step 3: Reduce Chipmunk's GPU Memory Footprint (Optional)
