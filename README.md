@@ -46,7 +46,6 @@ https://github.com/user-attachments/assets/eb68abb6-249f-4e3a-96fe-657b7cf04531
 
 - **5/12/2025:** Presented at the YPS workshop at MLSys 2025.
 
-
 ## 💡 Quickstart
 
 ### 1\. Clone repo, build kernels, & install deps
@@ -115,6 +114,10 @@ Use the one-line accelerated inference script to get started, and then check out
 cd examples/mochi && python3 ./scripts/download_weights.py weights/
 ./run.sh
 ```
+
+#### Want to add Chipmunk to another model that's not listed?
+
+We've made a tutorial guide for you that will help you add Chipmunk to any DiT codebase! Check out [examples/YOUR-MODEL-HERE/README.md](examples/YOUR-MODEL-HERE/README.md) for a comprehensive tutorial.
 
 ## ⏰ Benchmarks
 
