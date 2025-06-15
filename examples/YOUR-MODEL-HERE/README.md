@@ -65,7 +65,7 @@ from chipmunk.util.storage.offloaded_tensor import PIPELINE_DEPTH
 
 for i, block in enumerate(self.blocks):
     # Add these 4 lines to the beginning of your forward loop
-    # NOTE: If you're only sparsifying attention or only sparsifying MLP, you can only include one of them below!
+    # Note: If you're only sparsifying attention or only sparsifying MLP, you can only include one of them below!
     if not GLOBAL_CONFIG['offloading']['global_disable_offloading']:
         next_block = self.blocks[(i + PIPELINE_DEPTH - 1) % len(self.blocks)]
         for storage in [next_block.chipmunk_mlp.storage, next_block.chipmunk_attention.storage]: storage.load_async()
@@ -75,7 +75,7 @@ for i, block in enumerate(self.blocks):
 
 ```
 
-### Step 4: Token Reordering
+### Step 4: Token Reordering (Optional)
 
 Token reordering is a method that improves the quality of model generations by ensuring that the chunks of contiguous tokens share a similar brightness/color in the final output generation. Since chunks of contiguous tokens share the same sparsity pattern, this means that tokens that look similar will share the same sparsity pattern (i.e., attend to the same keys/values for attention or activate the same neurons in W1/W2 for MLPs). Please see Section 3.2 and Alg. 1 of [our paper](https://arxiv.org/abs/2506.03275) for more details.
 
