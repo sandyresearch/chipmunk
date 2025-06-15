@@ -60,7 +60,7 @@ conda create -n chipmunk python=3.11 -y
 conda activate chipmunk
 conda install cuda==12.8.0 -c nvidia -y
 # Install dependencies and build kernels
-pip install -e . -e ./examples/flux
+pip install -e . --no-build-isolation
 ```
 
 Our kernels are written for Hopper GPUs, and depend on optimizations specific to CUDA Toolkit version ≥12.4 (we recommend 12.8\!).
@@ -104,7 +104,7 @@ huggingface-cli download Wan-AI/Wan2.1-T2V-14B --local-dir ./Wan2.1-T2V-14B
 Use the one-line accelerated inference script to get started, and then check out [examples/flux/README.md](examples/flux/README.md) for a comprehensive tutorial.
 
 ```bash
-cd examples/flux && python -m flux.cli --name flux-dev --loop --prompt "A very cute cartoon chipmunk dressed up as a ninja holding katanas" --chipmunk-config ./chipmunk-config.yml
+cd examples/flux && pip install -e . && python -m flux.cli --name flux-dev --loop --prompt "A very cute cartoon chipmunk dressed up as a ninja holding katanas" --chipmunk-config ./chipmunk-config.yml
 ```
 
 #### 🎥 Mochi Video Generation Example
