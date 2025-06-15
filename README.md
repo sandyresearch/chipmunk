@@ -34,6 +34,19 @@ https://github.com/user-attachments/assets/eb68abb6-249f-4e3a-96fe-657b7cf04531
 
 <p align="center"><i>Images of cute chipmunks can be generated 1.37x faster! <b>Left</b>: Fully Dense FLUX.1-dev. <b>Right</b>: Ours (84% sparse attention and 70% sparse MLP)</i></p>
 
+## ⏳ Update Log
+
+- **6/15/2025:** Our attention kernels \[[1](csrc/attn/csp_attn.cu), [2](csrc/attn/dense_attn.cu), [3](csrc/attn/dense_colsum_attn.cu)\] now support completely unpadded and arbitrarily strided inputs for Q, K, and V. No more padding/`.contiguous()` calls necessary! This saves 5-10% of the E2E video generation latency.
+
+- **6/13/2025:** We add official acceleration support for the Mochi model by GenmoAI, achieving a 1.4x near-lossless speedup. [Check it out here!](examples/mochi)
+
+- **6/11/2025:** Accepted to ES-FoMo III at ICML 2025.
+
+- **6/09/2025:** Chipmunk's kernels are ported from CUDA to Triton, and we officially launch multi-architecture support! We test all models across A100s, finding that there is a comparable speedup.
+
+- **5/12/2025:** Presented at the YPS workshop at MLSys 2025.
+
+
 ## 💡 Quickstart
 
 ### 1\. Clone repo, build kernels, & install deps
