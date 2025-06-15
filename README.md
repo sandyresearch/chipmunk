@@ -36,7 +36,9 @@ https://github.com/user-attachments/assets/eb68abb6-249f-4e3a-96fe-657b7cf04531
 
 ## ⏳ Update Log
 
-- **6/15/2025:** Our attention kernels \[[1](csrc/attn/csp_attn.cu), [2](csrc/attn/dense_attn.cu), [3](csrc/attn/dense_colsum_attn.cu)\] now support completely unpadded and arbitrarily strided inputs for Q, K, and V. No more padding/`.contiguous()` calls necessary! This saves 5-10% of the E2E video generation latency.
+- **6/15/2025:** We release a tutorial guide for adding Chipmunk to any DiT codebase! [Check it out here!](examples/YOUR-MODEL-HERE/README.md) Video tutorial coming soon too...
+
+- **6/14/2025:** Our attention kernels \[[1](csrc/attn/csp_attn.cu), [2](csrc/attn/dense_attn.cu), [3](csrc/attn/dense_colsum_attn.cu)\] now support completely unpadded and arbitrarily strided inputs for Q, K, and V. No more padding/`.contiguous()` calls necessary! This saves 5-10% of the E2E video generation latency.
 
 - **6/13/2025:** We add official support for Mochi, achieving a 1.4x near-lossless speedup. [Check it out here!](examples/mochi)
 
