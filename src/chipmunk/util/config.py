@@ -13,13 +13,13 @@ BASE_CONFIG = {
         'is_enabled': True,
         'is_fp8': False,
 
-        'top_keys': "dd", # this will generate an error indicating that top_keys is not a float
+        'top_keys': 0.3,
         'random_keys': 0.05,
         'full_step_every': 10,
         'block_mask_cache': 2,
         'first_n_dense_layers': 2,
 
-        'provider': 'triton',
+        'provider': 'cuda', # either 'cuda' or 'triton'
     },
      "patchify": {
         'is_enabled': True,
@@ -43,7 +43,7 @@ BASE_CONFIG = {
         'should_compress_indices': True,
         'should_keep_tail_dense': False,
         
-        'provider': 'triton',
+        'provider': 'cuda', # either 'cuda' or 'triton'
     },
     "offloading": {
         'global_disable_offloading': False,
@@ -62,8 +62,7 @@ BASE_CONFIG = {
         'text_encoders': True,
     },
     "step_caching": {
-        'is_enabled': True,
-
+        'is_enabled': False,
         'skip_step_schedule': set([7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43])
     }
 }
