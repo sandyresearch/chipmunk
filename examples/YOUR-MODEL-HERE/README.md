@@ -6,6 +6,17 @@
 
 ## Step 1: Sparsify your Attention Layer
 
+### Step 1.1: Load Chipmunk's Configuration
+
+Copy over a chipmunk-config.yml file from one of our example models, depending on the type of task you're working on. For text2image tasks without clasifier-free guidance (CFG), Flux is a good starting point. For text2video tasks, Mochi is a good starting point if you have CFG or Hunyuan without CFG. This config will apply globally to all Chipmunk code in your model. Remember to do this in every process for multi-GPU inference (we recommend putting it at the top of your inference script).
+
+```python
+import chipmunk.util.config
+chipmunk.util.config.load_from_file("/path/to/your/config.yml")
+```
+
+### Step 1.2: Sparsify your Attention Layer
+
 Sparsifying attention can provide a significant speedup on models with large sequence lengths. In your `Attention` module, instantiate a `SparseDiffAttn` object like this:
 
 ```python
@@ -44,7 +55,8 @@ from chipmunk.util import LayerCounter
 class MLP(nn.Module):
     def __init__(self, ...):
         ...
-        layer_num, layer_counter = LayerCounter.build_for_layer(is_mlp_sparse=True)
+        # Note: If you're only sparsifying attention or only sparsifying MLP, you should set is_attn_sparse=True or is_mlp_sparse=True, respectively.
+        layer_num, layer_counter = LayerCounter.build_for_layer(is_attn_sparse=True, is_mlp_sparse=True)
         # Note: self.activation MUST be a GELU module! This is what our kernels implement under the hood.
         self.chipmunk_mlp = SparseDiffMLP(layer_num, layer_counter, self.fc1, self.activation, self.fc2)
 
