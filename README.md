@@ -132,7 +132,7 @@ Baselines: E2E models are `torch.compile`d from reference repositories. Attentio
 **Quality**
 | **Method** | **Speedup ↑** | **Latency (s) ↓** | **Total ↑** | **Quality ↑** | **Semantic ↑** |
 |------------|---------------|-------------------|-------------|---------------|----------------|
-| *HunyuanVideo, T = 50 (720 × 1280 × 129)* | | | | | |
+| ***HunyuanVideo, T = 50 (720 × 1280 × 129)*** | | | | | |
 | Hunyuan                              | 1 ×  | 1030 | 83.24 | 85.09 | 75.82 |
 | STA                                  | 1.79 × | 575  | 82.46 | **84.63** | 73.83 |
 | **Chipmunk**                         | **2.16 ×** | **477** | **82.94** | 84.60 | **76.3** |
@@ -151,7 +151,7 @@ Baselines: E2E models are `torch.compile`d from reference repositories. Attentio
 
 | **Method** | **FLOPs ↓** | **Speedup ↑** | **Latency (s) ↓** | **ImRe ↑** |
 |------------|-------------|---------------|-------------------|------------|
-| *FLUX.1-dev, T = 50 (768 × 1280)* | | | | |
+| ***FLUX.1-dev, T = 50 (768 × 1280)*** | | | | |
 | Flux                           | 100 % | 1 ×    | 6.60 | 0.76 |
 | DiTFastAttn                    | 83 %  | 1.09 × | 6.05 | **0.80** |
 | **Chipmunk**                   | **58 %** | **1.41 ×** | **4.90** | **0.80** |
