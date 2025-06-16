@@ -4,6 +4,10 @@
 
 🐿️⚡️ Chipmunk is very easy to add to any open-source diffusion transformer (DiT) codebase! To see your end-to-end speedup, you only need to sparsify your attention layer! The rest of the steps are optional, but can help you get even more speedups, optimize memory usage, or maximize generation quality.
 
+We've also put together a video version of this tutorial for the Mochi (start at 19:30).
+
+<p align="center"><a href="https://www.youtube.com/watch?v=Rg9enIRSXmo"><img src="assets/images/yt-thumbnail.png" width="75%"></a></p>
+
 ## Step 1: Sparsify your Attention Layer
 
 ### Step 1.1: Load Chipmunk's Configuration
