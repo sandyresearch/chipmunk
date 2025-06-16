@@ -132,13 +132,13 @@ Baselines: E2E models are `torch.compile`d from reference repositories. Attentio
 **Quality**
 | **Method** | **Speedup ↑** | **Latency (s) ↓** | **Total ↑** | **Quality ↑** | **Semantic ↑** |
 |------------|---------------|-------------------|-------------|---------------|----------------|
-| **HunyuanVideo, T = 50 (720 × 1280 × 129)** | | | | | |
+| *HunyuanVideo, T = 50 (720 × 1280 × 129)* | | | | | |
 | Hunyuan                              | 1 ×  | 1030 | 83.24 | 85.09 | 75.82 |
 | STA                                  | 1.79 × | 575  | 82.46 | **84.63** | 73.83 |
 | **Chipmunk**                         | **2.16 ×** | **477** | **82.94** | 84.60 | **76.3** |
 | Step Caching (TeaCache)              | 3.69 × | 279  | 80.79 | 82.87 | 72.5 |
 | **Chipmunk + Step Cache**            | **3.72 ×** | **277** | **82.5** | **84.23** | **75.6** |
-| **WAN2.1, T = 50 (720 × 1280 × 121)** | | | | | |
+| *WAN2.1, T = 50 (720 × 1280 × 121)* | | | | | |
 | WAN2.1                               | 1 ×  | 1357 | 81.47 | 83.57 | 73.08 |
 | STA                                  | 1.36 × | 998  | **81.84** | **83.65** | **74.60** |
 | **Chipmunk + STA**                   | **1.56 ×** | **870** | 81.71 | 83.61 | 74.12 |
@@ -151,7 +151,7 @@ Baselines: E2E models are `torch.compile`d from reference repositories. Attentio
 
 | **Method** | **FLOPs ↓** | **Speedup ↑** | **Latency (s) ↓** | **ImRe ↑** |
 |------------|-------------|---------------|-------------------|------------|
-| **FLUX.1-dev, T = 50 (768 × 1280)** | | | | |
+| *FLUX.1-dev, T = 50 (768 × 1280)* | | | | |
 | Flux                           | 100 % | 1 ×    | 6.60 | 0.76 |
 | DiTFastAttn                    | 83 %  | 1.09 × | 6.05 | **0.80** |
 | **Chipmunk**                   | **58 %** | **1.41 ×** | **4.90** | **0.80** |
@@ -163,7 +163,7 @@ Baselines: E2E models are `torch.compile`d from reference repositories. Attentio
 
 | **Method** | **FLOPs ↓** | **Speedup ↑** | **Latency (s) ↓** | **GenEval ↑** | **CLIP ↑** |
 |------------|-------------|---------------|-------------------|---------------|------------|
-| **FLUX.1-dev, T = 50 (768 × 1280)** | | | | | |
+| ***FLUX.1-dev, T = 50 (768 × 1280)*** | | | | | |
 | Flux                           | 100 % | 1 ×    | 6.60 | 0.66 | 31.07 |
 | Step + Token Caching (ToCa)    | 66 %  | 1.51 × | 4.37 | 0.65 | 31.21 |
 | Step Caching (TeaCache)        | 45 %  | 2.23 × | 2.95 | 0.61 | 31.37 |
