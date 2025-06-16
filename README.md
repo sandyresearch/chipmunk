@@ -36,7 +36,7 @@ https://github.com/user-attachments/assets/eb68abb6-249f-4e3a-96fe-657b7cf04531
 
 ## ⏳ Update Log
 
-- **6/15/2025:** We release a tutorial guide for adding Chipmunk to any DiT codebase! [Check it out here!](examples/YOUR-MODEL-HERE/README.md) Video tutorial coming soon too...
+- **6/15/2025:** We release a tutorial guide for adding Chipmunk to any DiT codebase! [Check it out here!](examples/YOUR-MODEL-HERE/README.md). Check out the video tutorial + method explanation on YouTube: https://www.youtube.com/watch?v=Rg9enIRSXmo.
 
 - **6/14/2025:** Our attention kernels \[[1](csrc/attn/csp_attn.cu), [2](csrc/attn/dense_attn.cu), [3](csrc/attn/dense_colsum_attn.cu)\] now support completely unpadded and arbitrarily strided inputs for Q, K, and V. No more padding/`.contiguous()` calls necessary! This saves 5-10% of the E2E video generation latency.
 
@@ -119,7 +119,9 @@ cd examples/mochi && python3 ./scripts/download_weights.py weights/
 
 #### Want to add Chipmunk to another model that's not listed?
 
-We've made a tutorial guide for you that will help you add Chipmunk to any DiT codebase! Check out [examples/YOUR-MODEL-HERE/README.md](examples/YOUR-MODEL-HERE/README.md) for a comprehensive tutorial.
+We've made a tutorial guide for you that will help you add Chipmunk to any DiT codebase! Check out [examples/YOUR-MODEL-HERE/README.md](examples/YOUR-MODEL-HERE/README.md) for a comprehensive tutorial. There's also a video version of this tutorial here:
+
+<p align="center"><a href="https://www.youtube.com/watch?v=Rg9enIRSXmo"><img src="assets/images/yt-thumbnail.png" width="75%"></a></p>
 
 ## ⏰ Benchmarks
 
