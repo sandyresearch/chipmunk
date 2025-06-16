@@ -3,6 +3,25 @@
 Original repo: https://github.com/Tencent/HunyuanVideo
 
 
+| **Method** | **Speedup ↑** | **Latency (s) ↓** | **Total ↑** | **Quality ↑** | **Semantic ↑** |
+|------------|---------------|-------------------|-------------|---------------|----------------|
+| **HunyuanVideo, T = 50 (720 × 1280 × 129)** | | | | | |
+| Hunyuan                              | 1 ×  | 1030 | 83.24 | 85.09 | 75.82 |
+| STA                                  | 1.79 × | 575  | 82.46 | **84.63** | 73.83 |
+| **Chipmunk**                         | **2.16 ×** | **477** | **82.94** | 84.60 | **76.3** |
+| Step Caching (TeaCache)              | 3.69 × | 279  | 80.79 | 82.87 | 72.5 |
+| **Chipmunk + Step Cache**            | **3.72 ×** | **277** | **82.5** | **84.23** | **75.6** |
+| **WAN2.1, T = 50 (720 × 1280 × 121)** | | | | | |
+| WAN2.1                               | 1 ×  | 1357 | 81.47 | 83.57 | 73.08 |
+| STA                                  | 1.36 × | 998  | **81.84** | **83.65** | **74.60** |
+| **Chipmunk + STA**                   | **1.56 ×** | **870** | 81.71 | 83.61 | 74.12 |
+| Step Caching (TeaCache)              | 2.0 × | 678  | 81.17 | 83.24 | 72.87 |
+| Chipmunk-56 % + STA + Step Cache     | 2.20 × | 616  | **81.73** | **83.74** | 73.69 |
+| **Chipmunk-73 % + STA + Step Cache** | **2.67 ×** | **508** | 81.11 | 82.88 | **74.05** |
+
+*Performance comparison of various methods across different datasets for video generation.*  
+
+
 
 https://github.com/user-attachments/assets/b68f5c08-6acc-4915-99a8-e80293836aea
 
