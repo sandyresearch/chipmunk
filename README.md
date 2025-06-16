@@ -132,46 +132,46 @@ Baselines: E2E models are `torch.compile`d from reference repositories. Attentio
 **Quality**
 | **Method** | **Speedup ↑** | **Latency (s) ↓** | **Total ↑** | **Quality ↑** | **Semantic ↑** |
 |------------|---------------|-------------------|-------------|---------------|----------------|
-| ***HunyuanVideo, T = 50 (720 × 1280 × 129)*** | | | | | |
-| Hunyuan                              | 1 ×  | 1030 | 83.24 | 85.09 | 75.82 |
-| STA                                  | 1.79 × | 575  | 82.46 | **84.63** | 73.83 |
-| **Chipmunk**                         | **2.16 ×** | **477** | **82.94** | 84.60 | **76.3** |
-| Step Caching (TeaCache)              | 3.69 × | 279  | 80.79 | 82.87 | 72.5 |
-| **Chipmunk + Step Cache**            | **3.72 ×** | **277** | **82.5** | **84.23** | **75.6** |
-| ***WAN2.1, T = 50 (720 × 1280 × 121)*** | | | | | |
-| WAN2.1                               | 1 ×  | 1357 | 81.47 | 83.57 | 73.08 |
-| STA                                  | 1.36 × | 998  | **81.84** | **83.65** | **74.60** |
-| **Chipmunk + STA**                   | **1.56 ×** | **870** | 81.71 | 83.61 | 74.12 |
-| Step Caching (TeaCache)              | 2.0 × | 678  | 81.17 | 83.24 | 72.87 |
-| Chipmunk-56 % + STA + Step Cache     | 2.20 × | 616  | **81.73** | **83.74** | 73.69 |
-| **Chipmunk-73 % + STA + Step Cache** | **2.67 ×** | **508** | 81.11 | 82.88 | **74.05** |
+| ***`HunyuanVideo`, T = 50 (720×1280×129)*** | | | | | |
+| Hunyuan                              | 1×  | 1030 | 83.24 | 85.09 | 75.82 |
+| STA                                  | 1.79× | 575  | 82.46 | **84.63** | 73.83 |
+| **Chipmunk**                         | **2.16×** | **477** | **82.94** | 84.60 | **76.3** |
+| Step Caching (TeaCache)              | 3.69× | 279  | 80.79 | 82.87 | 72.5 |
+| **Chipmunk + Step Cache**            | **3.72×** | **277** | **82.5** | **84.23** | **75.6** |
+| ***`WAN2.1`, T = 50 (720×1280×121)*** | | | | | |
+| WAN2.1                               | 1×  | 1357 | 81.47 | 83.57 | 73.08 |
+| STA                                  | 1.36× | 998  | **81.84** | **83.65** | **74.60** |
+| **Chipmunk + STA**                   | **1.56×** | **870** | 81.71 | 83.61 | 74.12 |
+| Step Caching (TeaCache)              | 2.0× | 678  | 81.17 | 83.24 | 72.87 |
+| Chipmunk-56% + STA + Step Cache     | 2.20× | 616  | **81.73** | **83.74** | 73.69 |
+| **Chipmunk-73% + STA + Step Cache** | **2.67×** | **508** | 81.11 | 82.88 | **74.05** |
 
 *Performance comparison of various methods across different datasets for video generation.*  
 
 
 | **Method** | **FLOPs ↓** | **Speedup ↑** | **Latency (s) ↓** | **ImRe ↑** |
 |------------|-------------|---------------|-------------------|------------|
-| ***FLUX.1-dev, T = 50 (768 × 1280)*** | | | | |
-| Flux                           | 100 % | 1 ×    | 6.60 | 0.76 |
-| DiTFastAttn                    | 83 %  | 1.09 × | 6.05 | **0.80** |
-| **Chipmunk**                   | **58 %** | **1.41 ×** | **4.90** | **0.80** |
-| Step + Token Caching (ToCa)    | 66 %  | 1.51 × | 4.37 | 0.76 |
-| Step Caching (TeaCache)        | 39 %  | 2.51 × | 2.64 | 0.68 |
-| **Chipmunk + Step Cache**      | **31 %** | **2.56 ×** | **2.57** | **0.77** |
+| ***`FLUX.1-dev`, T = 50 (768×1280)*** | | | | |
+| Flux                           | 100% | 1×    | 6.60 | 0.76 |
+| DiTFastAttn                    | 83%  | 1.09× | 6.05 | **0.80** |
+| **Chipmunk**                   | **58%** | **1.41×** | **4.90** | **0.80** |
+| Step + Token Caching (ToCa)    | 66%  | 1.51× | 4.37 | 0.76 |
+| Step Caching (TeaCache)        | 39%  | 2.51× | 2.64 | 0.68 |
+| **Chipmunk + Step Cache**      | **31%** | **2.56×** | **2.57** | **0.77** |
 
 *Performance comparison of various methods on ImageReward (image generation).*
 
 | **Method** | **FLOPs ↓** | **Speedup ↑** | **Latency (s) ↓** | **GenEval ↑** | **CLIP ↑** |
 |------------|-------------|---------------|-------------------|---------------|------------|
-| ***FLUX.1-dev, T = 50 (768 × 1280)*** | | | | | |
-| Flux                           | 100 % | 1 ×    | 6.60 | 0.66 | 31.07 |
-| Step + Token Caching (ToCa)    | 66 %  | 1.51 × | 4.37 | 0.65 | 31.21 |
-| Step Caching (TeaCache)        | 45 %  | 2.23 × | 2.95 | 0.61 | 31.37 |
-| **Chipmunk-77 % + Step Cache** | **31 %** | **2.56 ×** | **2.57** | 0.62 | 31.18 |
-| Chipmunk-65 % + Step Cache     | 38 %  | 2.25 × | 2.93 | **0.66** | **31.43** |
+| ***`FLUX.1-dev`, T = 50 (768×1280)*** | | | | | |
+| Flux                           | 100% | 1×    | 6.60 | 0.66 | 31.07 |
+| Step + Token Caching (ToCa)    | 66%  | 1.51× | 4.37 | 0.65 | 31.21 |
+| Step Caching (TeaCache)        | 45%  | 2.23× | 2.95 | 0.61 | 31.37 |
+| **Chipmunk-77% + Step Cache** | **31%** | **2.56×** | **2.57** | 0.62 | 31.18 |
+| Chipmunk-65% + Step Cache     | 38%  | 2.25× | 2.93 | **0.66** | **31.43** |
 
 *Performance comparison of various methods on GenEval and CLIP metrics.*  
-*Note: Chipmunk-X % denotes a sparsity level of X % to assess the speed-quality trade-off.*
+*Note: Chipmunk-X% denotes a sparsity level of X% to assess the speed-quality trade-off.*
 
 ## 📖 How it Works
 
@@ -180,7 +180,7 @@ Chipmunk starts from two empirical facts about Diffusion Transformers: activatio
 <p align="center"><img src="assets/images/howitworks-sum.png" width="60%"></p>
 Leveraging this, it caches each layer's outputs from step n − 1 and, at step n, performs a "delta" pass that recomputes only the few vectors whose weights or values have materially changed, reusing the rest.   
 <p align="center"><img src="assets/images/howitworks-cache.png" width="60%"></p>
-Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block‑sparse patterns (e.g., 128 × 256 tiles) that align with the hardware's GEMM kernels, skipping entire blocks instead of single elements. It then reorders keys, values, and tokens on the fly so that the sparse rows pack densely inside each tile, achieving an effective [128 × 1] column sparsity while maintaining contiguous memory access.   
+Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block‑sparse patterns (e.g., 128× 256 tiles) that align with the hardware's GEMM kernels, skipping entire blocks instead of single elements. It then reorders keys, values, and tokens on the fly so that the sparse rows pack densely inside each tile, achieving an effective [128× 1] column sparsity while maintaining contiguous memory access.   
 <p align="center"><img src="assets/images/howitworks-sram.png" width="60%"></p>
 
 ## 📚 Further Reading
@@ -197,7 +197,7 @@ Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block�
 - **[Hunyuan Tutorial](examples/hunyuan/README.md)**: A tutorial of how to edit sparsity settings in Hunyuan and generate fast videos
 - **[FLUX.1-dev Tutorial](examples/flux/README.md)**: A tutorial of how to edit sparsity settings in Flux and generate fast images
 - **[Kernel Specification](csrc/README.md):** Description and purpose of each custom CUDA kernel if you'd like to start hacking on our kernels!
-- **[Add Chipmunk to Your DiT Model](examples/YOUR-DIT-MODEL/README.md):** A written tutorial on how to add Chipmunk to any DiT codebase
+- **[Add Chipmunk to Your DiT Model](examples/YOUR-MODEL-HERE/README.md):** A written tutorial on how to add Chipmunk to any DiT codebase
 
 <p align="center"><img src="assets/images/kittens.png" width="60%" /></p>
 
