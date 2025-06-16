@@ -148,13 +148,11 @@ Baselines: E2E models are `torch.compile`d from reference repositories. Attentio
 
 *Performance comparison of various methods across different datasets for video generation.*  
 
----
 
 | **Method** | **FLOPs ↓** | **Speedup ↑** | **Latency (s) ↓** | **ImRe ↑** |
 |------------|-------------|---------------|-------------------|------------|
 | **FLUX.1-dev, T = 50 (768 × 1280)** | | | | |
 | Flux                           | 100 % | 1 ×    | 6.60 | 0.76 |
-| STA                            | 84 %  | 1.15 × | 5.73 | 0.75 |
 | DiTFastAttn                    | 83 %  | 1.09 × | 6.05 | **0.80** |
 | **Chipmunk**                   | **58 %** | **1.41 ×** | **4.90** | **0.80** |
 | Step + Token Caching (ToCa)    | 66 %  | 1.51 × | 4.37 | 0.76 |
@@ -162,8 +160,6 @@ Baselines: E2E models are `torch.compile`d from reference repositories. Attentio
 | **Chipmunk + Step Cache**      | **31 %** | **2.56 ×** | **2.57** | **0.77** |
 
 *Performance comparison of various methods on ImageReward (image generation).*
-
----
 
 | **Method** | **FLOPs ↓** | **Speedup ↑** | **Latency (s) ↓** | **GenEval ↑** | **CLIP ↑** |
 |------------|-------------|---------------|-------------------|---------------|------------|
