@@ -191,11 +191,13 @@ Because GPUs excel at block‑sized work, Chipmunk maps these deltas onto block�
 2. **[Mathematical Theory](https://sandyresearch.github.io/chipmunk-part-II/)**: Builds mathematical intuition for the core ideas behind Chipmunk
 3. **[GPU Optimization & Systems](https://sandyresearch.github.io/chipmunk-part-III/)**: A deep-dive on how Chipmunk exploits GPU kernel optimizations to become hardware-efficient
 
-### 🙋‍♂️ Tutorials
+### 🙋‍♂️ Documentation
 
-- **[Hunyuan Video Tutorial](examples/hunyuan/README.md)**: A tutorial of how to edit sparsity settings in Hunyuan and generate fast videos
+- **[Mochi Tutorial on YouTube](https://www.youtube.com/watch?v=Rg9enIRSXmo)**: See how Chipmunk is implemented into Mochi, and apply it to your favorite DiT model!
+- **[Hunyuan Tutorial](examples/hunyuan/README.md)**: A tutorial of how to edit sparsity settings in Hunyuan and generate fast videos
 - **[FLUX.1-dev Tutorial](examples/flux/README.md)**: A tutorial of how to edit sparsity settings in Flux and generate fast images
-- **[Kernel Specification](csrc/README.md):** Description and purpose of each custom CUDA kernel if you'd like to start hacking on our kernels\!
+- **[Kernel Specification](csrc/README.md):** Description and purpose of each custom CUDA kernel if you'd like to start hacking on our kernels!
+- **[Add Chipmunk to Your DiT Model](examples/YOUR-DIT-MODEL/README.md):** A written tutorial on how to add Chipmunk to any DiT codebase
 
 <p align="center"><img src="assets/images/kittens.png" width="60%" /></p>
 
