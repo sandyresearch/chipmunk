@@ -130,21 +130,52 @@ We've made a tutorial guide for you that will help you add Chipmunk to any DiT c
 Baselines: E2E models are `torch.compile`d from reference repositories. Attention layer uses FlashAttention3 as a backend. MLP layer uses torch compiled nn.Sequential (maximal performance with fused activations).
 
 **Quality**
+| **Method** | **Speedup ↑** | **Latency (s) ↓** | **Total ↑** | **Quality ↑** | **Semantic ↑** |
+|------------|---------------|-------------------|-------------|---------------|----------------|
+| **HunyuanVideo, T = 50 (720 × 1280 × 129)** | | | | | |
+| Hunyuan                              | 1 ×  | 1030 | 83.24 | 85.09 | 75.82 |
+| STA                                  | 1.79 × | 575  | 82.46 | **84.63** | 73.83 |
+| **Chipmunk**                         | **2.16 ×** | **477** | **82.94** | 84.60 | **76.3** |
+| Step Caching (TeaCache)              | 3.69 × | 279  | 80.79 | 82.87 | 72.5 |
+| **Chipmunk + Step Cache**            | **3.72 ×** | **277** | **82.5** | **84.23** | **75.6** |
+| **WAN2.1, T = 50 (720 × 1280 × 121)** | | | | | |
+| WAN2.1                               | 1 ×  | 1357 | 81.47 | 83.57 | 73.08 |
+| STA                                  | 1.36 × | 998  | **81.84** | **83.65** | **74.60** |
+| **Chipmunk + STA**                   | **1.56 ×** | **870** | 81.71 | 83.61 | 74.12 |
+| Step Caching (TeaCache)              | 2.0 × | 678  | 81.17 | 83.24 | 72.87 |
+| Chipmunk-56 % + STA + Step Cache     | 2.20 × | 616  | **81.73** | **83.74** | 73.69 |
+| **Chipmunk-73 % + STA + Step Cache** | **2.67 ×** | **508** | 81.11 | 82.88 | **74.05** |
 
-| Hunyuan                                  | VBench Quality | VB Semantic | VB Total | Resolution   | Sparsity | Latency         | Speedup |
-| :--------------------------------------- | :------------- | :---------- | :------- | :----------- | :------- | :-------------- | :------ |
-| FlashAttention-3                         | 85.09%         | 75.82%      | 83.24%   | 720x1280x129 | 0%       | 1030s           | 1x      |
-| Sliding Tile Attention (Training-Free)   | 84.63%         | 73.83%      | 82.46%   | 768x1280x117 | 58%      | 945s \-\> 527s  | 1.79x   |
-| Chipmunk (Training-Free)                 | 84.60%         | 76.29%      | 82.94%   | 720x1280x129 | 82% \*   | 1030s \-\> 477s | 2.16x   |
-| Chipmunk \+ Step Caching (Training-Free) | 84.22%         | 75.60%      | 82.50%   | 720x1280x129 | 87%      | 1030s \-\> 277s | 3.72x   |
+*Performance comparison of various methods across different datasets for video generation.*  
 
-\* 93% sparsity on 44 out of 50 steps for an average of 82% sparsity.
+---
 
-| FLUX.1-dev\* (bf16)              | ImageReward | MLP Sparsity | Attn Sparsity | Speedup   |
-| :------------------------------- | :---------- | :----------- | :------------ | :-------- |
-| Baseline (with FlashAttention-3) | 76.6%       | 0%           | 0%            | 1x        |
-| Chipmunk                         | 80.2%       | 70%          | 83.5%         | **1.37x** |
-| Chipmunk \+ Step Caching         | 78.0%       | 70%          | 83.5%         | **1.63x** |
+| **Method** | **FLOPs ↓** | **Speedup ↑** | **Latency (s) ↓** | **ImRe ↑** |
+|------------|-------------|---------------|-------------------|------------|
+| **FLUX.1-dev, T = 50 (768 × 1280)** | | | | |
+| Flux                           | 100 % | 1 ×    | 6.60 | 0.76 |
+| STA                            | 84 %  | 1.15 × | 5.73 | 0.75 |
+| DiTFastAttn                    | 83 %  | 1.09 × | 6.05 | **0.80** |
+| **Chipmunk**                   | **58 %** | **1.41 ×** | **4.90** | **0.80** |
+| Step + Token Caching (ToCa)    | 66 %  | 1.51 × | 4.37 | 0.76 |
+| Step Caching (TeaCache)        | 39 %  | 2.51 × | 2.64 | 0.68 |
+| **Chipmunk + Step Cache**      | **31 %** | **2.56 ×** | **2.57** | **0.77** |
+
+*Performance comparison of various methods on ImageReward (image generation).*
+
+---
+
+| **Method** | **FLOPs ↓** | **Speedup ↑** | **Latency (s) ↓** | **GenEval ↑** | **CLIP ↑** |
+|------------|-------------|---------------|-------------------|---------------|------------|
+| **FLUX.1-dev, T = 50 (768 × 1280)** | | | | | |
+| Flux                           | 100 % | 1 ×    | 6.60 | 0.66 | 31.07 |
+| Step + Token Caching (ToCa)    | 66 %  | 1.51 × | 4.37 | 0.65 | 31.21 |
+| Step Caching (TeaCache)        | 45 %  | 2.23 × | 2.95 | 0.61 | 31.37 |
+| **Chipmunk-77 % + Step Cache** | **31 %** | **2.56 ×** | **2.57** | 0.62 | 31.18 |
+| Chipmunk-65 % + Step Cache     | 38 %  | 2.25 × | 2.93 | **0.66** | **31.43** |
+
+*Performance comparison of various methods on GenEval and CLIP metrics.*  
+*Note: Chipmunk-X % denotes a sparsity level of X % to assess the speed-quality trade-off.*
 
 ## 📖 How it Works
 
