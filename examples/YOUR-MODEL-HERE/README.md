@@ -6,7 +6,7 @@
 
 We've also put together a video version of this tutorial for the Mochi (start at 19:30).
 
-<p align="center"><a href="https://www.youtube.com/watch?v=Rg9enIRSXmo"><img src="assets/images/yt-thumbnail.png" width="75%"></a></p>
+<p align="center"><a href="https://www.youtube.com/watch?v=Rg9enIRSXmo"><img src="../../assets/images/yt-thumbnail.png" width="75%"></a></p>
 
 ## Step 1: Sparsify your Attention Layer
 
