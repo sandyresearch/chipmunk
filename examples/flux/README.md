@@ -24,6 +24,7 @@ Original repo by Black Forest Labs: https://blackforestlabs.ai.
 | **Chipmunk-77 % + Step Cache** | **31 %** | **2.56 ×** | **2.57** | 0.62 | 31.18 |
 | Chipmunk-65 % + Step Cache     | 38 %  | 2.25 × | 2.93 | **0.66** | **31.43** |
 
+*Performance comparison of various methods across various GenEval and CLIP.*
 
 ## Quickstart
 
