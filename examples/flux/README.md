@@ -3,6 +3,28 @@
 Original repo by Black Forest Labs: https://blackforestlabs.ai. 
 
 
+| **Method** | **FLOPs ↓** | **Speedup ↑** | **Latency (s) ↓** | **ImRe ↑** |
+|------------|-------------|---------------|-------------------|------------|
+| **FLUX.1-dev, T = 50 (768 × 1280)** | | | | |
+| Flux                           | 100 % | 1 ×    | 6.60 | 0.76 |
+| DiTFastAttn                    | 83 %  | 1.09 × | 6.05 | **0.80** |
+| **Chipmunk**                   | **58 %** | **1.41 ×** | **4.90** | **0.80** |
+| Step + Token Caching (ToCa)    | 66 %  | 1.51 × | 4.37 | 0.76 |
+| Step Caching (TeaCache)        | 39 %  | 2.51 × | 2.64 | 0.68 |
+| **Chipmunk + Step Cache**      | **31 %** | **2.56 ×** | **2.57** | **0.77** |
+
+*Performance comparison of various methods on ImageReward (image generation).*
+
+| **Method** | **FLOPs ↓** | **Speedup ↑** | **Latency (s) ↓** | **GenEval ↑** | **CLIP ↑** |
+|------------|-------------|---------------|-------------------|---------------|------------|
+| **FLUX.1-dev, T = 50 (768 × 1280)** | | | | | |
+| Flux                           | 100 % | 1 ×    | 6.60 | 0.66 | 31.07 |
+| Step + Token Caching (ToCa)    | 66 %  | 1.51 × | 4.37 | 0.65 | 31.21 |
+| Step Caching (TeaCache)        | 45 %  | 2.23 × | 2.95 | 0.61 | 31.37 |
+| **Chipmunk-77 % + Step Cache** | **31 %** | **2.56 ×** | **2.57** | 0.62 | 31.18 |
+| Chipmunk-65 % + Step Cache     | 38 %  | 2.25 × | 2.93 | **0.66** | **31.43** |
+
+
 ## Quickstart
 
 ### 1\. Clone repo, build kernels, & install deps
