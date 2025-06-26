@@ -1,3 +1,4 @@
+import math
 import os
 from dataclasses import dataclass
 
@@ -301,7 +302,71 @@ configs = {
             shift_factor=0.1159,
         ),
     ),
+    "flux-dev-kontext": ModelSpec(
+        repo_id="black-forest-labs/FLUX.1-Kontext-dev",
+        repo_flow="flux1-kontext-dev.safetensors",
+        repo_ae="ae.safetensors",
+        ckpt_path=os.getenv("FLUX_DEV_KONTEXT_NULL"),
+        lora_path=None,
+        params=FluxParams(
+            in_channels=64,
+            out_channels=64,
+            vec_in_dim=768,
+            context_in_dim=4096,
+            hidden_size=3072,
+            mlp_ratio=4.0,
+            num_heads=24,
+            depth=19,
+            depth_single_blocks=38,
+            axes_dim=[16, 56, 56],
+            theta=10_000,
+            qkv_bias=True,
+            guidance_embed=True,
+        ),
+        ae_path=os.getenv("AE"),
+        ae_params=AutoEncoderParams(
+            resolution=256,
+            in_channels=3,
+            ch=128,
+            out_ch=3,
+            ch_mult=[1, 2, 4, 4],
+            num_res_blocks=2,
+            z_channels=16,
+            scale_factor=0.3611,
+            shift_factor=0.1159,
+        ),
+    ),
 }
+
+
+PREFERED_KONTEXT_RESOLUTIONS = [
+    (672, 1568),
+    (688, 1504),
+    (720, 1456),
+    (752, 1392),
+    (800, 1328),
+    (832, 1248),
+    (880, 1184),
+    (944, 1104),
+    (1024, 1024),
+    (1104, 944),
+    (1184, 880),
+    (1248, 832),
+    (1328, 800),
+    (1392, 752),
+    (1456, 720),
+    (1504, 688),
+    (1568, 672),
+]
+
+
+def aspect_ratio_to_height_width(aspect_ratio: str, area: int = 1024**2) -> tuple[int, int]:
+    width = float(aspect_ratio.split(":")[0])
+    height = float(aspect_ratio.split(":")[1])
+    ratio = width / height
+    width = round(math.sqrt(area * ratio))
+    height = round(math.sqrt(area / ratio))
+    return 16 * (width // 16), 16 * (height // 16)
 
 
 def print_load_warning(missing: list[str], unexpected: list[str]) -> None:
@@ -348,7 +413,9 @@ def load_flow_model(
         layer.sparsify()
     if GLOBAL_CONFIG['mlp']['is_fp8']:
         model = quantize_fp8(model, device=device)
-    # model.compile()
+    # if name != 'flux-dev-kontext':
+    #     model.compile()
+    model.compile()
     if configs[name].lora_path is not None:
         print("Loading LoRA")
         lora_sd = load_sft(configs[name].lora_path, device=str(device))
@@ -361,7 +428,7 @@ def load_flow_model(
 
 def load_t5(device: str | torch.device = "cuda", max_length: int = 512) -> HFEmbedder:
     # max length 64, 128, 256 and 512 should work (if your sequence is short enough)
-    return HFEmbedder("google/t5-v1_1-xxl", max_length=max_length, torch_dtype=torch.bfloat16).to(device)
+    return HFEmbedder("google/t5-v1_1-xxl", max_length=max_length, torch_dtype=torch.bfloat16, use_safetensors=True).to(device)
 
 
 def load_clip(device: str | torch.device = "cuda") -> HFEmbedder:

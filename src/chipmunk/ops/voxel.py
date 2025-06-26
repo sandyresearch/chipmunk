@@ -1,7 +1,7 @@
 import torch
 from einops import rearrange
 
-from chipmunk.config import GLOBAL_CONFIG
+from chipmunk.util.config import GLOBAL_CONFIG
 
 # x: [b, ah, t, h, w, d]
 #

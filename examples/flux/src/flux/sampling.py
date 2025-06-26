@@ -11,6 +11,7 @@ from .model import Flux
 from .modules.autoencoder import AutoEncoder
 from .modules.conditioner import HFEmbedder
 from .modules.image_embedders import CannyImageEncoder, DepthImageEncoder, ReduxImageEncoder
+from .util import PREFERED_KONTEXT_RESOLUTIONS
 
 from chipmunk.util.config import GLOBAL_CONFIG
 from chipmunk.ops import patchify, unpatchify, patchify_rope
@@ -23,6 +24,10 @@ def get_noise(
     dtype: torch.dtype,
     seed: int,
 ):
+    new_height = math.ceil(height / 16)
+    new_width = math.ceil(width / 16)
+    print(f'height: {height / 16}, width: {width / 16}')
+    print(f'new_height: {new_height}, new_width: {new_width}')
     return torch.randn(
         num_samples,
         16,
@@ -89,7 +94,7 @@ def prepare_control(
 
     width = w * 8
     height = h * 8
-    img_cond = img_cond.resize((width, height), Image.LANCZOS)
+    img_cond = img_cond.resize((width, height), Image.Resampling.LANCZOS)
     img_cond = np.array(img_cond)
     img_cond = torch.from_numpy(img_cond).float() / 127.5 - 1.0
     img_cond = rearrange(img_cond, "h w c -> 1 c h w")
@@ -208,9 +213,92 @@ def prepare_redux(
         "txt": txt.to(img.device),
         "txt_ids": txt_ids.to(img.device),
         "vec": vec.to(img.device),
-        "height": h,
-        "width": w,
     }
+
+
+def prepare_kontext(
+    t5: HFEmbedder,
+    clip: HFEmbedder,
+    prompt: str | list[str],
+    ae: AutoEncoder,
+    img_cond_path: str,
+    seed: int,
+    device: torch.device,
+    target_width: int | None = None,
+    target_height: int | None = None,
+    bs: int = 1,
+) -> tuple[dict[str, Tensor], int, int]:
+    # load and encode the conditioning image
+    if bs == 1 and not isinstance(prompt, str):
+        bs = len(prompt)
+
+    img_cond = Image.open(img_cond_path).convert("RGB")
+    orig_width, orig_height = img_cond.size
+    
+    aspect_ratio = orig_width / orig_height
+    
+    # Kontext is trained on specific resolutions, using one of them is recommended
+    _, width, height = min((abs(aspect_ratio - w / h), w, h) for w, h in PREFERED_KONTEXT_RESOLUTIONS)
+    
+    width = 2 * int(width / 16)
+    height = 2 * int(height / 16)
+
+    # Chipmunk padding
+    width_before_pad = width
+    height_before_pad = height
+    width = round(width / 16) * 16
+    height = round(height / 16) * 16
+    
+    img_cond = img_cond.resize((8 * width, 8 * height), Image.Resampling.LANCZOS)
+    img_cond = np.array(img_cond)
+    img_cond = torch.from_numpy(img_cond).float() / 127.5 - 1.0
+    img_cond = rearrange(img_cond, "h w c -> 1 c h w")
+    img_cond_orig = img_cond.clone()
+
+    with torch.no_grad():
+        img_cond = ae.encode(img_cond.to(device))
+
+    img_cond = img_cond.to(torch.bfloat16)
+    img_cond = rearrange(img_cond, "b c (h ph) (w pw) -> b (h w) (c ph pw)", ph=2, pw=2)
+    if img_cond.shape[0] == 1 and bs > 1:
+        img_cond = repeat(img_cond, "1 ... -> bs ...", bs=bs)
+
+    # image ids are the same as base image with the first dimension set to 1
+    # instead of 0
+    img_cond_ids = torch.zeros(height // 2, width // 2, 3)
+    img_cond_ids[..., 0] = 1
+    img_cond_ids[..., 1] = img_cond_ids[..., 1] + torch.arange(height // 2)[:, None]
+    img_cond_ids[..., 2] = img_cond_ids[..., 2] + torch.arange(width // 2)[None, :]
+    img_cond_ids = repeat(img_cond_ids, "h w c -> b (h w) c", b=bs)
+
+    target_width = 8 * width
+    target_height = 8 * height
+    
+    # Verify the math
+    expected_img_seq = math.ceil(target_height/16) * math.ceil(target_width/16)
+    expected_cond_seq = (height // 2) * (width // 2)
+    assert expected_img_seq == expected_cond_seq, f"Sequence length mismatch: img={expected_img_seq}, cond={expected_cond_seq}"
+
+    img = get_noise(
+        1,
+        target_height,
+        target_width,
+        device=device,
+        dtype=torch.bfloat16,
+        seed=seed,
+    )
+
+    return_dict = prepare(t5, clip, img, prompt)
+    del return_dict['height']
+    del return_dict['width']
+    return_dict["img_cond_seq"] = img_cond
+    return_dict["img_cond_seq_ids"] = img_cond_ids.to(device)
+    return_dict["img_cond_orig"] = img_cond_orig
+    
+    # Final verification
+    assert return_dict['img'].shape[1] == img_cond.shape[1], f"FINAL MISMATCH: img={return_dict['img'].shape[1]}, cond={img_cond.shape[1]}"
+    
+    return return_dict, target_height, target_width
 
 
 def time_shift(mu: float, sigma: float, t: Tensor):
@@ -243,59 +331,6 @@ def get_schedule(
 
     return timesteps.tolist()
 
-
-def _denoise_inner(
-    model: Flux,
-    # model input
-    img: Tensor,
-    img_ids: Tensor,
-    txt: Tensor,
-    txt_ids: Tensor,
-    vec: Tensor,
-    # sampling parameters
-    timesteps: list[float],
-    height: int,
-    width: int,
-    guidance: float = 4.0,
-    # extra img tokens
-    img_cond: Tensor | None = None,
-    step_fn = None
-):
-    latent_width, latent_height = height // 2, width // 2
-    if GLOBAL_CONFIG['patchify']['is_enabled']:
-        img = rearrange(img, "b (h w) c -> (b c) h w", h=latent_height, w=latent_width)
-        img = patchify(img)
-        img = rearrange(img, "(b c) x -> b x c", b=1)
-        if not hasattr(model, 'pe_patchified'):
-            ids = torch.cat((txt_ids, img_ids), dim=1)
-            pe = model.pe_embedder(ids)
-            model.pe_patchified = patchify_rope(img.shape, pe, latent_width, latent_height)
-
-    # this is ignored for schnell
-    guidance_vec = torch.full((img.shape[0],), guidance, device=img.device, dtype=img.dtype)
-    inference_step = 0
-    for t_curr, t_prev in zip(timesteps[:-1], timesteps[1:]):
-        t_vec = torch.full((img.shape[0],), t_curr, dtype=img.dtype, device=img.device)
-        pred = model(
-            img=torch.cat((img, img_cond), dim=-1) if img_cond is not None else img,
-            img_ids=img_ids,
-            txt=txt,
-            txt_ids=txt_ids,
-            y=vec,
-            timesteps=t_vec,
-            guidance=guidance_vec,
-        )
-        img = img + (t_prev - t_curr) * pred
-        if step_fn is not None:
-            step_fn(inference_step)
-        inference_step += 1
-
-    if GLOBAL_CONFIG['patchify']['is_enabled']:
-        img = rearrange(img, "b np c -> (b c) np")
-        img = unpatchify(img, (1, latent_height, latent_width))
-        img = rearrange(img, "(b c) h w -> b (h w) c", b=1)
-    return img
-
 def denoise(
     model: Flux,
     # model input
@@ -306,34 +341,82 @@ def denoise(
     vec: Tensor,
     # sampling parameters
     timesteps: list[float],
-    width: int,
-    height: int,
     guidance: float = 4.0,
-    # extra img tokens
+    # extra img tokens (channel-wise)
     img_cond: Tensor | None = None,
+    # extra img tokens (sequence-wise)
+    img_cond_seq: Tensor | None = None,
+    img_cond_seq_ids: Tensor | None = None,
+    height: int | None = None,
+    width: int | None = None,
 ):
-    # allow 5 images to be sampled without profiling to allow torch.compile to warm up
-    if not GLOBAL_CONFIG['should_profile'] or GLOBAL_CONFIG['generation_index'] < 3:
-        return _denoise_inner(model, img, img_ids, txt, txt_ids, vec, timesteps, width, height, guidance, img_cond)
-    else:
-        with torch.profiler.profile(
-            activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA], 
-            record_shapes=True,
-            profile_memory=True,
-            with_stack=True,
-            with_flops=True,
-            with_modules=True,
-            on_trace_ready=torch.profiler.tensorboard_trace_handler('./profiles'),
-            schedule=torch.profiler.schedule(wait=0, warmup=0, active=10),
-        ) as prof:
-            def step_fn(inference_step: int):
-                import os
-                prof.step()
-                if inference_step == 13:
-                    # end process
-                    os._exit(0)
-            return _denoise_inner(model, img, img_ids, txt, txt_ids, vec, timesteps, width, height, guidance, img_cond, step_fn)
+    latent_width, latent_height = height // 2, width // 2
+    if GLOBAL_CONFIG['patchify']['is_enabled']:
+        img = rearrange(img, "b (h w) c -> (b c) h w", h=latent_height, w=latent_width)
+        img = patchify(img)
+        img = rearrange(img, "(b c) x -> b x c", b=1)
 
+        if img_cond is not None:
+            img_cond = rearrange(img_cond, "b (h w) c -> (b c) h w", h=latent_height, w=latent_width)
+            img_cond = patchify(img_cond)
+            img_cond = rearrange(img_cond, "(b c) x -> b x c", b=1)
+
+        if img_cond_seq is not None:
+            img_cond_seq = rearrange(img_cond_seq, "b (h w) c -> (b c) h w", h=latent_height, w=latent_width)
+            img_cond_seq = patchify(img_cond_seq)
+            img_cond_seq = rearrange(img_cond_seq, "(b c) x -> b x c", b=1)
+        if not hasattr(model, 'pe_patchified'):
+            if img_cond_seq is not None:
+                ids = torch.cat((txt_ids, img_ids, img_cond_seq_ids), dim=1)
+            else:
+                ids = torch.cat((txt_ids, img_ids), dim=1)
+            pe = model.pe_embedder(ids)
+            shape = img.shape
+            if img_cond_seq is not None:
+                assert img.shape[1] == img_cond_seq.shape[1], f'img.shape[1]: {img.shape[1]}, img_cond_seq.shape[1]: {img_cond_seq.shape[1]}'
+                latent_height *= 2
+                shape = (shape[0], shape[1] * 2, shape[2])
+            model.pe_patchified = patchify_rope(shape, pe, latent_width, latent_height)
+
+    # this is ignored for schnell
+    guidance_vec = torch.full((img.shape[0],), guidance, device=img.device, dtype=img.dtype)
+    for t_curr, t_prev in zip(timesteps[:-1], timesteps[1:]):
+        t_vec = torch.full((img.shape[0],), t_curr, dtype=img.dtype, device=img.device)
+        img_input = img
+        img_input_ids = img_ids
+        if img_cond is not None:
+            img_input = torch.cat((img, img_cond), dim=-1)
+        if img_cond_seq is not None:
+            assert (
+                img_cond_seq_ids is not None
+            ), "You need to provide either both or neither of the sequence conditioning"
+            img_input = torch.cat((img_input, img_cond_seq), dim=1)
+            img_input_ids = torch.cat((img_input_ids, img_cond_seq_ids), dim=1)
+        assert img_input.shape[1] % 128 == 0, f'img_input.shape[1]: {img_input.shape[1]}'
+
+        pred = model(
+            img=img_input.contiguous(),
+            img_ids=img_input_ids.contiguous(),
+            txt=txt,
+            txt_ids=txt_ids,
+            y=vec,
+            timesteps=t_vec,
+            guidance=guidance_vec,
+        )
+        if img_input_ids is not None:
+            pred = pred[:, : img.shape[1]]
+
+        img = img + (t_prev - t_curr) * pred
+
+    if GLOBAL_CONFIG['patchify']['is_enabled']:
+        delattr(model, 'pe_patchified')
+        if img_cond_seq is not None:
+            latent_height //= 2
+        img = rearrange(img, "b np c -> (b c) np")
+        img = unpatchify(img, (1, latent_height, latent_width))
+        img = rearrange(img, "(b c) h w -> b (h w) c", b=1)
+
+    return img
 
 def unpack(x: Tensor, height: int, width: int) -> Tensor:
     return rearrange(

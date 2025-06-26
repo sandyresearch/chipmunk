@@ -42,6 +42,13 @@ export PROMPT="A very cute cartoon chipmunk dressed up as a ninja holding katana
 python -m flux.cli --name flux-dev --prompt "$PROMPT" --loop --chipmunk-config ./chipmunk-config.yml
 ```
 
+For the context model, you can run:
+~~~
+python -m flux.cli_kontext --name flux-dev-kontext \
+    --loop \
+    --chipmunk-config kontext-chipmunk-config.yml
+~~~
+
 ### 3\. Play around with sparsity settings
 
 You can edit `chipmunk-config.yml` to your liking! Here are a few parameters that make the most impact on speed:

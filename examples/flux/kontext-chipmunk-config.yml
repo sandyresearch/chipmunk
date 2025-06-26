@@ -1,0 +1,47 @@
+steps: 30
+
+mlp:
+  is_enabled: true
+  is_fp8: false
+  top_keys: 0.5
+
+  random_keys: 0.05
+  full_step_every: 10
+  block_mask_cache: 2
+  first_n_dense_layers: 2
+
+  provider: triton
+
+patchify:
+  is_enabled: true
+  # To disable patching at any level, set that level's patch size to 1. To disable patching entirely, set all patch sizes to 1.
+  chunk_size_1: 8
+  chunk_size_2: 4
+
+attn:
+  is_enabled: true
+  top_keys: 0.15
+
+  full_step_every: 10
+  full_step_schedule: ~
+  first_n_dense_layers: 2
+  recompute_mask: false
+  should_compress_indices: false
+
+  provider: triton
+
+offloading:
+  global_disable_offloading: true
+  mlp.out_cache: false
+  mlp.indices: false
+  mlp.counts: false
+  mlp.sparse_act_T: false
+  mlp.blockmean_mid_cache: false
+  attn.out_cache: false
+  attn.indices: false
+  attn.counts: false
+  attn.lse_constants: false
+  text_encoders: false
+
+step_caching:
+  is_enabled: false
