@@ -42,7 +42,7 @@ export PROMPT="A very cute cartoon chipmunk dressed up as a ninja holding katana
 python -m flux.cli --name flux-dev --prompt "$PROMPT" --loop --chipmunk-config ./chipmunk-config.yml
 ```
 
-For the context model, you can run:
+For the kontext model, you can run:
 ~~~
 python -m flux.cli_kontext --name flux-dev-kontext \
     --loop \
