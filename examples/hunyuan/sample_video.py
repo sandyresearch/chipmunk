@@ -16,11 +16,13 @@ import torch._dynamo
 from hyvideo.utils.file_utils import save_videos_grid
 from hyvideo.config import parse_args
 from hyvideo.inference import HunyuanVideoSampler
-from hyvideo.modules.chipmunk.config import update_global_config
+# from hyvideo.modules.chipmunk.config import update_global_config
 
 from hyvideo.modules.head_parallel import setup_dist
 
-# @ray.remote(num_gpus=1)
+import gc
+
+@ray.remote(num_gpus=1)
 def main(args=None, local_rank=None, world_size=None):
     chipmunk.util.config.load_from_file("chipmunk-config.yml")
     models_root_path = Path(args.model_base)
@@ -28,22 +30,26 @@ def main(args=None, local_rank=None, world_size=None):
         raise ValueError(f"`models_root` not exists: {models_root_path}")
     
     # Create save folder to save the samples
-    # save_path = args.save_path if args.save_path_suffix=="" else f'{args.save_path}_{args.save_path_suffix}'
-    save_path = 'outputs/chipmunk'
+    save_path = args.save_path if args.save_path_suffix=="" else f'{args.save_path}_{args.save_path_suffix}'
+    # save_path = 'outputs/chipmunk'
     if not os.path.exists(save_path):
         os.makedirs(save_path, exist_ok=True)
 
     # ==================== Initialize Distributed Environment ================
-    device = torch.device(f"cuda")
+    device = torch.device(f"cuda:0")
     if world_size > 1:
         os.environ["MASTER_ADDR"] = "127.0.0.1"
         os.environ["MASTER_PORT"] = "29500"
         os.environ['LOCAL_RANK'] = str(local_rank)
         # Ray initializes each process to only have one visible GPU.
+        # Under Ray, each actor sees exactly one GPU as device 0.
+        torch.cuda.set_device(0)
+        device = torch.device("cuda:0")
         dist.init_process_group(
             "nccl",
             rank=local_rank,
             world_size=world_size,
+            device_id=device,
         )
         pg = dist.group.WORLD
         setup_dist(pg, local_rank, world_size)
@@ -58,25 +64,33 @@ def main(args=None, local_rank=None, world_size=None):
     # twice for torch compile warmup
     # for prompt in [args.prompt, args.prompt]:
     prompt_cache = None
+    run = 0
     while True:
-        if prompt_cache is None:
-            prompt = input("Enter a prompt: ")
-            seed = input("Enter a seed (empty for random): ")
-            if seed == "":
-                seed = random.randint(0, 1000000)
-            else:
-                seed = int(seed)
-            prompt_cache = prompt
+        if args.ulysses_degree > 1:
+            prompt = args.prompt
+            seed = args.seed + run
+            if run > 1:
+                print(f'Completed {run} runs -- exiting.')
+                return
         else:
-            prompt = input("Enter a prompt (empty for previous prompt): ")
-            if prompt == "":
-                prompt = prompt_cache
-            prompt_cache = prompt
-            seed = input("Enter a seed (empty for random): ")
-            if seed == "":
-                seed = random.randint(0, 1000000)
+            if prompt_cache is None:
+                prompt = input("Enter a prompt: ")
+                seed = input("Enter a seed (empty for random): ")
+                if seed == "":
+                    seed = random.randint(0, 1000000)
+                else:
+                    seed = int(seed)
+                prompt_cache = prompt
             else:
-                seed = int(seed)
+                prompt = input("Enter a prompt (empty for previous prompt): ")
+                if prompt == "":
+                    prompt = prompt_cache
+                prompt_cache = prompt
+                seed = input("Enter a seed (empty for random): ")
+                if seed == "":
+                    seed = random.randint(0, 1000000)
+                else:
+                    seed = int(seed)
         # prompt_ids = prompt['ids']
         # prompt_text = prompt['prompt']
         # seed = prompt['seed']
@@ -116,6 +130,10 @@ def main(args=None, local_rank=None, world_size=None):
                     save_videos_grid(sample, cur_save_path, fps=24)
                     logger.info(f'Sample save to: {cur_save_path}')
 
+        torch.cuda.empty_cache()
+        gc.collect()
+        run += 1
+
 def run_all(args):
     import traceback
     import sys
@@ -143,8 +161,14 @@ def run_all(args):
         sys.exit(1)
 
 if __name__ == "__main__":
-    # ray.init(_temp_dir='/tmp/ray-hunyuan')
+    ray.init(_temp_dir='/scratch/austin/tmp/ray-hunyuan')
     args = parse_args()
-    main(args, local_rank=0, world_size=1)
-    # results = run_all(args)
+    # main(args, local_rank=0, world_size=1)
+
+    if args.ulysses_degree > 1:
+        assert args.prompt is not None, "Prompt is required for parallel sampling"
+        assert args.seed is not None, "Seed is required for parallel sampling"
+
+    results = run_all(args)
+
 

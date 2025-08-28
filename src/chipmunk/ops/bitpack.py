@@ -67,4 +67,5 @@ def bitunpack(packed: torch.Tensor, original_shape: Tuple[int, ...]):
     bits = bits_2d.view(-1)[:total_bits]
 
     # Reshape to the original shape
+    # return bits.view(*original_shape).contiguous()
     return bits.view(*original_shape)

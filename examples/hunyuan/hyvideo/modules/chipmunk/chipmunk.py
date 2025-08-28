@@ -1,5 +1,88 @@
+import math
 import torch
 from einops import rearrange
+from typing import Tuple
+
+# x: [b, ah, t, h, w, d]
+#
+# return
+#   chunked: [b, ah, (num_chunks * 4^3), d]
+#   mask: [b, ah, (num_chunks * 4^3)]
+def voxel_chunk(x, voxel_shape=(4, 4, 4)):
+    # Get dimensions
+    b, ah, t, h, w, d = x.shape
+    
+    vt, vh, vw = voxel_shape
+    # Calculate padding needed for each dimension
+    pad_t = (vt - (t % vt)) % vt
+    pad_h = (vh - (h % vh)) % vh
+    pad_w = (vw - (w % vw)) % vw
+    
+    # Pad the spatial dimensions
+    x_padded = torch.nn.functional.pad(x, (0, 0,    # d dimension
+                                         0, pad_w,   # w dimension
+                                         0, pad_h,   # h dimension
+                                         0, pad_t))  # t dimension
+
+    x_flat = rearrange(x_padded, "b ah t h w d -> b ah (t h w) d")
+    
+    # Flatten and reshape into 4x4x4 chunks
+    x_chunks = rearrange(x_flat, "b ah (nt ct nh ch nw cw) d -> b ah (nt nh nw) (ct ch cw) d",
+                        nt=((t+pad_t)//vt), ct=vt,
+                        nh=((h+pad_h)//vh), ch=vh,
+                        nw=((w+pad_w)//vw), cw=vw)
+    
+    # Flatten chunks to final shape
+    x_chunk_flat = rearrange(x_chunks, "b ah nc c d -> b ah (nc c) d")
+    
+    # Create padding mask
+    mask = torch.ones_like(x_padded[:, :, :, :, :, 0], dtype=torch.bool)
+    mask[:, :, t:, :, :] = False  # temporal padding
+    mask[:, :, :, h:, :] = False  # height padding
+    mask[:, :, :, :, w:] = False  # width padding
+    
+    # Reshape mask to match chunked data
+    mask_flat = rearrange(mask, "b ah t h w -> b ah (t h w)")
+    mask_chunks = rearrange(mask_flat, "b ah (nt ct nh ch nw cw) -> b ah (nt nh nw) (ct ch cw)",
+                           nt=((t+pad_t)//vt), ct=vt,
+                           nh=((h+pad_h)//vh), ch=vh,
+                           nw=((w+pad_w)//vw), cw=vw)
+    
+    # Flatten mask chunks
+    mask_chunk_flat = rearrange(mask_chunks, "b ah nc c -> b ah (nc c)")
+
+    if x_chunk_flat.size(2) % 64 != 0:
+        padding = 64 - x_chunk_flat.size(2) % 64
+        x_chunk_flat = torch.cat([x_chunk_flat, torch.zeros((b, ah, padding, d), dtype=x_chunk_flat.dtype, device="cuda")], dim=2)
+        mask_chunk_flat = torch.cat([mask_chunk_flat, torch.zeros((b, ah, padding), dtype=mask_chunk_flat.dtype, device="cuda")], dim=2)
+    
+    return x_chunk_flat.contiguous(), mask_chunk_flat[0, 0].contiguous()
+
+def reverse_voxel_chunk(x_chunk_flat, original_shape, voxel_shape=(4, 4, 4)):
+    b, ah, t, h, w, d = original_shape
+    
+    vt, vh, vw = voxel_shape
+    # Calculate padding needed for each dimension
+    pad_t = (vt - (t % vt)) % vt
+    pad_h = (vh - (h % vh)) % vh
+    pad_w = (vw - (w % vw)) % vw
+    
+    # Reshape flat chunks back into separate chunks
+    num_voxels = ((t+pad_t)//vt) * ((h+pad_h)//vh) * ((w+pad_w)//vw)
+    # Without final 64 padding
+    x_chunks = rearrange(x_chunk_flat[:, :, :num_voxels * (vt * vh * vw)], "b ah (nc c) d -> b ah nc c d",
+                        nc=num_voxels)
+    
+    # Reshape chunks back into padded volume
+    x_padded = rearrange(x_chunks, "b ah (nt nh nw) (ct ch cw) d -> b ah (nt ct) (nh ch) (nw cw) d",
+                        nt=((t+pad_t)//vt), ct=vt,
+                        nh=((h+pad_h)//vh), ch=vh,
+                        nw=((w+pad_w)//vw), cw=vw)
+    
+    # Remove padding
+    x = x_padded[:, :, :t, :h, :w, :]
+    
+    return x.contiguous()
 
 # x: [b, ah, t, h, w, d]
 #
@@ -208,11 +291,11 @@ def get_local_indices_with_text(
     txt_len,
     voxel_shape,
     local_shape,
-    full_tail_from_attn=False,
-    full_tail_to_attn=False,
     rk=0,
     kv_tile_size=128,
-    device=torch.device('cuda')
+    device=torch.device('cuda'),
+    full_tail_from_attn=False,
+    full_tail_to_attn=False,
 ):
     cdiv = lambda x, y: ((x + y - 1) // y)
 
@@ -302,3 +385,73 @@ def get_local_indices_with_text(
     # print(f'merged mask')
     inds, counts = masktoinds(mask, multiple=kv_tile_size)
     return mask, inds, counts
+
+@torch.compile(dynamic=False)
+def bitpack(mask: torch.Tensor):
+    r"""
+    Compresses a boolean tensor into a bit-packed uint8 tensor in parallel on the GPU.
+    Each output byte encodes 8 bits (True or False) from the input tensor, in little-endian order.
+
+    Args:
+        mask (torch.Tensor): A boolean tensor to compress. Must be on the GPU.
+
+    Returns:
+        (torch.Tensor, Tuple[int, ...]):
+            A tuple of:
+            - A 1-D torch.uint8 tensor of length ceil(numel(mask) / 8)
+              storing the packed bits on the GPU.
+            - The original shape of the mask tensor (for later unpacking).
+    """
+    original_shape = mask.shape
+    # Flatten the tensor
+    flat_mask = mask.flatten()
+    n = flat_mask.numel()
+
+    # Number of bits we need to pad so that we can reshape into 8 columns
+    pad_size = (-n) % 8  # same as: (8 - (n % 8)) % 8
+
+    # Zero-pad if necessary
+    # if pad_size > 0:
+    flat_mask = torch.cat([flat_mask, flat_mask.new_zeros(pad_size)])
+
+    # Reshape to [N/8, 8], cast to uint8
+    flat_mask = flat_mask.view(-1, 8).to(torch.uint8)
+
+    # For each column j, we multiply by 2^j and sum across columns
+    # shifts = [1, 2, 4, 8, 16, 32, 64, 128]
+    shifts = (2 ** torch.arange(8, dtype=torch.uint8, device=flat_mask.device)).view(1, -1)
+    packed = (flat_mask * shifts).sum(dim=1, dtype=torch.uint8).contiguous()  # [N/8]
+
+    return packed, original_shape
+
+
+@torch.compile(dynamic=False)
+def bitunpack(packed: torch.Tensor, original_shape: Tuple[int, ...]):
+    r"""
+    Decompresses a bit-packed tensor (uint8) back to a boolean tensor in parallel on the GPU.
+
+    Args:
+        packed (torch.Tensor): A 1-D bit-packed tensor of type torch.uint8 on the GPU.
+        original_shape (Tuple[int, ...]): The original shape of the boolean tensor.
+
+    Returns:
+        torch.Tensor: A boolean tensor of shape original_shape.
+    """
+    # Compute total number of bits needed
+    total_bits = 1
+    for dim in original_shape:
+        total_bits *= dim
+
+    # Expand the packed bytes to 8 bits each
+    # shifts = [1, 2, 4, 8, 16, 32, 64, 128]
+    shifts = (2 ** torch.arange(8, dtype=torch.uint8, device=packed.device)).view(1, -1)
+    
+    # (packed.unsqueeze(1) >> shift) & 1 gives bits; shape => [N_bytes, 8]
+    bits_2d = ((packed.unsqueeze(1) & shifts) > 0).to(torch.bool)
+
+    # Flatten and truncate if there was padding
+    bits = bits_2d.view(-1)[:total_bits]
+
+    # Reshape to the original shape
+    return bits.view(*original_shape)
+

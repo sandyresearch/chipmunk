@@ -13,13 +13,13 @@ BASE_CONFIG = {
         'is_enabled': True,
         'is_fp8': False,
 
-        'top_keys': 0.3,
+        'top_keys': "dd", # this will generate an error indicating that top_keys is not a float
         'random_keys': 0.05,
         'full_step_every': 10,
         'block_mask_cache': 2,
         'first_n_dense_layers': 2,
 
-        'provider': 'cuda', # either 'cuda' or 'triton'
+        'provider': 'triton',
     },
      "patchify": {
         'is_enabled': True,
@@ -41,9 +41,11 @@ BASE_CONFIG = {
 
         'recompute_mask': True,
         'should_compress_indices': True,
-        'should_keep_tail_dense': False,
-        
-        'provider': 'cuda', # either 'cuda' or 'triton'
+        'pad_qkv_before_kernel': True,
+        'full_tail_from_attn': False,
+        'full_tail_to_attn': False,
+
+        'provider': 'triton',
     },
     "offloading": {
         'global_disable_offloading': False,
@@ -62,7 +64,8 @@ BASE_CONFIG = {
         'text_encoders': True,
     },
     "step_caching": {
-        'is_enabled': False,
+        'is_enabled': True,
+
         'skip_step_schedule': set([7, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43])
     }
 }
@@ -81,14 +84,12 @@ def get_kernel_config_attn():
         return {
             'bm': 192,
             'counts_multiple_of': 64,
-            'indices_pad_to': 1,
         }
     elif GLOBAL_CONFIG['attn']['provider'] == 'cuda':
         # CUDA-based FA3 uses a blocksize of 192x~128
         return {
             'bm': 192,
-            'counts_multiple_of': 112,
-            'indices_pad_to': 4,
+            'counts_multiple_of': 128 if GLOBAL_CONFIG['attn']['pad_qkv_before_kernel'] else 112,
         }
     else:
         raise ValueError(f"Invalid provider: {GLOBAL_CONFIG['attn']['provider']}")

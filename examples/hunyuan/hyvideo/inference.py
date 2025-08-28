@@ -598,6 +598,25 @@ class HunyuanVideoSampler(Inference):
         )
         self.pipeline.scheduler = scheduler
 
+        # Reset LayerCounter at the beginning of each inference step
+        # This ensures coordinate bookkeeping starts fresh for every call to `predict`.
+        # Access the LayerCounter instance through the first attention layer that was
+        # created during model construction.
+        if hasattr(self.model, 'double_blocks') and len(self.model.double_blocks) > 0:
+            try:
+                print(f'Resetting LayerCounter')
+                self.model.double_blocks[0].attention.layer_counter.reset()
+            except AttributeError:
+                # Fallback path for potential naming changes in future implementations
+                # (e.g., the attention layer might be stored under a different attribute).
+                first_block = self.model.double_blocks[0]
+                for attr_name in dir(first_block):
+                    attr = getattr(first_block, attr_name)
+                    if hasattr(attr, 'layer_counter'):
+                        print(f'Resetting LayerCounter for {attr_name}')
+                        getattr(attr, 'layer_counter').reset()
+                        break
+
         # ========================================================================
         # Build Rope freqs
         # ========================================================================

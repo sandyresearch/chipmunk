@@ -1,7 +1,7 @@
 import os
 import torch
 
-WEIGHTS_PATH = './ckpts'
+WEIGHTS_PATH = os.getenv("WEIGHTS_DIR", './ckpts')
 
 __all__ = [
     "C_SCALE",

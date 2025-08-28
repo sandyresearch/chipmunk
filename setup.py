@@ -1,8 +1,15 @@
 import os
 import subprocess
 from setuptools import find_packages, setup
-from torch.utils.cpp_extension import BuildExtension, CUDAExtension
-import torch
+
+# Defer torch imports until needed to avoid build-time dependency issues
+def get_torch_extension_classes():
+    from torch.utils.cpp_extension import BuildExtension, CUDAExtension
+    return BuildExtension, CUDAExtension
+
+def get_torch():
+    import torch
+    return torch
 
 # Read requirements from requirements.txt
 with open('requirements.txt') as f:
@@ -18,6 +25,9 @@ sources = {
     },
     'csp_attn': {
         'source_files': { HOPPER_GENERATION: 'csrc/attn/csp_attn.cu' }
+    },
+    'csp_128_attn': {
+        'source_files': { HOPPER_GENERATION: 'csrc/attn/csp_128_attn.cu' }
     },
     'attn': {
         'source_files': { HOPPER_GENERATION: 'csrc/attn/dense_attn.cu' }
@@ -46,6 +56,7 @@ sources = {
 kernels = [
     'colsum_attn',
     'csp_attn',
+    'csp_128_attn',
     'attn',
     'csp_mlp_mm1',
     'csp_mlp_mm2_and_scatter_add',
@@ -55,7 +66,9 @@ kernels = [
     'mask_to_indices',
 ]
 
-target = HOPPER_GENERATION if torch.cuda.get_device_capability()[0] == 9 else DEFAULT_GENERATION
+torch = get_torch()
+# target = HOPPER_GENERATION if torch.cuda.get_device_capability()[0] == 9 else DEFAULT_GENERATION
+target = HOPPER_GENERATION
 
 tk_root = 'submodules/ThunderKittens'
 tk_root = os.path.abspath(tk_root)
@@ -81,14 +94,15 @@ cuda_flags = [
     '-Xptxas=--warn-on-spills',
     '-DTORCH_COMPILE',
 ] + torch_include.split()
-cpp_flags = ['-std=c++20', '-O3', '-DDPy_LIMITED_API=0x03100000']
+cpp_flags = ['-std=c++20', '-O3', '-DDPy_LIMITED_API=0x03120000']
 
 if target == HOPPER_GENERATION:
     cuda_flags.append('-DKITTENS_HOPPER')
     cpp_flags.append('-DKITTENS_HOPPER')
 
-arch = f'sm_{torch.cuda.get_device_capability()[0]}{torch.cuda.get_device_capability()[1]}'
-if arch == 'sm_90': arch = 'sm_90a'
+# arch = f'sm_{torch.cuda.get_device_capability()[0]}{torch.cuda.get_device_capability()[1]}'
+# if arch == 'sm_90': arch = 'sm_90a'
+arch = 'sm_90a'
 cuda_flags.append(f'-arch={arch}')
 
 source_files = ['csrc/chipmunk.cu']
@@ -105,6 +119,9 @@ for k in kernels:
     else:                                         # neither variant exists → skip
         raise ValueError(f'No CUDA source for kernel {k} on target {target}')
     cpp_flags.append(f'-DTK_COMPILE_{k.replace(" ", "_").upper()}')
+
+# Get torch extension classes
+BuildExtension, CUDAExtension = get_torch_extension_classes()
 
 setup(
     name='chipmunk',
@@ -130,5 +147,5 @@ setup(
         )
     ],
     cmdclass={'build_ext': BuildExtension},
-    options={"bdist_wheel": {"py_limited_api": "cp310"}}      
+    options={"bdist_wheel": {"py_limited_api": "cp312"}}      
 )

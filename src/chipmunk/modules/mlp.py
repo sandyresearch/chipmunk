@@ -28,16 +28,15 @@ class SparseDiffMlp:
         self.num_sms_scatter_add = heuristic_sms_scatter_add
 
     def forward(self, x: torch.Tensor):
-        assert x.ndim == 3 and x.shape[0] == 1, "x must be (1, N, C)"
-
         fc1, fc2 = self.fc1[0], self.fc2[0]
-        
-        inference_step, layer, _ = self.layer_counter.cur_inference_step, self.layer_counter.cur_layer, self.layer_counter.cur_layer_submodule
-        do_full  = self.layer_counter.should_do_full_mlp_step()
-        self.layer_counter.increment()
 
         if not GLOBAL_CONFIG['mlp']['is_enabled']:
             return fc2(self.activation(fc1(x)))
+
+        do_full  = self.layer_counter.should_do_full_mlp_step()
+        inference_step, layer, submodule = self.layer_counter.increment()
+
+        assert x.ndim == 3 and x.shape[0] == 1, "x must be (1, N, C)"
 
         mlp_cfg              = GLOBAL_CONFIG['mlp']
         mlp_kernel_cfg       = get_kernel_config_mlp()
@@ -74,11 +73,17 @@ class SparseDiffMlp:
             mdiff   = (bmfc1 - self.storage.get_blockmean_mid_cache()).abs()
             mdiff   = rearrange(mdiff, 'b (mb r) f -> b r mb f', r=r).sum(dim=1)
 
-            inds    = torch.empty_like(mdiff, dtype=torch.int32, device=x.device)
-            counts  = torch.empty((mdiff.size(0), mdiff.size(1)), dtype=torch.int32, device=x.device)
-            
-            chipmunk.ops.topk_indices(mdiff, inds, counts, sparsity, multiple_of, mlp_cfg['random_keys'])
-            chipmunk.ops.copy_indices(bmfc1, self.storage.get_blockmean_mid_cache(), inds, counts)
+            inds   = torch.empty_like(mdiff, dtype=torch.int32, device=x.device)
+            counts = torch.empty(
+                (mdiff.size(0), mdiff.size(1)), dtype=torch.int32, device=x.device
+            )
+            chipmunk.ops.topk_indices(
+                mdiff, inds, counts, sparsity, multiple_of, mlp_cfg['random_keys']
+            )
+            chipmunk.ops.copy_indices(bmfc1,
+                                      self.storage.get_blockmean_mid_cache(),
+                                      inds,
+                                      counts)
 
             self.storage.set_indices(inds)
             self.storage.set_counts(counts)

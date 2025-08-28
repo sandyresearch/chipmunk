@@ -47,6 +47,7 @@ template<int D> struct fwd_globals {
     k_gl k;
     v_gl v;
     l_gl l;
+    m_gl m;
     o_gl o;
 
     const int kN; 
@@ -292,21 +293,26 @@ dense_attn(at::Tensor q, at::Tensor k, at::Tensor v)
                                         static_cast<const uint>(seq_len), 
                                         static_cast<const uint>(head_dim)}, v.options().memory_format(at::MemoryFormat::Contiguous));
     
-    constexpr int SEQUENCE_STRIDE_PADDING = 16 / sizeof(float); // all strides need to be a multiple of 16b
-    const uint seq_len_padded = static_cast<uint>((seq_len + SEQUENCE_STRIDE_PADDING - 1) / SEQUENCE_STRIDE_PADDING * SEQUENCE_STRIDE_PADDING);
-
-    // Size vector: (batch, heads, seq_len, 1)
-    at::DimVector sizes   = { (int64_t)batch, (int64_t)qo_heads, (int64_t)seq_len, 1 };
-    at::DimVector strides = { (int64_t)qo_heads * seq_len_padded, (int64_t)seq_len_padded, 1, 0 };
-
-    auto opts = torch::TensorOptions().dtype(torch::kFloat).device(q.device());
-    at::Tensor l_vec = torch::empty_strided(sizes, strides, opts);
+    at::Tensor l_vec = torch::empty({static_cast<const uint>(batch), 
+                                        static_cast<const uint>(qo_heads), 
+                                        static_cast<const uint>(seq_len), 
+                                        static_cast<const uint>(1)}, 
+                                        torch::TensorOptions().dtype(torch::kFloat).device(q.device()).memory_format(at::MemoryFormat::Contiguous));
+    at::Tensor m_vec = torch::empty({static_cast<const uint>(batch), 
+                                        static_cast<const uint>(qo_heads), 
+                                        static_cast<const uint>(seq_len), 
+                                        static_cast<const uint>(1)}, 
+                                        torch::TensorOptions().dtype(torch::kFloat).device(q.device()).memory_format(at::MemoryFormat::Contiguous));
+        
 
     bf16*  o_ptr = reinterpret_cast<bf16*>(o.data_ptr<c10::BFloat16>());
     bf16*  d_o   = reinterpret_cast<bf16*>(o_ptr);
 
     float* l_ptr = reinterpret_cast<float*>(l_vec.data_ptr<float>());
     float* d_l   = reinterpret_cast<float*>(l_ptr);
+
+    float* m_ptr = reinterpret_cast<float*>(m_vec.data_ptr<float>());
+    float* d_m   = reinterpret_cast<float*>(m_ptr);
 
     auto stream = at::cuda::getCurrentCUDAStream().stream(); 
 
@@ -335,16 +341,13 @@ dense_attn(at::Tensor q, at::Tensor k, at::Tensor v)
     q_global qg_arg{d_q, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), static_cast<unsigned int>(seq_len), 128U};
     k_global kg_arg{d_k, static_cast<unsigned int>(batch), static_cast<unsigned int>(kv_heads), static_cast<unsigned int>(kseq_len), 128U};
     v_global vg_arg{d_v, static_cast<unsigned int>(batch), static_cast<unsigned int>(kv_heads), static_cast<unsigned int>(kseq_len), 128U};
-    l_global lg_arg{d_l, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), 1U,   static_cast<unsigned int>(seq_len_padded)};
+    l_global lg_arg{d_l, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), 1U,   static_cast<unsigned int>(seq_len)};
+    l_global mg_arg{d_m, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), 1U,   static_cast<unsigned int>(seq_len)};
     o_global og_arg{d_o, static_cast<unsigned int>(batch), static_cast<unsigned int>(qo_heads), static_cast<unsigned int>(seq_len), 128U};
     chipmunk::create_tensor_map_with_strides<q_tile, 2>(&qg_arg.tma_descs.tma_desc, d_q, batch, qo_heads, seq_len, head_dim, q.stride(0), q.stride(1), q.stride(2));
     chipmunk::create_tensor_map_with_strides<k_tile, 2>(&kg_arg.tma_descs.tma_desc, d_k, batch, kv_heads, kseq_len, head_dim, k.stride(0), k.stride(1), k.stride(2));
     chipmunk::create_tensor_map_with_strides<v_tile, 2>(&vg_arg.tma_descs.tma_desc, d_v, batch, kv_heads, kseq_len, head_dim, v.stride(0), v.stride(1), v.stride(2));
-
-
-    chipmunk::create_tensor_map_with_strides<l_col_vec, -1>(&lg_arg.tma_descs.tma_desc, d_l, batch, qo_heads, 1U, seq_len, l_vec.stride(0), l_vec.stride(1), l_vec.stride(3));
-
-    globals g{qg_arg, kg_arg, vg_arg, lg_arg, og_arg, static_cast<int>(kseq_len), static_cast<int>(hr)};
+    globals g{qg_arg, kg_arg, vg_arg, lg_arg, mg_arg, og_arg, static_cast<int>(kseq_len), static_cast<int>(hr)};
 
     auto mem_size = kittens::MAX_SHARED_MEMORY;
     auto threads  = NUM_WORKERS * kittens::WARP_THREADS;

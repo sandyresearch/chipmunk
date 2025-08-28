@@ -1,5 +1,6 @@
-torch>=2.5.0
-torchvision
+# torch==2.5.0
+# torchvision
+numpy<2
 einops
 fire
 huggingface-hub
@@ -22,3 +23,9 @@ accelerate
 ftfy
 flash_attn
 easydict
+# moviepy==1.0.3
+moviepy
+# pillow==9.5.0
+pillow
+# av==13.1.0
+av

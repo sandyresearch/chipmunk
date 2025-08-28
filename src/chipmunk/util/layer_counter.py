@@ -66,8 +66,5 @@ class LayerCounter:
 
     def get_cur_coord(self):
         return (self.cur_inference_step, self.cur_layer, self.cur_layer_submodule)
-    
-    def __repr__(self) -> str:
-        return f"LayerCounter(cur_inference_step={self.cur_inference_step}/{GLOBAL_CONFIG['steps']}, cur_layer={self.cur_layer}/{self.num_layers}, cur_layer_submodule={self.cur_layer_submodule}/{self.num_submodules_per_layer}, cur_model_invocation_per_step={self.cur_model_invocation_per_step}/{GLOBAL_CONFIG['num_model_invocations_per_inference_step']})"
 
 singleton = LayerCounter(0, 0)
