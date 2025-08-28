@@ -20,9 +20,10 @@ _Developed in collaboration between Together AI, Hazy Research, and Sandy Resear
 
 ## 🎆 At a glance...
 
-- **\~3.7x** faster video generation on HunyuanVideo at 720x1280 resolution for a 5s video (50 steps)
-- **\~2.67x** faster video generation on Wan2.1 at 720x1280 resolution for a 3s video (50 steps)
-- **\~1.6x** faster image generations on FLUX.1-dev at 1280x768 resolution (50 steps)
+- **\~3.7x** faster video generation on 1x H100 HunyuanVideo at 720x1280 resolution for a 5s video (50 steps)
+- **\~2.5x** faster video generation on 8x H100 HunyuanVideo at 720x1280 resolution for a 5s video (50 steps)
+- **\~2.67x** faster video generation on 1x H100 Wan2.1 at 720x1280 resolution for a 3s video (50 steps)
+- **\~1.6x** faster image generations on 1x H100 FLUX.1-dev at 1280x768 resolution (50 steps)
 - Column Sparse Attention layer is **~9.3x** faster than FlashAttention3 baseline
 - Column Sparse MLP layer is **~2.5x** faster than cuBLAS baseline
 
@@ -84,6 +85,8 @@ python hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py --input_dir ./ck
 # One-line accelerated inference script
 python3 sample_video.py --flow-reverse --chipmunk-config ./chipmunk-config.yml
 ```
+
+For running on multiple H100s, see the [instructions](https://github.com/sandyresearch/chipmunk/blob/multigpu/Dockerfile) for building and running the Docker container on the multigpu branch.
 
 _FYI: for Chipmunk's just-in-time offloading, we manage a pool of pinned CPU memory. Model initialization may take up to ~5 minutes as we allocate all these pinned buffers in RAM!_
 
