@@ -31,6 +31,8 @@ https://github.com/user-attachments/assets/b68f5c08-6acc-4915-99a8-e80293836aea
 ### 1. Clone repo, build kernels, & install deps
 Follow the Quickstart instructions in the [base Chipmunk directory](../../README.md) to install Chipmunk's base collection of primitives.
 
+For running on multiple H100s, see the [instructions](https://github.com/sandyresearch/chipmunk/blob/multigpu/Dockerfile) for building and running the Docker container on the multigpu branch.
+
 ### 2\. Download Hunyuan Weights
 
 ```bash
